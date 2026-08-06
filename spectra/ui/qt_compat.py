@@ -74,10 +74,21 @@ def _detect_binding() -> str:
             pass
 
     # Default: try PySide6 -> PyQt5 -> PySide2.
+    # On macOS, prefer PyQt5 to avoid Qt5/Qt6 conflicts with IDA Pro
+    if sys.platform == "darwin":
+        try:
+            import PyQt5  # noqa: F401
+            return "PyQt5"
+        except ImportError:
+            pass
+
+    # Try PySide6, but verify it actually works (dylib loading)
     try:
         import PySide6  # noqa: F401
+        # Verify the dylib loads by trying to import QtCore
+        from PySide6.QtCore import QObject  # noqa: F401
         return "PySide6"
-    except ImportError:
+    except (ImportError, AttributeError):
         pass
 
     try:
