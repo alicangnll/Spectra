@@ -1,7 +1,11 @@
 {
-  "version": "1.3.4",
+  "version": "1.3.5",
   "release_date": "2026-08-06",
   "changelog": [
+    "Fixed _update_version_marker parameter order causing PosixPath type error",
+    "Fixed download_update stuck issue with better progress reporting and error handling",
+    "Reduced download timeout from 300s to 60s for faster error detection",
+    "Added real-time download progress messages to IDA UI",
     "Fixed frontmatter parser to handle very long description lines and multiple --- markers",
     "Rewrote _split_frontmatter() to scan line-by-line instead of string search for robust parsing",
     "Fixed skill discovery truncation issue that prevented 0day-find and other skills with long descriptions from loading",
