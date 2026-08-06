@@ -102,19 +102,51 @@ def _split_frontmatter(text: str) -> tuple:
     """Split a SKILL.md into (frontmatter_text, body_text).
 
     Returns ("", text) if no frontmatter markers found.
+
+    Handles edge cases:
+    - Very long description lines that might cause premature truncation
+    - Multiple --- markers in the body (e.g., markdown horizontal rules)
+    - Ensures proper separation of frontmatter from content
     """
     stripped = text.lstrip("\n")
     if not stripped.startswith("---"):
         return ("", text)
 
-    # Find closing ---
-    rest = stripped[3:].lstrip("\n")
-    idx = rest.find("\n---")
-    if idx == -1:
+    # Find closing --- by scanning line by line
+    # This handles very long lines better than string search
+    lines = stripped.splitlines()
+    if len(lines) < 2:
         return ("", text)
 
-    fm_text = rest[:idx]
-    body = rest[idx + 4 :]  # skip past "\n---"
+    # First line is the opening ---
+    # Look for a line that is exactly --- (closing marker)
+    # Must be on its own line (possibly with whitespace)
+    fm_lines = []
+    i = 1  # Skip opening ---
+    found_close = False
+
+    while i < len(lines):
+        line = lines[i].strip()
+        # Check if this is a closing --- marker
+        if line == "---":
+            found_close = True
+            break
+        # Add line to frontmatter
+        fm_lines.append(lines[i])
+        i += 1
+
+    if not found_close:
+        # No closing marker found, treat entire file as body
+        return ("", text)
+
+    # Frontmatter is lines between opening and closing ---
+    fm_text = "\n".join(fm_lines)
+
+    # Body is everything after the closing ---
+    # Include remaining lines starting from i + 1
+    body_lines = lines[i + 1:] if i + 1 < len(lines) else []
+    body = "\n".join(body_lines)
+
     return (fm_text, body.lstrip("\n"))
 
 
