@@ -1,7 +1,10 @@
 {
-  "version": "1.3.1",
+  "version": "1.3.2",
   "release_date": "2026-08-06",
   "changelog": [
+    "Fixed critical import syntax error in skills_tab.py preventing skills from loading in UI settings",
+    "Corrected relative import statement from 'from...skills' to 'from ...skills' (missing space)",
+    "Restored visibility of all skills in Settings dialog (0day-find, android-exploit, app-shielding-bypass, etc.)",
     "Redesigned IDA Pro UI with dark glassmorphism aesthetics and IDA-matching color palette (#3a9fd5 accent)",
     "Enhanced ContextBar with interactive jump-to-address/function actions, active LED status indicator, and dynamic token usage warning colors",
     "Redesigned input area layout with top action toolbar, quick skill chips (/vuln-audit, /memory-corruption, etc.), and glow focus styling",
