@@ -1,0 +1,25 @@
+{
+  "version": "1.3.1",
+  "release_date": "2026-08-06",
+  "changelog": [
+    "Redesigned IDA Pro UI with dark glassmorphism aesthetics and IDA-matching color palette (#3a9fd5 accent)",
+    "Enhanced ContextBar with interactive jump-to-address/function actions, active LED status indicator, and dynamic token usage warning colors",
+    "Redesigned input area layout with top action toolbar, quick skill chips (/vuln-audit, /memory-corruption, etc.), and glow focus styling",
+    "Smart idapyswitch auto-configuration selecting system python3 matching version",
+    "Proactive site-packages path injection for embedded IDA Python interpreter to recognize system pip packages (anthropic, etc.)",
+    "Improved auto-update engine with git pull strategy support for git-managed plugin installations",
+    "Fixed white background container fill artifact on Linux and macOS UI panels",
+    "Interactive CLI shell interface with Ctrl+O raw-mode and streaming UI",
+    "Docker containerization support with multi-platform images",
+    "SSH remote execution and file transfer tools",
+    "Shell command safety checks with configurable auto-approve limits",
+    "LM Studio provider support for local LLM integration",
+    "Added container-escape, crypto-vuln, iot-vuln, scada-vuln, vm-escape, web3-vuln security skills"
+  ],
+  "download_url": "https://github.com/alicangnll/Spectra/archive/refs/heads/main.zip",
+  "min_compatible_version": "1.0.0",
+  "update_required": false,
+  "checksums": {
+    "sha256": "pending"
+  }
+}

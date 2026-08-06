@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Spectra CLI wrapper - launches interactive Spectra CLI shell
+# Usage: spectra [target_directory]
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORK_DIR="${1:-.}"
+
+python3 "$SCRIPT_DIR/spectra_cli.py" dir_loc "$WORK_DIR"

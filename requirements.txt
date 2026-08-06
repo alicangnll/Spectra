@@ -1,0 +1,11 @@
+anthropic>=0.39.0
+openai>=1.50.0
+google-genai>=1.0.0
+mcp>=1.0.0
+tomli>=2.0.0
+cryptography>=43.0.0
+ida-domain>=0.1.0
+# Qt bindings: PyQt5 on macOS (for IDA Pro Qt5 compatibility), PySide6 elsewhere
+# IDA Pro uses Qt5, and PySide6 (Qt6) causes dylib conflicts and crashes
+PyQt5>=5.15.0; platform_system == 'Darwin'
+PySide6>=6.5.0; platform_system != 'Darwin'

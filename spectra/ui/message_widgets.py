@@ -1,0 +1,1197 @@
+"""Message display widgets for the chat view."""
+
+from __future__ import annotations
+
+import random
+import re as _re
+from typing import ClassVar
+
+from .markdown import md_to_html, _is_ascii_art_diagram
+from .qt_compat import (
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QSizePolicy,
+    Qt,
+    QTimer,
+    QToolButton,
+    QVBoxLayout,
+    QWidget,
+    qt_flags,
+    QApplication,
+    QClipboard,
+)
+
+_THINKING_PHRASES = [
+    "analyzing binary structure...",
+    "examining control flow...",
+    "tracing cross-references...",
+    "inspecting disassembly...",
+    "reading function signatures...",
+    "correlating data references...",
+    "mapping call graph...",
+    "evaluating type patterns...",
+    "scanning string references...",
+    "deobfuscating logic...",
+    "checking import table...",
+    "inferring variable types...",
+    "analyzing stack layout...",
+    "tracing data flow...",
+    "examining vtable references...",
+    "decoding encoded values...",
+]
+
+# Re-export tool widgets so existing consumers that import from this module
+# continue to work without changes.
+
+# ---------------------------------------------------------------------------
+# Collapsible section (unchanged, used internally)
+# ---------------------------------------------------------------------------
+
+
+class CollapsibleSection(QFrame):
+    """A widget with a clickable header that shows/hides content."""
+
+    def __init__(self, title: str, parent: QWidget = None):
+        super().__init__(parent)
+        self._expanded = False
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(2)
+
+        # Header
+        header = QHBoxLayout()
+        self._toggle_btn = QToolButton()
+        self._toggle_btn.setObjectName("collapse_button")
+        self._toggle_btn.setText("▶")
+        self._toggle_btn.setFixedSize(16, 16)
+        self._toggle_btn.clicked.connect(self.toggle)
+
+        self._title_label = QLabel(title)
+        self._title_label.setObjectName("tool_header")
+        header.addWidget(self._toggle_btn)
+        header.addWidget(self._title_label, 1)
+        layout.addLayout(header)
+
+        # Content area
+        self._content = QWidget()
+        self._content_layout = QVBoxLayout(self._content)
+        self._content_layout.setContentsMargins(20, 0, 0, 0)
+        self._content.setVisible(False)
+        layout.addWidget(self._content)
+
+    def toggle(self) -> None:
+        self._expanded = not self._expanded
+        self._content.setVisible(self._expanded)
+        self._toggle_btn.setText("▼" if self._expanded else "▶")
+
+    def set_expanded(self, expanded: bool) -> None:
+        self._expanded = expanded
+        self._content.setVisible(expanded)
+        self._toggle_btn.setText("▼" if expanded else "▶")
+
+    def content_layout(self) -> QVBoxLayout:
+        return self._content_layout
+
+
+# ---------------------------------------------------------------------------
+# User message
+# ---------------------------------------------------------------------------
+
+
+class UserMessageWidget(QFrame):
+    """Displays a user message."""
+
+    def __init__(self, text: str, parent: QWidget = None):
+        super().__init__(parent)
+        self.setObjectName("message_user")
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(8, 6, 8, 6)
+
+        self._role_label = QLabel("👤 YOU")
+        self._role_label.setStyleSheet("color: #4ec9b0; font-weight: bold; font-size: 10px; letter-spacing: 1px;")
+        layout.addWidget(self._role_label)
+
+        self._content = QLabel(text)
+        self._content.setWordWrap(True)
+        self._content.setTextInteractionFlags(
+            qt_flags(
+                Qt.TextInteractionFlag.TextSelectableByMouse,
+                Qt.TextInteractionFlag.TextSelectableByKeyboard,
+            )
+        )
+        self._content.setStyleSheet("color: #d4d4d4; font-size: 13px;")
+        self._content.setMinimumWidth(0)
+        self._content.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        layout.addWidget(self._content)
+
+
+# ---------------------------------------------------------------------------
+# Thinking content parser
+# ---------------------------------------------------------------------------
+
+_THINK_RE = _re.compile(r"<think>(.*?)</think>", _re.DOTALL)
+
+
+def _split_thinking(text: str):
+    """Split text into (thinking_content, visible_content).
+
+    Handles:
+    - One or more complete ``<think>...</think>`` blocks
+    - An unclosed ``<think>`` during streaming
+    """
+    thinking_parts: list = []
+
+    # Extract all complete <think>...</think> blocks
+    last_end = 0
+    visible_parts: list = []
+    for m in _THINK_RE.finditer(text):
+        visible_parts.append(text[last_end : m.start()])
+        thinking_parts.append(m.group(1).strip())
+        last_end = m.end()
+    visible_parts.append(text[last_end:])
+    remaining = "".join(visible_parts)
+
+    # Check for unclosed <think> (still streaming)
+    open_idx = remaining.rfind("<think>")
+    if open_idx >= 0:
+        partial = remaining[open_idx + 7 :].strip()
+        if partial:
+            thinking_parts.append(partial)
+        remaining = remaining[:open_idx]
+
+    return "\n\n".join(thinking_parts), remaining.strip()
+
+
+# ---------------------------------------------------------------------------
+# Collapsible thinking block
+# ---------------------------------------------------------------------------
+
+
+class _ThinkingBlock(QFrame):
+    """Collapsible block for model reasoning / chain-of-thought."""
+
+    def __init__(self, parent: QWidget = None):
+        super().__init__(parent)
+        self.setObjectName("thinking_block")
+        self.setStyleSheet("#thinking_block { background: #1a1a2e; border: 1px solid #2a2a3e; border-radius: 6px; }")
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(8, 4, 8, 4)
+        layout.setSpacing(0)
+
+        self._toggle = QToolButton()
+        self._toggle.setObjectName("collapse_button")
+        self._toggle.setText("\u25b6")  # ▶
+        self._toggle.setFixedSize(14, 14)
+        self._toggle.clicked.connect(self._on_toggle)
+
+        header = QHBoxLayout()
+        header.setContentsMargins(0, 0, 0, 0)
+        header.setSpacing(4)
+        header.addWidget(self._toggle)
+        self._header_label = QLabel("Thinking")
+        self._header_label.setStyleSheet("color: #707090; font-size: 11px; font-style: italic;")
+        header.addWidget(self._header_label, 1)
+        layout.addLayout(header)
+
+        self._content = QLabel()
+        self._content.setWordWrap(True)
+        self._content.setTextFormat(Qt.TextFormat.RichText)
+        self._content.setTextInteractionFlags(
+            qt_flags(
+                Qt.TextInteractionFlag.TextSelectableByMouse,
+                Qt.TextInteractionFlag.TextSelectableByKeyboard,
+            )
+        )
+        self._content.setStyleSheet("color: #606078; font-size: 12px;")
+        self._content.hide()
+        layout.addWidget(self._content)
+
+        self._expanded = False
+        self.hide()
+
+    def _on_toggle(self) -> None:
+        self._expanded = not self._expanded
+        self._content.setVisible(self._expanded)
+        self._toggle.setText("\u25bc" if self._expanded else "\u25b6")
+
+    def set_thinking(self, text: str, in_progress: bool = False) -> None:
+        self._content.setText(md_to_html(text))
+        label = "Thinking\u2026" if in_progress else "Thinking"
+        self._header_label.setText(label)
+        self.show()
+
+
+# ---------------------------------------------------------------------------
+# Code block widget with copy button
+# ---------------------------------------------------------------------------
+
+
+class DiagramWidget(QFrame):
+    """Displays an ASCII art diagram with copy button."""
+
+    def __init__(self, diagram: str, parent: QWidget = None):
+        super().__init__(parent)
+        self.setObjectName("diagram_block")
+        self.setStyleSheet(
+            "QFrame#diagram_block { background: #1a1a1a; border: 1px solid #3c3c3c; border-radius: 4px; }"
+        )
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        # Header with label and copy button
+        header = QHBoxLayout()
+        header.setContentsMargins(8, 4, 4, 4)
+
+        self._label = QLabel("Diagram")
+        self._label.setStyleSheet("color: #808080; font-size: 10px; font-weight: bold;")
+        header.addWidget(self._label)
+
+        header.addStretch()
+
+        self._copy_btn = QPushButton("Copy")
+        self._copy_btn.setStyleSheet(
+            "QPushButton { background: #2d4a6e; color: #9cdcfe; border: 1px solid #4a7ab5; "
+            "border-radius: 3px; padding: 2px 8px; font-size: 10px; }"
+            "QPushButton:hover { background: #3a5a8a; }"
+            "QPushButton:pressed { background: #1a3a5e; }"
+        )
+        self._copy_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        # Store lambda as instance variable to prevent GC issues with Shiboken
+        self._copy_slot = lambda: self._copy_to_clipboard(diagram)
+        self._copy_btn.clicked.connect(self._copy_slot)
+        header.addWidget(self._copy_btn)
+
+        layout.addLayout(header)
+
+        # Diagram content
+        self._diagram_label = QLabel(diagram)
+        self._diagram_label.setWordWrap(True)
+        self._diagram_label.setTextInteractionFlags(
+            qt_flags(
+                Qt.TextInteractionFlag.TextSelectableByMouse,
+                Qt.TextInteractionFlag.TextSelectableByKeyboard,
+            )
+        )
+        self._diagram_label.setStyleSheet(
+            "color: #d4d4d4; font-size: 11px; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; "
+            "line-height: 1.2; padding: 8px; background: transparent;"
+        )
+        layout.addWidget(self._diagram_label)
+
+    def _copy_to_clipboard(self, text: str) -> None:
+        """Copy text to clipboard and update button."""
+        clipboard = QApplication.clipboard()
+        clipboard.setText(text)
+
+        self._copy_btn.setText("Copied!")
+        self._copy_btn.setStyleSheet(
+            "QPushButton { background: #4a6a4a; color: #9cdcfe; border: 1px solid #5a8a5a; "
+            "border-radius: 3px; padding: 2px 8px; font-size: 10px; }"
+        )
+
+        # Reset button after 2 seconds
+        QTimer.singleShot(2000, self._reset_copy_button)
+
+    def _reset_copy_button(self) -> None:
+        """Reset copy button to original state."""
+        self._copy_btn.setText("Copy")
+        self._copy_btn.setStyleSheet(
+            "QPushButton { background: #2d4a6e; color: #9cdcfe; border: 1px solid #4a7ab5; "
+            "border-radius: 3px; padding: 2px 8px; font-size: 10px; }"
+            "QPushButton:hover { background: #3a5a8a; }"
+            "QPushButton:pressed { background: #1a3a5e; }"
+        )
+
+
+class CodeBlockWidget(QFrame):
+    """Displays a code block with language label and copy button."""
+
+    def __init__(self, lang: str, code: str, parent: QWidget = None):
+        super().__init__(parent)
+        self.setObjectName("code_block")
+        self.setStyleSheet(
+            "QFrame#code_block { background: #151518; border: 1px solid #282830; border-radius: 6px; }"
+        )
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        # Header with language label and copy button
+        header = QHBoxLayout()
+        header.setContentsMargins(8, 4, 4, 4)
+
+        if lang:
+            self._lang_label = QLabel(lang)
+            self._lang_label.setStyleSheet("color: #777780; font-size: 10px; font-weight: bold; font-family: monospace;")
+            header.addWidget(self._lang_label)
+        else:
+            header.addStretch()
+
+        header.addStretch()
+
+        self._copy_btn = QPushButton("Copy")
+        self._copy_btn.setStyleSheet(
+            "QPushButton { background: #1f364d; color: #9cdcfe; border: 1px solid #285480; "
+            "border-radius: 4px; padding: 2px 8px; font-size: 10px; font-weight: bold; }"
+            "QPushButton:hover { background: #284868; border-color: #3a9fd5; }"
+            "QPushButton:pressed { background: #14283b; }"
+        )
+        self._copy_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        # Store lambda as instance variable to prevent GC issues with Shiboken
+        self._copy_slot = lambda: self._copy_to_clipboard(code)
+        self._copy_btn.clicked.connect(self._copy_slot)
+        header.addWidget(self._copy_btn)
+
+        layout.addLayout(header)
+
+        # Code content
+        self._code_label = QLabel(code)
+        self._code_label.setWordWrap(True)
+        self._code_label.setTextInteractionFlags(
+            qt_flags(
+                Qt.TextInteractionFlag.TextSelectableByMouse,
+                Qt.TextInteractionFlag.TextSelectableByKeyboard,
+            )
+        )
+        self._code_label.setStyleSheet(
+            "color: #d4d4d4; font-size: 12px; font-family: monospace; "
+            "padding: 8px; background: transparent;"
+        )
+        layout.addWidget(self._code_label)
+
+    def _copy_to_clipboard(self, text: str) -> None:
+        """Copy text to clipboard and update button."""
+        clipboard = QApplication.clipboard()
+        clipboard.setText(text)
+
+        self._copy_btn.setText("Copied!")
+        self._copy_btn.setStyleSheet(
+            "QPushButton { background: #4a6a4a; color: #9cdcfe; border: 1px solid #5a8a5a; "
+            "border-radius: 3px; padding: 2px 8px; font-size: 10px; }"
+        )
+
+        # Reset button after 2 seconds
+        QTimer.singleShot(2000, self._reset_copy_button)
+
+    def _reset_copy_button(self) -> None:
+        """Reset copy button to original state."""
+        self._copy_btn.setText("Copy")
+        self._copy_btn.setStyleSheet(
+            "QPushButton { background: #2d4a6e; color: #9cdcfe; border: 1px solid #4a7ab5; "
+            "border-radius: 3px; padding: 2px 8px; font-size: 10px; }"
+            "QPushButton:hover { background: #3a5a8a; }"
+            "QPushButton:pressed { background: #1a3a5e; }"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Assistant message (with streaming + Markdown)
+# ---------------------------------------------------------------------------
+
+
+class AssistantMessageWidget(QFrame):
+    """Displays an assistant message with streaming support and Markdown rendering."""
+
+    # Larger batch = fewer re-layouts during streaming = less shaking.
+    _RENDER_BATCH = 120
+
+    def __init__(self, parent: QWidget = None):
+        super().__init__(parent)
+        self.setObjectName("message_assistant")
+        self._full_text = ""
+        self._pending_delta = 0
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(8, 6, 8, 6)
+
+        self._role_label = QLabel("⚡ SPECTRA")
+        self._role_label.setStyleSheet("color: #3a9fd5; font-weight: bold; font-size: 10px; letter-spacing: 1px;")
+        layout.addWidget(self._role_label)
+
+        self._thinking_block = _ThinkingBlock()
+        layout.addWidget(self._thinking_block)
+
+        # Container for mixed content (HTML labels + code block widgets)
+        self._content_container = QWidget()
+        self._content_layout = QVBoxLayout(self._content_container)
+        self._content_layout.setContentsMargins(0, 0, 0, 0)
+        self._content_layout.setSpacing(4)
+        self._content_layout.addStretch()
+        layout.addWidget(self._content_container)
+
+        # Track current content widgets
+        self._content_widgets: list[QWidget] = []
+        self._current_assistant_content = []  # Track mixed content widgets
+
+    def _render(self) -> None:
+        thinking, visible = _split_thinking(self._full_text)
+        if thinking:
+            in_progress = "<think>" in self._full_text and "</think>" not in self._full_text
+            self._thinking_block.set_thinking(thinking, in_progress=in_progress)
+        else:
+            self._thinking_block.hide()
+
+        # Clear existing content widgets
+        for widget in self._content_widgets:
+            widget.deleteLater()
+        self._content_widgets.clear()
+
+        # Always try to extract code blocks and diagrams
+        html_content, code_blocks, diagram_blocks = md_to_html(visible, return_code_blocks=True)
+
+        # If no code blocks or diagrams, use simple QLabel
+        if not code_blocks and not diagram_blocks:
+            # Simple HTML rendering
+            label = self._create_html_label(html_content)
+            self._content_layout.insertWidget(self._content_layout.count() - 1, label)
+            self._content_widgets.append(label)
+        else:
+            # Split HTML by block placeholders and interleave content
+            # Support both BLOCK (code) and DIAGRAM (ASCII art) placeholders
+            import re as _re
+            placeholder_pattern = _re.compile(r"\x00(BLOCK|DIAGRAM)(\d+)\x00")
+
+            last_end = 0
+            for match in placeholder_pattern.finditer(html_content):
+                # Render content before this placeholder
+                if match.start() > last_end:
+                    content_before = html_content[last_end:match.start()]
+                    if content_before.strip():
+                        label = self._create_html_label(content_before)
+                        self._content_layout.insertWidget(self._content_layout.count() - 1, label)
+                        self._content_widgets.append(label)
+
+                # Render the placeholder (code block or diagram)
+                block_type = match.group(1)
+                block_idx = int(match.group(2))
+
+                if block_type == "BLOCK" and block_idx < len(code_blocks):
+                    lang, code = code_blocks[block_idx]
+                    code_widget = CodeBlockWidget(lang, code)
+                    self._content_layout.insertWidget(self._content_layout.count() - 1, code_widget)
+                    self._content_widgets.append(code_widget)
+                elif block_type == "DIAGRAM":
+                    # Diagram counter is separate, so block_idx is directly the index in diagram_blocks
+                    if block_idx < len(diagram_blocks):
+                        diagram_text = diagram_blocks[block_idx][0]
+                        diagram_widget = DiagramWidget(diagram_text)
+                        self._content_layout.insertWidget(self._content_layout.count() - 1, diagram_widget)
+                        self._content_widgets.append(diagram_widget)
+
+                last_end = match.end()
+
+            # Render any remaining content after the last placeholder
+            if last_end < len(html_content):
+                remaining_content = html_content[last_end:]
+                if remaining_content.strip():
+                    label = self._create_html_label(remaining_content)
+                    self._content_layout.insertWidget(self._content_layout.count() - 1, label)
+                    self._content_widgets.append(label)
+
+        self._pending_delta = 0
+
+    def _create_html_label(self, html_text: str) -> QLabel:
+        """Helper to create a QLabel for HTML content."""
+        label = QLabel()
+        label.setWordWrap(True)
+        label.setTextFormat(Qt.TextFormat.RichText)
+        label.setTextInteractionFlags(
+            qt_flags(
+                Qt.TextInteractionFlag.TextSelectableByMouse,
+                Qt.TextInteractionFlag.TextSelectableByKeyboard,
+                Qt.TextInteractionFlag.LinksAccessibleByMouse,
+            )
+        )
+        label.setOpenExternalLinks(False)  # Handle IDA links internally
+        label.linkActivated.connect(self._on_link_clicked)
+        label.linkHovered.connect(self._on_link_hovered)
+        label.setStyleSheet("color: #d4d4d4; font-size: 13px;")
+        label.setMinimumWidth(0)
+        label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        label.setText(html_text)
+        return label
+
+    def _on_link_hovered(self, url: str) -> None:
+        """Handle link hover - show tooltip with address/function info."""
+        if url.startswith("ida://func:"):
+            func_name = url[11:]  # Remove "ida://func:" prefix
+            self._show_function_tooltip(func_name)
+        elif url.startswith("ida://"):
+            address_str = url[6:]  # Remove "ida://" prefix
+            self._show_address_tooltip(address_str)
+        else:
+            # External link
+            from ..core.logging import log_debug
+            log_debug(f"Hovering external link: {url}")
+
+    def _show_address_tooltip(self, address_str: str) -> None:
+        """Show tooltip with address information."""
+        try:
+            import re
+            from ..core.host import is_ida
+            from ..core.logging import log_debug
+
+            # Parse address
+            clean_addr = address_str.strip()
+            match = re.search(
+                r"0[xX]([0-9a-fA-F]+)|:([0-9a-fA-F]{8})|([0-9a-fA-F]+)h?|(?:sub|loc|off|seg|str|byte|word|dword|qword|asc)_([0-9a-fA-F]+)",
+                clean_addr
+            )
+
+            if match:
+                hex_value = None
+                for group in match.groups():
+                    if group:
+                        hex_value = group
+                        break
+
+                if hex_value:
+                    address = int(hex_value, 16)
+
+                    # Try to get function name at this address (if in IDA)
+                    tooltip_text = f"Click to jump to 0x{address:X}"
+
+                    if is_ida():
+                        try:
+                            # Try to get function name
+                            from ..core import host
+                            if host._idaapi:
+                                func = host._idaapi.get_func(address)
+                                if func:
+                                    func_name = host._idaapi.get_func_name(address)
+                                    tooltip_text = f"Jump to {func_name}()\n0x{address:X}"
+                                else:
+                                    # Check if it's a data item
+                                    seg_name = host._idaapi.get_segm_name(address)
+                                    if seg_name:
+                                        tooltip_text = f"Jump to {seg_name}:0x{address:X}"
+                        except Exception:
+                            pass  # Keep default tooltip
+
+                    # Set tooltip on the widget that triggered it
+                    # Note: QLabel doesn't expose the hovered link position easily,
+                    # so we set tooltip on the whole label
+                    from ..core.logging import log_debug
+                    log_debug(f"Address hover: {tooltip_text}")
+        except Exception as e:
+            from ..core.logging import log_debug
+            log_debug(f"Failed to show address tooltip: {e}")
+
+    def _show_function_tooltip(self, func_name: str) -> None:
+        """Show tooltip with function information."""
+        try:
+            from ..core.host import is_ida
+            from ..core.logging import log_debug
+
+            tooltip_text = f"Click to jump to {func_name}()"
+
+            if is_ida():
+                try:
+                    from ..core import host
+                    if host._idaapi:
+                        # Try to get function address
+                        func_addr = host._idaapi.get_name_ea_simple(func_name)
+                        if func_addr != host._idaapi.BADADDR:
+                            tooltip_text = f"Jump to {func_name}()\n0x{func_addr:X}"
+                        else:
+                            tooltip_text = f"Function '{func_name}' not found"
+                except Exception:
+                    pass  # Keep default tooltip
+
+            from ..core.logging import log_debug
+            log_debug(f"Function hover: {tooltip_text}")
+        except Exception as e:
+            from ..core.logging import log_debug
+            log_debug(f"Failed to show function tooltip: {e}")
+
+    def _on_link_clicked(self, url: str) -> None:
+        """Handle link clicks - IDA address jumps, function names, findings, and external links."""
+        if url.startswith("ida://func:"):
+            # Extract function name from ida://func:generatePWFOTP format
+            func_name = url[11:]  # Remove "ida://func:" prefix
+            self._jump_to_function(func_name)
+        elif url.startswith("ida://"):
+            # Extract address from ida://0x401000 format
+            address_str = url[6:]  # Remove "ida://" prefix
+            self._jump_to_address(address_str)
+        elif url.startswith("finding://"):
+            # Extract address from finding://0x401000 format
+            address_str = url[10:]  # Remove "finding://" prefix
+            self._jump_to_finding(address_str)
+        else:
+            # External link - open in browser
+            from ..core.logging import log_debug
+            import webbrowser
+            log_debug(f"Opening external link: {url}")
+            webbrowser.open(url)
+
+    def _jump_to_address(self, address_str: str) -> None:
+        """Jump to address in IDA."""
+        try:
+            from ..core.host import navigate_to_address
+            from ..core.logging import log_info, log_debug
+            import re
+
+            # Remove common prefixes/suffixes
+            clean_addr = address_str.strip()
+
+            # Extract hex value from various formats:
+            # 0x401000, 0X401000, :00401000, 401000h, sub_401000, loc_401000
+            match = re.search(
+                r"0[xX]([0-9a-fA-F]+)|:([0-9a-fA-F]{8})|([0-9a-fA-F]+)h?|(?:sub|loc|off|seg|str|byte|word|dword|qword|asc)_([0-9a-fA-F]+)",
+                clean_addr
+            )
+
+            if match:
+                # Find which group matched
+                hex_value = None
+                for group in match.groups():
+                    if group:
+                        hex_value = group
+                        break
+
+                if hex_value:
+                    # Convert to integer
+                    address = int(hex_value, 16)
+
+                    # Jump in IDA
+                    log_info(f"Jumping to address 0x{address:X} ({address_str})")
+                    success = navigate_to_address(address)
+
+                    if not success:
+                        log_debug(f"Failed to jump to address 0x{address:X}")
+                else:
+                    log_debug(f"Could not parse address from: {address_str}")
+            else:
+                log_debug(f"Invalid address format: {address_str}")
+
+        except Exception as e:
+            from ..core.logging import log_error
+            log_error(f"Failed to jump to address {address_str}: {e}")
+
+    def _jump_to_function(self, func_name: str) -> None:
+        """Jump to function by name in IDA."""
+        try:
+            from ..core.host import is_ida, navigate_to_address
+            from ..core.logging import log_info, log_debug, log_error, log_warning
+
+            if not is_ida():
+                log_debug(f"Not running in IDA, cannot jump to function: {func_name}")
+                return
+
+            # Try to find the function in IDA
+            from ..core import host
+
+            if not host._idaapi:
+                log_debug("IDA API not available")
+                return
+
+            # Try exact match first using compatible APIs
+            func_addr = None
+            found_name = func_name
+
+            # Method 1: Try ida_name.get_name_ea (most compatible)
+            try:
+                import ida_name
+                func_addr = ida_name.get_name_ea(0, func_name)
+                if func_addr != host._idaapi.BADADDR:
+                    log_info(f"Found function '{func_name}' at 0x{func_addr:X} using ida_name")
+            except Exception as e:
+                log_debug(f"ida_name.get_name_ea failed: {e}")
+
+            # Method 2: Try idautils.Functions() if method 1 failed
+            if func_addr is None or func_addr == host._idaapi.BADADDR:
+                try:
+                    import idautils
+                    import ida_name
+                    for func_ea in idautils.Functions():
+                        current_name = ida_name.get_name(func_ea)
+                        if current_name == func_name:
+                            func_addr = func_ea
+                            found_name = current_name
+                            log_info(f"Found function '{current_name}' at 0x{func_addr:X} using idautils")
+                            break
+                except Exception as e:
+                    log_debug(f"idautils.Functions() failed: {e}")
+
+            # Method 3: Case-insensitive search
+            if func_addr is None or func_addr == host._idaapi.BADADDR:
+                try:
+                    import idautils
+                    import ida_name
+                    for func_ea in idautils.Functions():
+                        current_name = ida_name.get_name(func_ea)
+                        if current_name and current_name.lower() == func_name.lower():
+                            func_addr = func_ea
+                            found_name = current_name
+                            log_info(f"Found function '{current_name}' at 0x{func_addr:X} using case-insensitive search")
+                            break
+                except Exception as e:
+                    log_debug(f"Case-insensitive search failed: {e}")
+
+            if func_addr and func_addr != host._idaapi.BADADDR:
+                # Jump to function
+                log_info(f"Jumping to function '{found_name}' at 0x{func_addr:X}")
+                success = navigate_to_address(func_addr)
+                if not success:
+                    log_warning(f"Failed to jump to function '{found_name}' at 0x{func_addr:X}")
+            else:
+                log_warning(f"Function '{func_name}' not found in IDA database")
+
+        except Exception as e:
+            from ..core.logging import log_error
+            log_error(f"Failed to jump to function {func_name}: {e}")
+            import traceback
+            log_error(f"Traceback: {traceback.format_exc()}")
+
+    def _jump_to_finding(self, address_str: str) -> None:
+        """Jump to finding and display bookmark details."""
+        try:
+            from ..core.host import navigate_to_address, is_ida
+            from ..core.logging import log_info, log_debug, log_error
+            from ..tools.findings_bookmark import get_findings_manager
+            import re
+
+            # Parse address
+            clean_addr = address_str.strip()
+            match = re.search(
+                r"0[xX]([0-9a-fA-F]+)|:([0-9a-fA-F]{8})|([0-9a-fA-F]+)h?|(?:sub|loc)_([0-9a-fA-F]+)",
+                clean_addr
+            )
+
+            if match:
+                # Extract hex value
+                hex_value = None
+                for group in match.groups():
+                    if group:
+                        hex_value = group
+                        break
+
+                if hex_value:
+                    # Convert to integer
+                    address = int(hex_value, 16)
+
+                    # Get finding details
+                    if is_ida():
+                        manager = get_findings_manager()
+                        finding = manager.get_finding(address)
+
+                        if finding:
+                            # Log finding details
+                            from ..tools.findings_bookmark import FINDING_CATEGORIES
+                            category_info = FINDING_CATEGORIES.get(finding.category, {})
+                            category_name = category_info.get("name", finding.category)
+                            category_icon = category_info.get("icon", "[FINDING]")
+
+                            log_info(f"{category_icon} Finding: {finding.title}")
+                            log_info(f"  Address: 0x{address:X}")
+                            log_info(f"  Category: {category_name}")
+                            if finding.notes:
+                                log_info(f"  Notes: {finding.notes}")
+                            if finding.tags:
+                                log_info(f"  Tags: {', '.join(finding.tags)}")
+                        else:
+                            log_debug(f"No finding found at 0x{address:X}")
+
+                    # Jump to address
+                    log_info(f"Jumping to finding at 0x{address:X}")
+                    success = navigate_to_address(address)
+
+                    if not success:
+                        log_debug(f"Failed to jump to finding at 0x{address:X}")
+                else:
+                    log_debug(f"Could not parse finding address from: {address_str}")
+            else:
+                log_debug(f"Invalid finding address format: {address_str}")
+
+        except Exception as e:
+            from ..core.logging import log_error
+            log_error(f"Failed to jump to finding {address_str}: {e}")
+
+    def append_text(self, delta: str) -> None:
+        self._full_text += delta
+        self._pending_delta += len(delta)
+        if self._pending_delta >= self._RENDER_BATCH:
+            self._render()
+
+    def set_text(self, text: str) -> None:
+        self._full_text = text
+        self._render()
+
+    def full_text(self) -> str:
+        return self._full_text
+
+
+# ---------------------------------------------------------------------------
+# Thinking indicator
+# ---------------------------------------------------------------------------
+
+
+class ThinkingWidget(QFrame):
+    """Animated thinking indicator shown while the LLM is processing."""
+
+    _STAR_FRAMES: ClassVar[list[str]] = ["✳", "✴", "✵", "✶"]
+
+    def __init__(self, parent: QWidget = None):
+        super().__init__(parent)
+        self.setObjectName("message_thinking")
+        self._phrase_idx = random.randint(0, len(_THINKING_PHRASES) - 1)
+        self._star_idx = 0
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(8, 4, 8, 4)
+        layout.setSpacing(6)
+
+        self._star_label = QLabel(self._STAR_FRAMES[0])
+        self._star_label.setStyleSheet("color: #dcdcaa; font-size: 14px;")
+        self._star_label.setFixedWidth(18)
+        layout.addWidget(self._star_label)
+
+        self._phrase_label = QLabel(_THINKING_PHRASES[self._phrase_idx])
+        self._phrase_label.setStyleSheet("color: #808080; font-style: italic; font-size: 12px;")
+        layout.addWidget(self._phrase_label, 1)
+
+        self._stopped = False
+
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self._tick)
+        self._timer.start(900)
+
+    def _tick(self) -> None:
+        if self._stopped:
+            return
+        self._star_idx = (self._star_idx + 1) % len(self._STAR_FRAMES)
+        self._star_label.setText(self._STAR_FRAMES[self._star_idx])
+
+        if self._star_idx == 0:
+            self._phrase_idx = (self._phrase_idx + 1) % len(_THINKING_PHRASES)
+            self._phrase_label.setText(_THINKING_PHRASES[self._phrase_idx])
+
+    def stop(self) -> None:
+        self._stopped = True
+        try:
+            self._timer.stop()
+            self._timer.timeout.disconnect(self._tick)
+        except (RuntimeError, TypeError):
+            return  # timer already stopped or signal already disconnected — harmless
+
+
+# ---------------------------------------------------------------------------
+# Other message widgets
+# ---------------------------------------------------------------------------
+
+
+class QueuedMessageWidget(QFrame):
+    """Displays a queued user message with dashed border."""
+
+    def __init__(self, text: str, parent: QWidget = None):
+        super().__init__(parent)
+        self.setObjectName("message_queued")
+        self.setStyleSheet(
+            "QFrame#message_queued { border: 1px dashed #007acc; border-radius: 6px; background: #1e1e2e; }"
+        )
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(8, 6, 8, 6)
+
+        content_layout = QVBoxLayout()
+
+        self._role_label = QLabel("You")
+        self._role_label.setStyleSheet("color: #4ec9b0; font-weight: bold; font-size: 11px;")
+        content_layout.addWidget(self._role_label)
+
+        self._content = QLabel(text)
+        self._content.setWordWrap(True)
+        self._content.setTextInteractionFlags(
+            qt_flags(
+                Qt.TextInteractionFlag.TextSelectableByMouse,
+                Qt.TextInteractionFlag.TextSelectableByKeyboard,
+            )
+        )
+        self._content.setStyleSheet("color: #d4d4d4; font-size: 13px;")
+        content_layout.addWidget(self._content)
+
+        layout.addLayout(content_layout, 1)
+
+        self._badge = QLabel("[queued]")
+        self._badge.setStyleSheet("color: #808080; font-size: 10px; font-style: italic;")
+        self._badge.setAlignment(Qt.AlignmentFlag.AlignTop)
+        layout.addWidget(self._badge)
+
+
+class UserQuestionWidget(QFrame):
+    """Displays a question from the agent to the user with clickable option buttons."""
+
+    def __init__(self, question: str, options: list | None = None, parent: QWidget = None):
+        super().__init__(parent)
+        self._option_selected_callback = None
+        self._option_buttons = []  # Store button references to prevent GC
+        self._option_slots = []  # Store lambda references to prevent GC
+        self.setObjectName("message_question")
+        self.setStyleSheet(
+            "QFrame#message_question { border: 1px solid #dcdcaa; border-radius: 6px; background: #2d2d1e; }"
+        )
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(8, 6, 8, 6)
+        layout.setSpacing(6)
+
+        self._header = QLabel("Spectra asks:")
+        self._header.setStyleSheet("color: #dcdcaa; font-weight: bold; font-size: 11px;")
+        layout.addWidget(self._header)
+
+        self._q_label = QLabel(question)
+        self._q_label.setWordWrap(True)
+        self._q_label.setTextInteractionFlags(
+            qt_flags(
+                Qt.TextInteractionFlag.TextSelectableByMouse,
+                Qt.TextInteractionFlag.TextSelectableByKeyboard,
+            )
+        )
+        self._q_label.setStyleSheet("color: #d4d4d4; font-size: 13px;")
+        layout.addWidget(self._q_label)
+
+        if options:
+            btn_layout = QHBoxLayout()
+            btn_layout.setContentsMargins(0, 4, 0, 0)
+            btn_layout.setSpacing(8)
+            for opt in options:
+                btn = QPushButton(opt)
+                btn.setStyleSheet(
+                    "QPushButton { background: #2d4a6e; color: #9cdcfe; border: 1px solid #4a7ab5; "
+                    "border-radius: 4px; padding: 4px 14px; font-size: 12px; }"
+                    "QPushButton:hover { background: #3a5a8a; }"
+                    "QPushButton:pressed { background: #1a3a5e; }"
+                    "QPushButton:disabled { color: #808080; background: #1e2a3a; border-color: #444; }"
+                )
+                # Store lambda as instance variable to prevent GC issues with Shiboken
+                slot = lambda checked, o=opt: self._on_option(o)
+                self._option_slots.append(slot)
+                btn.clicked.connect(slot)
+                self._option_buttons.append(btn)
+                btn_layout.addWidget(btn)
+            btn_layout.addStretch()
+            layout.addLayout(btn_layout)
+            self._buttons = btn_layout
+
+    def set_option_selected_callback(self, callback) -> None:
+        self._option_selected_callback = callback
+
+    def _on_option(self, option: str) -> None:
+        # Disable all buttons after selection
+        for i in range(self._buttons.count()):
+            item = self._buttons.itemAt(i)
+            if item and item.widget():
+                item.widget().setEnabled(False)
+        if self._option_selected_callback is not None:
+            self._option_selected_callback(option)
+
+
+class ExplorationPhaseWidget(QFrame):
+    """Displays an exploration phase transition."""
+
+    _PHASE_ICONS: ClassVar[dict[str, str]] = {
+        "explore": "\u25b6",  # play
+        "plan": "\u270e",  # pencil
+        "execute": "\u2699",  # gear
+        "save": "\u2714",  # checkmark
+    }
+
+    def __init__(self, from_phase: str, to_phase: str, reason: str = "", parent: QWidget = None):
+        super().__init__(parent)
+        self.setObjectName("message_tool")
+        self.setStyleSheet("QFrame#message_tool { border-color: #d7ba7d; background: #2d2a1f; }")
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(8, 6, 8, 6)
+        layout.setSpacing(6)
+
+        icon = self._PHASE_ICONS.get(to_phase, "\u2192")
+        self._phase_label = QLabel(f"{icon}  Phase: {to_phase.upper()}")
+        self._phase_label.setStyleSheet("color: #d7ba7d; font-weight: bold; font-size: 11px;")
+        layout.addWidget(self._phase_label)
+
+        if reason:
+            self._reason_label = QLabel(reason)
+            self._reason_label.setWordWrap(True)
+            self._reason_label.setStyleSheet("color: #b0a070; font-size: 11px;")
+            layout.addWidget(self._reason_label, 1)
+
+
+class ExplorationFindingWidget(QFrame):
+    """Displays a single exploration finding."""
+
+    _CATEGORY_COLORS: ClassVar[dict[str, str]] = {
+        "function_purpose": "#4ec9b0",
+        "hypothesis": "#d7ba7d",
+        "constant": "#b5cea8",
+        "data_structure": "#c586c0",
+        "string_ref": "#ce9178",
+        "import_usage": "#569cd6",
+        "patch_result": "#6a9955",
+        "general": "#808080",
+    }
+
+    def __init__(
+        self,
+        category: str,
+        summary: str,
+        address: str | None = None,
+        relevance: str = "medium",
+        parent: QWidget = None,
+    ):
+        super().__init__(parent)
+        self.setObjectName("message_tool")
+        color = self._CATEGORY_COLORS.get(category, "#808080")
+        self.setStyleSheet(f"QFrame#message_tool {{ border-color: {color}; }}")
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(8, 4, 8, 4)
+        layout.setSpacing(6)
+
+        self._cat_label = QLabel(f"[{category}]")
+        self._cat_label.setStyleSheet(f"color: {color}; font-weight: bold; font-size: 10px;")
+        layout.addWidget(self._cat_label)
+
+        if address:
+            self._addr_label = QLabel(address)
+            self._addr_label.setStyleSheet("color: #808080; font-family: monospace; font-size: 10px;")
+            layout.addWidget(self._addr_label)
+
+        self._summary_label = QLabel(summary)
+        self._summary_label.setWordWrap(True)
+        self._summary_label.setStyleSheet("color: #d4d4d4; font-size: 11px;")
+        layout.addWidget(self._summary_label, 1)
+
+        if relevance == "high":
+            rel_label = QLabel("\u2605")
+            rel_label.setStyleSheet("color: #d7ba7d; font-size: 12px;")
+            rel_label.setToolTip("High relevance")
+            layout.addWidget(rel_label)
+
+
+class ResearchNoteWidget(QFrame):
+    """Displays a research note saved event."""
+
+    def __init__(
+        self,
+        title: str,
+        genre: str,
+        path: str,
+        preview: str = "",
+        review_passed: bool = True,
+        parent: QWidget = None,
+    ):
+        super().__init__(parent)
+        self.setObjectName("message_tool")
+        accent = "#6a9955" if review_passed else "#d7ba7d"
+        self.setStyleSheet(f"QFrame#message_tool {{ border-color: {accent}; }}")
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(8, 4, 8, 4)
+        layout.setSpacing(2)
+
+        # Header row
+        header = QHBoxLayout()
+        icon = "\u2705" if review_passed else "\u270f"  # checkmark or pencil
+        self._title_label = QLabel(f"{icon}  {title}")
+        self._title_label.setStyleSheet(f"color: {accent}; font-weight: bold; font-size: 11px;")
+        header.addWidget(self._title_label)
+
+        self._genre_label = QLabel(f"#{genre}")
+        self._genre_label.setStyleSheet("color: #808080; font-size: 10px; font-style: italic;")
+        header.addWidget(self._genre_label)
+        header.addStretch()
+        layout.addLayout(header)
+
+        # Path
+        self._path_label = QLabel(path)
+        self._path_label.setStyleSheet("color: #606060; font-family: monospace; font-size: 10px;")
+        layout.addWidget(self._path_label)
+
+        # Preview
+        if preview:
+            self._preview_label = QLabel(preview)
+            self._preview_label.setWordWrap(True)
+            self._preview_label.setStyleSheet("color: #a0a0a0; font-size: 11px;")
+            layout.addWidget(self._preview_label)
+
+
+class SubagentEventWidget(QFrame):
+    """Displays a subagent lifecycle event (spawned, completed, failed)."""
+
+    _STATUS_COLORS: ClassVar[dict[str, str]] = {
+        "spawned": "#569cd6",
+        "completed": "#4ec9b0",
+        "failed": "#f44747",
+    }
+
+    def __init__(
+        self,
+        status: str,
+        name: str,
+        detail: str = "",
+        parent: QWidget = None,
+    ):
+        super().__init__(parent)
+        self.setObjectName("message_tool")
+        color = self._STATUS_COLORS.get(status, "#808080")
+        self.setStyleSheet(f"QFrame#message_tool {{ border-color: {color}; background: #252530; }}")
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(8, 6, 8, 6)
+        layout.setSpacing(6)
+
+        icon_map = {"spawned": "\u25b6", "completed": "\u2714", "failed": "\u2718"}
+        icon = icon_map.get(status, "\u2022")
+        self._icon = QLabel(icon)
+        self._icon.setStyleSheet(f"color: {color}; font-size: 14px;")
+        layout.addWidget(self._icon)
+
+        label_text = f"Subagent \u201c{name}\u201d {status}"
+        self._label = QLabel(label_text)
+        self._label.setStyleSheet(f"color: {color}; font-weight: bold; font-size: 11px;")
+        layout.addWidget(self._label)
+
+        if detail:
+            self._detail = QLabel(detail)
+            self._detail.setWordWrap(True)
+            self._detail.setStyleSheet("color: #b0b0b0; font-size: 11px;")
+            layout.addWidget(self._detail, 1)
+
+
+class ErrorMessageWidget(QFrame):
+    """Displays an error message."""
+
+    def __init__(self, error_text: str, parent: QWidget = None):
+        super().__init__(parent)
+        self.setObjectName("message_tool")
+        self.setStyleSheet("QFrame#message_tool { border-color: #f44747; }")
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(8, 6, 8, 6)
+
+        self._header = QLabel("Error")
+        self._header.setStyleSheet("color: #f44747; font-weight: bold; font-size: 11px;")
+        layout.addWidget(self._header)
+
+        self._content = QLabel(error_text)
+        self._content.setWordWrap(True)
+        self._content.setTextInteractionFlags(
+            qt_flags(
+                Qt.TextInteractionFlag.TextSelectableByMouse,
+                Qt.TextInteractionFlag.TextSelectableByKeyboard,
+            )
+        )
+        self._content.setStyleSheet("color: #f44747; font-size: 12px;")
+        self._content.setMinimumWidth(0)
+        self._content.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        layout.addWidget(self._content)

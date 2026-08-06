@@ -1,0 +1,85 @@
+# Spectra Docker Compose Configuration
+# AI-Powered Reverse Engineering Agent
+
+version: '3.8'
+
+services:
+  spectra-cli:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: spectra:latest
+    container_name: spectra-cli
+
+    # Interactive mode for CLI
+    stdin_open: true
+    tty: true
+
+    # Environment variables
+    environment:
+      - PYTHONUNBUFFERED=1
+      - SPECTRA_HOME=/spectra
+      - SPECTRA_DATA=/spectra/data
+
+    # Mount volumes for persistence
+    volumes:
+      # Main data directory
+      - spectra-data:/spectra/data
+      # Session history
+      - spectra-sessions:/spectra/data/sessions
+      # Custom skills (if any)
+      - ./spectra/skills/builtins:/spectra/skills/builtins:ro
+      # Analysis targets (read-only)
+      - ${TARGET_DIR:-./targets}:/targets:ro
+
+    # Working directory inside container
+    working_dir: /spectra
+
+    # Network mode (default is bridge, can be changed if needed)
+    network_mode: bridge
+
+    # Resource limits (adjust based on your needs)
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
+        reservations:
+          cpus: '1'
+          memory: 2G
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Command (can be overridden)
+    command: ["--help"]
+
+  # Optional: Spectra with GPU support (for local models)
+  spectra-gpu:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: spectra:latest
+    container_name: spectra-gpu
+
+    # GPU support (requires nvidia-docker)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+    profiles:
+      - gpu
+
+volumes:
+  spectra-data:
+    driver: local
+  spectra-sessions:
+    driver: local
+
+networks:
+  default:
+    name: spectra-network

@@ -1,0 +1,213 @@
+{
+  "version": "1.0",
+  "description": "Dangerous command patterns for Spectra CLI shell command safety checks",
+  "categories": {
+    "critical": {
+      "description": "Commands that could cause irreversible system damage",
+      "severity": "CRITICAL",
+      "patterns": [
+        "rm -rf /",
+        "rm -rf /*",
+        "rm -rf ~",
+        "rm -rf /home",
+        "rm -rf /root",
+        "rm -rf /usr",
+        "rm -rf /etc",
+        "rm -rf /var",
+        "rm -rf /opt",
+        "rm -rf /bin",
+        "rm -rf /sbin",
+        "rm -rf /lib",
+        "mkfs",
+        "dd if=/dev/zero",
+        "dd if=/dev/random",
+        "dd if=/dev/sda",
+        "dd if=/dev/sdb",
+        "format c:",
+        ":(){:|:&};:",
+        "> /dev/sda",
+        "> /dev/sdb",
+        "chmod -R 777 /",
+        "chmod -R 777 ~",
+        "chmod -R 777 /home",
+        "chmod -R 777 /etc",
+        "chmod -R 777 /usr",
+        "chmod -R 777 /root",
+        "chown -R root",
+        "shutdown",
+        "reboot",
+        "poweroff",
+        "halt",
+        "init 0",
+        "systemctl poweroff",
+        "systemctl reboot",
+        "systemctl halt"
+      ]
+    },
+    "filesystem": {
+      "description": "Commands that modify the filesystem",
+      "severity": "HIGH",
+      "patterns": [
+        "rm -rf",
+        "rm -r",
+        "rm -f",
+        "rmdir",
+        "truncate -s",
+        "dd of=/",
+        "dd of=/dev/",
+        "> /dev/sd",
+        "> /dev/nvme",
+        "mkfs.",
+        "format"
+      ]
+    },
+    "privilege_escalation": {
+      "description": "Commands that could escalate privileges",
+      "severity": "HIGH",
+      "patterns": [
+        "sudo ",
+        "su ",
+        "pkexec",
+        "doas "
+      ]
+    },
+    "data_exfiltration": {
+      "description": "Commands that could exfiltrate data",
+      "severity": "MEDIUM",
+      "patterns": [
+        "curl -X POST",
+        "curl --data",
+        "curl -d @",
+        "wget --post-data",
+        "nc -l ",
+        "netcat -l "
+      ]
+    },
+    "package_installation": {
+      "description": "Commands that install packages or software",
+      "severity": "MEDIUM",
+      "patterns": [
+        "pip install",
+        "npm install -g",
+        "npm i -g",
+        "apt install",
+        "apt-get install",
+        "yum install",
+        "dnf install",
+        "brew install"
+      ]
+    },
+    "ssh_dangerous": {
+      "description": "Dangerous SSH operations (remote destructive commands)",
+      "severity": "HIGH",
+      "patterns": [
+        "ssh.*rm -rf /",
+        "ssh.*mkfs",
+        "ssh.*dd if=/dev/zero",
+        "ssh.*dd of=/dev/sd",
+        "ssh.*:> /dev/sd",
+        "ssh.*chmod -R 777 /",
+        "ssh.*shutdown",
+        "ssh.*reboot",
+        "ssh.*poweroff",
+        "ssh.*systemctl poweroff",
+        "ssh.*systemctl reboot",
+        "scp.*> /dev/",
+        "ssh.*rm -rf ~",
+        "ssh.*rm -rf /home",
+        "ssh.*rm -rf /etc",
+        "ssh.*rm -rf /usr",
+        "ssh.*rm -rf /var",
+        "ssh.*rm -rf /root",
+        "ssh.*rm -rf /bin"
+      ]
+    },
+    "python_critical": {
+      "description": "Critical Python commands that could cause irreversible damage",
+      "severity": "CRITICAL",
+      "patterns": [
+        "os.system(\"rm -rf",
+        "os.system('rm -rf",
+        "subprocess.*rm -rf /",
+        "subprocess.*rm -rf ~",
+        "subprocess.*rm -rf /home",
+        "subprocess.*rm -rf /etc",
+        "subprocess.*rm -rf /usr",
+        "subprocess.*mkfs",
+        "subprocess.*dd if=/dev",
+        "subprocess.*dd of=/dev/",
+        "shutil.rmtree.*/",
+        "shutil.rmtree.*~",
+        "shutil.rmtree.*home",
+        "shutil.rmtree.*etc",
+        "shutil.rmtree.*usr",
+        "sendmail(",
+        "eval.compile.__import__",
+        "__import__('os').system",
+        "__import__(\"os\").system"
+      ]
+    },
+    "python_filesystem": {
+      "description": "Python commands that modify the filesystem",
+      "severity": "HIGH",
+      "patterns": [
+        "os.remove(",
+        "os.unlink(",
+        "os.rmdir(",
+        "shutil.rmtree(",
+        "shutil.move(",
+        "os.rename(",
+        "pathlib.Path.unlink",
+        "open.*w.*os.system",
+        "subprocess.*chmod",
+        "os.chmod.*777",
+        "subprocess.*chown"
+      ]
+    },
+    "python_code_execution": {
+      "description": "Python commands that execute arbitrary code",
+      "severity": "HIGH",
+      "patterns": [
+        "exec(",
+        "eval(",
+        "compile(",
+        "__import__('eval').exec",
+        "__import__(\"eval\").exec",
+        "globals().__setitem__",
+        "locals().__setitem__",
+        "getattr(__import__"
+      ]
+    },
+    "python_module_install": {
+      "description": "Python commands that install packages",
+      "severity": "MEDIUM",
+      "patterns": [
+        "subprocess",
+        "pip install",
+        "os.system.*pip install",
+        "!pip install",
+        "%pip install",
+        "pip3 install",
+        "!pip3 install",
+        "%pip3 install"
+      ]
+    },
+    "python_network": {
+      "description": "Python commands that could exfiltrate data over network",
+      "severity": "MEDIUM",
+      "patterns": [
+        "urllib.request.*POST",
+        "requests.post.*http",
+        "socket.send.* sensitive",
+        "http.client.*POST",
+        "ftplib.*storbinary"
+      ]
+    }
+  },
+  "metadata": {
+    "last_updated": "2026-07-09",
+    "maintainer": "Spectra Project",
+    "python_support": "1.0",
+    "description": "Dangerous command patterns for shell and Python code safety checks"
+  }
+}
