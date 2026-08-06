@@ -357,27 +357,77 @@ class Updater:
                 update_info.download_url, headers={"User-Agent": f"Spectra/{self.current_version}"}
             )
 
-            with urllib.request.urlopen(request, timeout=300) as response:
+            with urllib.request.urlopen(request, timeout=60) as response:
                 total_size = int(response.headers.get("Content-Length", 0))
                 downloaded = 0
+                last_progress = 0
+                last_log_mb = 0
+
+                # Log initial info
+                log_info(f"Starting download from {update_info.download_url}")
+                try:
+                    import ida_kernwin
+                    ida_kernwin.msg(f"[Spectra] Downloading update v{update_info.latest_version}...\n")
+                    if total_size > 0:
+                        size_mb = total_size / (1024 * 1024)
+                        ida_kernwin.msg(f"[Spectra] Size: {size_mb:.1f} MB\n")
+                except ImportError:
+                    pass
+
+                # Use smaller chunk size to ensure progress updates even for small files
+                CHUNK_SIZE = 8192  # 8KB chunks for more frequent updates
 
                 with open(download_path, "wb") as f:
                     while True:
-                        chunk = response.read(8192)
+                        chunk = response.read(CHUNK_SIZE)
                         if not chunk:
                             break
                         f.write(chunk)
                         downloaded += len(chunk)
 
+                        # Always call progress callback (handles Qt threading internally)
                         if progress_callback:
                             try:
                                 progress_callback(downloaded, total_size)
                             except Exception as _e:
-                                pass
+                                log_debug(f"Progress callback error: {_e}")
 
+                        # Update IDA UI with progress (thread-safe)
                         if total_size > 0:
-                            progress = (downloaded / total_size) * 100
-                            log_debug(f"Download progress: {progress:.1f}%")
+                            progress = int((downloaded / total_size) * 100)
+                            if progress >= last_progress + 5:  # Report every 5%
+                                log_info(f"Download progress: {progress}%")
+                                try:
+                                    import ida_kernwin
+                                    ida_kernwin.msg(f"[Spectra] {progress}%\n")
+                                except ImportError:
+                                    pass
+                                last_progress = progress
+                        else:
+                            # Unknown size: report every 0.5 MB
+                            mb_downloaded = downloaded / (1024 * 1024)
+                            if mb_downloaded >= last_log_mb + 0.5:
+                                try:
+                                    import ida_kernwin
+                                    ida_kernwin.msg(f"[Spectra] {mb_downloaded:.1f} MB\n")
+                                except ImportError:
+                                    pass
+                                last_log_mb = mb_downloaded
+
+                # Final completion message
+                log_info(f"Download complete: {downloaded / (1024*1024):.1f} MB")
+                try:
+                    import ida_kernwin
+                    ida_kernwin.msg(f"[Spectra] Download complete\n")
+                except ImportError:
+                    pass
+
+                # Call progress callback one final time with completion signal
+                if progress_callback:
+                    try:
+                        progress_callback(downloaded, total_size)
+                    except Exception as _e:
+                        log_debug(f"Final progress callback error: {_e}")
 
             log_info(f"Downloaded to {download_path}")
             return download_path

@@ -1340,6 +1340,10 @@ class SettingsDialog(QDialog):
             self._update_progress_bar.setValue(100)
             self._update_status_label.setText(f"Updated to {update_info.latest_version}! Please restart IDA Pro.")
             self._update_btn.setEnabled(False)
+
+            # Show restart dialog after a short delay (main thread)
+            from ..qt_compat import QTimer, QMessageBox
+            QTimer.singleShot(100, lambda: self._show_restart_dialog(update_info.latest_version))
         elif "failed" in message.lower() or "error" in message.lower():
             self._update_progress_bar.setVisible(False)
             self._update_status_label.setText(f"Error: {message}")
@@ -1347,6 +1351,18 @@ class SettingsDialog(QDialog):
         else:
             self._update_status_label.setText(message)
             self._update_btn.setEnabled(True)
+
+    def _show_restart_dialog(self, version: str) -> None:
+        """Show restart dialog after successful update."""
+        from ..qt_compat import QMessageBox
+
+        msg = QMessageBox(self)
+        msg.setIcon(QMessageBox.Icon.Information)
+        msg.setWindowTitle("Update Installed")
+        msg.setText(f"Spectra has been updated to version {version}")
+        msg.setInformativeText("Please restart IDA Pro to apply the update.")
+        msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+        msg.exec()
 
     def customEvent(self, event) -> None:
         """Handle custom events for update results."""
