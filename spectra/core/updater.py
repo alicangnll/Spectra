@@ -524,7 +524,7 @@ class Updater:
                     log_info(f"Copied {fname}")
 
             # Update version marker file
-            self._update_version_marker(extracted_root)
+            self._update_version_marker(extracted_root=extracted_root)
 
             log_info("Update installed successfully")
             log_info("Please restart IDA Pro/Binary Ninja for changes to take effect")
