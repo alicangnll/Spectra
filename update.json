@@ -1,7 +1,11 @@
 {
-  "version": "1.3.5",
+  "version": "1.3.6",
   "release_date": "2026-08-06",
   "changelog": [
+    "Added IDA restart dialog after successful update with QMessageBox",
+    "Fixed download progress callback to be called at completion even for small files",
+    "Improved download progress reporting with 8KB chunks for more frequent updates",
+    "Added real-time IDA UI messages during download (5% intervals or 0.5MB for unknown size)",
     "Fixed _update_version_marker parameter order causing PosixPath type error",
     "Fixed download_update stuck issue with better progress reporting and error handling",
     "Reduced download timeout from 300s to 60s for faster error detection",
