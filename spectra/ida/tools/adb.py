@@ -291,11 +291,11 @@ def find_android_api_calls(
 |--------|---------|------|
 """
     for sym in android_symbols[:50]:
-        report += f"| {sym['name']} | {sym['address']} | {sym['type']} |\\n"
+        report += f"| {sym['name']} | {sym['address']} | {sym['type']} |\n"
 
     if len(android_symbols) > 50:
-        report += f"| ... | ... and {len(android_symbols) - 50} more | ... |\\n"
+        report += f"| ... | ... and {len(android_symbols) - 50} more | ... |\n"
 
-    report += "\\n**Suggestion:** Use `ida_adb_shell` to test these APIs dynamically."
+    report += "\n**Suggestion:** Use `ida_adb_shell` to test these APIs dynamically."
 
     return report

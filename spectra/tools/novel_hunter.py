@@ -333,8 +333,9 @@ def generate_exploit_template(
     - Authentication handling
     - Proof-of-concept code
     """
-    exploit_template = f'''#!/usr/bin/env python3
-"""
+    # Use .format() instead of f-string to avoid brace escaping issues in templates
+    exploit_template = """#!/usr/bin/env python3
+\"\"\"
 Auto-generated Exploit for Novel Vulnerability
 Vulnerability Type: {vuln_type}
 Location: {location}
@@ -345,7 +346,7 @@ Author: Ali Can Gönüllü
 
 ⚠️  WARNING: This exploit is for AUTHORIZED SECURITY TESTING ONLY
 ⚠️  Usage on systems without explicit permission is prohibited
-"""
+\"\"\"
 
 import socket
 import struct
@@ -353,7 +354,7 @@ import time
 import sys
 
 class NovelExploit:
-    """Exploit for {vuln_type} vulnerability"""
+    \"\"\"Exploit for {vuln_type} vulnerability\"\"\"
 
     def __init__(self, target, port=None, username=None, password=None):
         self.target = target
@@ -363,14 +364,14 @@ class NovelExploit:
         self.timeout = 10
 
     def authenticate(self):
-        """Authenticate if credentials provided"""
+        \"\"\"Authenticate if credentials provided\"\"\"
         if self.username and self.username != 'USERNAME':
             print(f"[*] Authenticating as {{self.username}}")
             return True
         return False
 
     def build_payload(self):
-        """Build exploit payload"""
+        \"\"\"Build exploit payload\"\"\"
         payload = b''
 
         # Custom payload based on vulnerability type
@@ -396,7 +397,7 @@ class NovelExploit:
         return payload
 
     def exploit(self):
-        """Execute exploit"""
+        \"\"\"Execute exploit\"\"\"
         print(f"[*] Target: {{self.target}}:{{self.port}}")
         print(f"[*] Vulnerability: {vuln_type}")
         print(f"[*] Description: {description}")
@@ -415,7 +416,7 @@ class NovelExploit:
             return False
 
     def _network_exploit(self, payload, authenticated):
-        """Network-based exploit"""
+        \"\"\"Network-based exploit\"\"\"
         print(f"[*] Connecting to {{self.target}}:{{self.port}}...")
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -440,7 +441,7 @@ class NovelExploit:
             return False
 
     def _web_exploit(self, payload, authenticated):
-        """Web-based exploit"""
+        \"\"\"Web-based exploit\"\"\"
         import requests
 
         url = self.target
@@ -468,7 +469,7 @@ class NovelExploit:
             return False
 
 def main():
-    """Main entry point"""
+    \"\"\"Main entry point\"\"\"
     import argparse
 
     parser = argparse.ArgumentParser(description="Novel Vulnerability Exploit")
@@ -497,7 +498,7 @@ def main():
 
 if __name__ == "__main__":
     main()
-"""
+""".format(vuln_type=vuln_type, location=location, description=description)
 
     return exploit_template
 

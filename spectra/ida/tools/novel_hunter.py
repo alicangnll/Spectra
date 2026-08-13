@@ -65,7 +65,7 @@ def analyze_decompiled_novel_vulns(
 
 **Function Address:** 0x{ea:X}
 **Function Name:** {ida_hexrays.get_func_name(ea)}
-**Decompiled Lines:** {len(pseudocode.split('\\n'))}
+**Decompiled Lines:** {len(pseudocode.splitlines())}
 
 ---
 
@@ -116,14 +116,14 @@ def check_function_novelty(
         disasm = ida_ua.generate_disasm_line(head, 0)
         text_parts.append(disasm)
 
-    disasm_text = "\\n".join(text_parts)
+    disasm_text = "\n".join(text_parts)
 
     # Try to get pseudocode if available
     try:
         cfunc = ida_hexrays.decompile(ea)
         if cfunc:
             pseudocode = str(cfunc)
-            combined_text = f"# Disassembly\\n{disasm_text}\\n\\n# Pseudocode\\n{pseudocode}"
+            combined_text = f"# Disassembly\n{disasm_text}\n\n# Pseudocode\n{pseudocode}"
         else:
             combined_text = disasm_text
     except:
@@ -250,12 +250,12 @@ def find_custom_allocators() -> str:
 |---------|------|--------------|
 """
     for f in findings[:50]:
-        report += f"| {f['address']} | {f['name']} | {f['size']} |\\n"
+        report += f"| {f['address']} | {f['name']} | {f['size']} |\n"
 
     if len(findings) > 50:
-        report += f"| ... | ... and {len(findings) - 50} more | ... |\\n"
+        report += f"| ... | ... and {len(findings) - 50} more | ... |\n"
 
-    report += "\\n**Recommendation:** Use `analyze_decompiled_novel_vulns` on each candidate to identify vulnerabilities."
+    report += "\n**Recommendation:** Use `analyze_decompiled_novel_vulns` on each candidate to identify vulnerabilities."
 
     return report
 
@@ -309,14 +309,14 @@ def deep_novel_analysis(
         func = ida_funcs.get_func(ea)
         flow_graph = ida_gdl.FlowChart(func)
 
-        flow_info = f"\\n## Control Flow Analysis\\n\\n**Basic Blocks:** {len(list(flow_graph))}\\n"
-        flow_info += f"**Function Size:** {func.end_ea - func.start_ea} bytes\\n"
+        flow_info = f"\n## Control Flow Analysis\n\n**Basic Blocks:** {len(list(flow_graph))}\n"
+        flow_info += f"**Function Size:** {func.end_ea - func.start_ea} bytes\n"
 
         # Count instructions
         insn_count = 0
         for head in ida_heads(func.start_ea, func.end_ea):
             insn_count += 1
-        flow_info += f"**Instructions:** {insn_count}\\n"
+        flow_info += f"**Instructions:** {insn_count}\n"
 
         return f"""## Deep Novel Vulnerability Analysis
 
