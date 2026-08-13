@@ -17,15 +17,18 @@ from . import (
     database,
     decompiler,
     disassembly,
+    exploit_advanced,
     functions,
     kernel_analysis,
     microcode,
     navigation,
+    novel_hunter,
     obfuscation_detect,
     scripting,
     ssl_pinning,
     strings,
     types_tools,
+    vuln_analysis_advanced,
     xrefs,
 )
 
@@ -47,6 +50,9 @@ _TOOL_MODULES = (
     collaboration,
     ssl_pinning,
     auto_exploit,
+    exploit_advanced,
+    novel_hunter,
+    vuln_analysis_advanced,
     code_quality,
     ai_features,
 )
