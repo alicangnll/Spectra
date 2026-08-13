@@ -42,200 +42,26 @@ class Updater:
     def __init__(self):
         """Initialize updater."""
         self.config = SpectraConfig()
-        self.current_version = self._get_installed_version()
-
-    def _get_installed_version(self) -> str:
-        """Get the actually installed version, independent of update.json.
-
-        This method tries multiple sources to determine the REAL version
-        that is currently running, not what's written in update.json.
-
-        Returns:
-            The installed version string.
-        """
-        # Priority 1: Git tag (most reliable for git installations)
-        version = self._get_version_from_git()
-        if version and version != "unknown":
-            log_debug(f"Installed version from git: {version}")
-            return version
-
-        # Priority 2: Check if there's a version marker file
-        # This file should only be updated by the installer or update process
-        version = self._get_version_from_marker_file()
-        if version:
-            log_debug(f"Installed version from marker file: {version}")
-            return version
-
-        # Priority 3: Try to parse from plugin file metadata
-        version = self._get_version_from_metadata()
-        if version:
-            log_debug(f"Installed version from metadata: {version}")
-            return version
-
-        # Priority 4: Constants fallback (may read from update.json - use with caution)
-        # We add a checksum check to detect if update.json was manually modified
-        try:
-            from ..constants import PLUGIN_VERSION
-            log_debug(f"Installed version from constants (fallback): {PLUGIN_VERSION}")
-            return PLUGIN_VERSION
-        except ImportError:
-            pass
-
-        # Last resort: hardcoded fallback
-        log_warn("Could not determine installed version, using hardcoded fallback")
-        return "1.2.2"
-
-    def _get_version_from_git(self) -> str:
-        """Get version from git tags.
-
-        Returns:
-            Version string or "unknown" if not a git repo or no tags.
-        """
-        import subprocess as _subprocess
-        import shutil as _shutil
-
-        try:
-            source_dir = Path(__file__).parent.parent.parent
-            if source_dir.name == "spectra":
-                source_dir = source_dir.parent
-
-            # Resolve symlinks to get the real git repo
-            if source_dir.is_symlink():
-                source_dir = source_dir.resolve()
-
-            git_dir = source_dir / ".git"
-            if not git_dir.exists():
-                return "unknown"
-
-            git_bin = _shutil.which("git")
-            if not git_bin:
-                return "unknown"
-
-            # Try git describe --tags --abbrev=0 to get the most recent tag
-            result = _subprocess.run(
-                [git_bin, "-C", str(source_dir), "describe", "--tags", "--abbrev=0"],
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
-            if result.returncode == 0:
-                tag = result.stdout.strip()
-                # Remove 'v' prefix if present (e.g., v1.3.1 -> 1.3.1)
-                if tag.startswith("v"):
-                    tag = tag[1:]
-                return tag
-
-        except Exception as e:
-            log_debug(f"Git version detection failed: {e}")
-
-        return "unknown"
-
-    def _get_version_from_marker_file(self) -> str:
-        """Get version from .version marker file.
-
-        This file is created/updated only by the installer or update process,
-        not by manual edits to update.json.
-
-        Returns:
-            Version string or empty string if file doesn't exist.
-        """
-        try:
-            source_dir = Path(__file__).parent.parent.parent
-            if source_dir.name == "spectra":
-                source_dir = source_dir.parent
-
-            version_file = source_dir / ".version"
-            if version_file.exists():
-                with open(version_file, "r") as f:
-                    version = f.read().strip()
-                    if version:
-                        return version
-        except Exception as e:
-            log_debug(f"Failed to read version marker file: {e}")
-
-        return ""
-
-    def _get_version_from_metadata(self) -> str:
-        """Get version from __version__ attribute or package metadata.
-
-        Returns:
-            Version string or empty string if not found.
-        """
-        try:
-            # Try to get from __version__ if it exists
-            import spectra
-            if hasattr(spectra, "__version__"):
-                return spectra.__version__
-        except Exception as e:
-            log_debug(f"Failed to get version from metadata: {e}")
-
-        return ""
+        self.current_version = self._get_current_version()
 
     def _get_current_version(self) -> str:
-        """Get current Spectra version from multiple sources in priority order.
-
-        Priority:
-        1. Git tag/describe (most accurate for git installations)
-        2. Local update.json (fallback, but may be stale after manual edits)
-        3. Constants fallback version (last resort)
-        """
-        # Priority 1: Try git describe for git installations
-        import subprocess as _subprocess
-        try:
-            source_dir = Path(__file__).parent.parent.parent
-            if source_dir.name == "spectra":
-                source_dir = source_dir.parent
-
-            # Resolve symlinks to get the real git repo
-            if source_dir.is_symlink():
-                source_dir = source_dir.resolve()
-
-            git_dir = source_dir / ".git"
-            if git_dir.exists():
-                import shutil as _shutil
-                git_bin = _shutil.which("git")
-                if git_bin:
-                    # Try git describe --tags to get version from git tags
-                    result = _subprocess.run(
-                        [git_bin, "-C", str(source_dir), "describe", "--tags", "--abbrev=0"],
-                        capture_output=True,
-                        text=True,
-                        timeout=10
-                    )
-                    if result.returncode == 0 and result.stdout.strip():
-                        tag = result.stdout.strip()
-                        # Remove 'v' prefix if present (e.g., v1.3.1 -> 1.3.1)
-                        if tag.startswith("v"):
-                            tag = tag[1:]
-                        log_debug(f"Version from git tag: {tag}")
-                        return tag
-        except Exception as e:
-            log_debug(f"Git version detection failed: {e}")
-
-        # Priority 2: Try constants.py (reads from local update.json)
+        """Get current Spectra version."""
+        # Try to get from constants
         try:
             from ..constants import PLUGIN_VERSION
-            # Only use this if we can verify it's not the same as remote
-            # This prevents the circular dependency issue
-            log_debug(f"Version from constants: {PLUGIN_VERSION}")
+
             return PLUGIN_VERSION
         except ImportError:
             pass
 
-        # Priority 3: Fallback to hardcoded version (use the last known stable version)
-        log_warn("Could not determine version, using fallback")
+        # Try to get from config
+        if hasattr(self.config, "version"):
+            return self.config.version
+
+        # Fallback to hardcoded version
         return "1.2.2"
 
-    def check_for_updates(self, timeout: int = 10, force_check: bool = False) -> UpdateInfo | None:
-        """Check for updates from GitHub.
-
-        Args:
-            timeout: Request timeout in seconds.
-            force_check: If True, bypass cached results and force re-check.
-
-        Returns:
-            UpdateInfo if update available, None otherwise.
-        """
+    def check_for_updates(self, timeout: int = 10) -> UpdateInfo | None:
         """Check for updates from GitHub.
 
         Args:
@@ -267,14 +93,7 @@ class Updater:
             min_compatible = data.get("min_compatible_version", "1.0.0")
             update_required = data.get("update_required", False)
 
-            # More robust version comparison
-            # Log what we're comparing for debugging
-            log_info(f"Version comparison: installed={self.current_version}, latest={latest_version}")
             is_newer = self._compare_versions(latest_version, self.current_version) > 0
-
-            # Always consider updates if versions differ, even if installed seems newer
-            # This handles cases where local update.json was manually updated ahead of actual code
-            is_different = latest_version != self.current_version
 
             update_info = UpdateInfo(
                 current_version=self.current_version,
@@ -294,14 +113,14 @@ class Updater:
                     ida_kernwin.msg(f"[Spectra] Update available: {self.current_version} → {latest_version}\n")
                 except ImportError:
                     pass
-                for item in changelog[:5]:  # Show first 5 changelog items
+                for item in changelog:
                     log_debug(f"  - {item}")
             else:
-                log_info(f"Already up to date (current: {self.current_version}, latest: {latest_version})")
+                log_info("Already up to date")
                 try:
                     import ida_kernwin
 
-                    ida_kernwin.msg(f"[Spectra] Already up to date ({self.current_version})\n")
+                    ida_kernwin.msg("[Spectra] Already up to date\n")
                 except ImportError:
                     pass
 
@@ -357,77 +176,27 @@ class Updater:
                 update_info.download_url, headers={"User-Agent": f"Spectra/{self.current_version}"}
             )
 
-            with urllib.request.urlopen(request, timeout=60) as response:
+            with urllib.request.urlopen(request, timeout=300) as response:
                 total_size = int(response.headers.get("Content-Length", 0))
                 downloaded = 0
-                last_progress = 0
-                last_log_mb = 0
-
-                # Log initial info
-                log_info(f"Starting download from {update_info.download_url}")
-                try:
-                    import ida_kernwin
-                    ida_kernwin.msg(f"[Spectra] Downloading update v{update_info.latest_version}...\n")
-                    if total_size > 0:
-                        size_mb = total_size / (1024 * 1024)
-                        ida_kernwin.msg(f"[Spectra] Size: {size_mb:.1f} MB\n")
-                except ImportError:
-                    pass
-
-                # Use smaller chunk size to ensure progress updates even for small files
-                CHUNK_SIZE = 8192  # 8KB chunks for more frequent updates
 
                 with open(download_path, "wb") as f:
                     while True:
-                        chunk = response.read(CHUNK_SIZE)
+                        chunk = response.read(8192)
                         if not chunk:
                             break
                         f.write(chunk)
                         downloaded += len(chunk)
 
-                        # Always call progress callback (handles Qt threading internally)
                         if progress_callback:
                             try:
                                 progress_callback(downloaded, total_size)
                             except Exception as _e:
-                                log_debug(f"Progress callback error: {_e}")
+                                pass
 
-                        # Update IDA UI with progress (thread-safe)
                         if total_size > 0:
-                            progress = int((downloaded / total_size) * 100)
-                            if progress >= last_progress + 5:  # Report every 5%
-                                log_info(f"Download progress: {progress}%")
-                                try:
-                                    import ida_kernwin
-                                    ida_kernwin.msg(f"[Spectra] {progress}%\n")
-                                except ImportError:
-                                    pass
-                                last_progress = progress
-                        else:
-                            # Unknown size: report every 0.5 MB
-                            mb_downloaded = downloaded / (1024 * 1024)
-                            if mb_downloaded >= last_log_mb + 0.5:
-                                try:
-                                    import ida_kernwin
-                                    ida_kernwin.msg(f"[Spectra] {mb_downloaded:.1f} MB\n")
-                                except ImportError:
-                                    pass
-                                last_log_mb = mb_downloaded
-
-                # Final completion message
-                log_info(f"Download complete: {downloaded / (1024*1024):.1f} MB")
-                try:
-                    import ida_kernwin
-                    ida_kernwin.msg(f"[Spectra] Download complete\n")
-                except ImportError:
-                    pass
-
-                # Call progress callback one final time with completion signal
-                if progress_callback:
-                    try:
-                        progress_callback(downloaded, total_size)
-                    except Exception as _e:
-                        log_debug(f"Final progress callback error: {_e}")
+                            progress = (downloaded / total_size) * 100
+                            log_debug(f"Download progress: {progress:.1f}%")
 
             log_info(f"Downloaded to {download_path}")
             return download_path
@@ -527,8 +296,6 @@ class Updater:
                         )
                         if result.returncode == 0:
                             log_info("git pull succeeded")
-                            # Update version marker file to reflect new version
-                            self._update_version_marker(latest_version=update_info.latest_version)
                             log_info("Update installed successfully")
                             log_info("Please restart IDA Pro/Binary Ninja for changes to take effect")
                             return True
@@ -573,9 +340,6 @@ class Updater:
                     shutil.copy2(src, source_dir / fname)
                     log_info(f"Copied {fname}")
 
-            # Update version marker file
-            self._update_version_marker(extracted_root=extracted_root)
-
             log_info("Update installed successfully")
             log_info("Please restart IDA Pro/Binary Ninja for changes to take effect")
             return True
@@ -617,49 +381,6 @@ class Updater:
         log_info(f"Starting copytree from {src} to {dst}")
         shutil.copytree(src, dst, symlinks=True)
         log_info("Copy completed successfully")
-
-    def _update_version_marker(self, latest_version: str = None, extracted_root: Path = None) -> None:
-        """Update the .version marker file after a successful update.
-
-        This file stores the actual installed version, separate from update.json,
-        to break the circular dependency where update.json is used both as
-        current version source AND update target.
-
-        Args:
-            latest_version: The new version to write. If None, reads from extracted_root.
-            extracted_root: Path to extracted update directory (alternative source).
-        """
-        try:
-            # Determine the version to write
-            if extracted_root:
-                # Read from the extracted update.json
-                extracted_update_json = extracted_root / "update.json"
-                if extracted_update_json.exists():
-                    with open(extracted_update_json, "r") as f:
-                        update_data = json.load(f)
-                        version = update_data.get("version", latest_version or "unknown")
-                else:
-                    version = latest_version or "unknown"
-            else:
-                version = latest_version or "unknown"
-
-            # Write to .version file in the source directory
-            source_dir = Path(__file__).parent.parent.parent
-            if source_dir.name == "spectra":
-                source_dir = source_dir.parent
-
-            # Resolve symlinks
-            if source_dir.is_symlink():
-                source_dir = source_dir.resolve()
-
-            version_file = source_dir / ".version"
-            with open(version_file, "w") as f:
-                f.write(version)
-
-            log_info(f"Updated version marker: {version_file} → {version}")
-
-        except Exception as e:
-            log_warn(f"Failed to update version marker: {e}")
 
     def _compare_versions(self, v1: str, v2: str) -> int:
         """Compare two version strings.

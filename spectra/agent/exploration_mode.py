@@ -98,24 +98,30 @@ class KnowledgeBase:
 
     @property
     def has_minimum_for_planning(self) -> bool:
-        """Check if the knowledge base has enough data to transition to planning."""
-        return (
-            len(self.relevant_functions) >= 1
-            and len(self.hypotheses) >= 1
-            and any(f.relevance == "high" for f in self.findings if f.category == "hypothesis")
-        )
+        """Check if the knowledge base has enough data to transition to planning.
+
+        Relaxed requirements: allow planning with partial findings to avoid
+        blocking exploration mode on simple analysis tasks.
+        """
+        # At least some findings are required
+        if len(self.findings) == 0:
+            return False
+
+        # Require either relevant functions OR hypotheses (not both strictly)
+        has_functions = len(self.relevant_functions) >= 1
+        has_hypotheses = len(self.hypotheses) >= 1
+
+        return has_functions or has_hypotheses
 
     @property
     def planning_gap_description(self) -> str:
         """Describe what's missing for planning, for feedback to the agent."""
         gaps = []
-        if len(self.relevant_functions) < 1:
-            gaps.append("0 relevant functions (need ≥1)")
-        if len(self.hypotheses) < 1:
-            gaps.append("0 hypotheses (need ≥1)")
-        elif not any(f.relevance == "high" for f in self.findings if f.category == "hypothesis"):
-            gaps.append("0 high-relevance hypotheses (need ≥1 with relevance='high')")
-        return "; ".join(gaps) if gaps else ""
+        if len(self.findings) == 0:
+            gaps.append("0 findings (need at least 1)")
+        if len(self.relevant_functions) < 1 and len(self.hypotheses) < 1:
+            gaps.append("no relevant functions or hypotheses (need at least 1 of either)")
+        return "; ".join(gaps) if gaps else "Insufficient findings for planning"
 
     def to_summary(self) -> str:
         """Generate a text summary of accumulated knowledge for the planning prompt."""

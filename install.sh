@@ -253,8 +253,41 @@ main() {
     printf "${DIM}  To update later:  cd ${INSTALL_DIR} && git pull${NC}\n"
     echo ""
 
+    # Install skills to ~/.claude/skills
+    setup_skills
+    echo ""
+
     # Install CLI wrapper
     setup_cli_wrapper
+}
+
+# ── Skills installation ────────────────────────────────────────────────────
+setup_skills() {
+    local skills_dir="$HOME/.claude/skills"
+    local claude_ext_source="$INSTALL_DIR/claude_ext"
+
+    # Ensure ~/.claude/skills exists
+    if [[ ! -d "$skills_dir" ]]; then
+        mkdir -p "$skills_dir" 2>/dev/null || {
+            warn "Could not create $skills_dir - skipping skills installation"
+            return 1
+        }
+    fi
+
+    # Copy claude_ext to ~/.claude/skills if it exists
+    if [[ -d "$claude_ext_source" ]]; then
+        local target_dir="$skills_dir/claude_ext"
+        info "Copying claude_ext to ~/.claude/skills..."
+
+        # Remove existing directory if present
+        [[ -d "$target_dir" ]] && rm -rf "$target_dir"
+
+        # Copy directory
+        cp -R "$claude_ext_source" "$target_dir"
+        ok "Skills installed: $target_dir"
+    else
+        warn "claude_ext not found in $INSTALL_DIR - skipping skills installation"
+    fi
 }
 
 # ── CLI wrapper setup ────────────────────────────────────────────────────

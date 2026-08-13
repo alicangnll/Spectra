@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from ...core.config import SpectraConfig
 from ...core.logging import log_debug
-from ...skills.loader import SkillDefinition
+from...skills.loader import SkillDefinition
 from ..qt_compat import (
     QCheckBox,
     QGroupBox,

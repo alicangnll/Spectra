@@ -107,11 +107,13 @@ def _run_phase1_subagent(
             log_info(f"Skipping exploration phase for non-code-analysis task: {kb.user_goal[:60]!r}")
             loop._clear_exploration_state()
         else:
-            # This was a code analysis task - show the error
+            # This was a code analysis task - show helpful guidance
             yield TurnEvent.error_event(
-                "Subagent exploration finished without sufficient findings. "
+                "Exploration completed with limited findings. "
                 f"Gap: {kb.planning_gap_description}. "
-                "Try a more specific request."
+                "\n\nSuggestion: Try being more specific about which function or address to analyze. "
+                "Example: 'Analyze the function at 0x401000 for buffer overflow vulnerabilities' "
+                "instead of 'Analyze for vulnerabilities'."
             )
             loop._clear_exploration_state()
 
@@ -157,11 +159,13 @@ def run_phase1_inline(
                     loop._clear_exploration_state()
                     return
                 else:
-                    # This was a code analysis task - show the error
+                    # This was a code analysis task - show helpful guidance
                     yield TurnEvent.error_event(
-                        f"Exploration turn limit reached ({state.max_explore_turns}) "
-                        "without sufficient findings for planning. "
-                        "Try a more specific request."
+                        f"Exploration reached {state.max_explore_turns} turns with limited findings. "
+                        f"Gap: {state.knowledge_base.planning_gap_description}. "
+                        "\n\nSuggestion: Provide a specific function address or use the analysis tools directly. "
+                        "Example: 'Decompile function 0x401000 and check for buffer overflow patterns' "
+                        "will work better than a general 'find vulnerabilities' request."
                     )
                     loop._clear_exploration_state()
                     return
