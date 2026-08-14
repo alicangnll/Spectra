@@ -96,6 +96,7 @@ class AgentCreatorDialog(QDialog):
 
         # Mode
         self._mode_combo = QComboBox()
+        self._mode_combo.setMaxVisibleItems(10)
         self._mode_combo.addItems(["plan", "auto", "explore"])
         self._mode_combo.setCurrentText("plan")
         basic_layout.addRow("Mode:", self._mode_combo)

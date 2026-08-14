@@ -328,6 +328,7 @@ class SettingsDialog(QDialog):
         )
         row = QHBoxLayout()
         self._provider_combo = QComboBox()
+        self._provider_combo.setMaxVisibleItems(15)
         self._populate_provider_combo()
         idx = self._provider_combo.findText(self._config.provider.name)
         if idx >= 0:
@@ -354,6 +355,7 @@ class SettingsDialog(QDialog):
         """Build the model combo + refresh button + status row."""
         model_layout = QHBoxLayout()
         self._model_combo = QComboBox()
+        self._model_combo.setMaxVisibleItems(15)
         self._model_combo.setEditable(True)
         self._model_combo.setMinimumWidth(300)
         self._model_combo.setCurrentText(self._config.provider.model)
@@ -873,6 +875,7 @@ class SettingsDialog(QDialog):
 
         # Action when limit exceeded
         self._token_limiter_action_combo = QComboBox()
+        self._token_limiter_action_combo.setMaxVisibleItems(10)
         self._token_limiter_action_combo.addItems(["error", "warn", "none"])
         self._token_limiter_action_combo.setCurrentText("error")
         self._token_limiter_action_combo.setToolTip(
