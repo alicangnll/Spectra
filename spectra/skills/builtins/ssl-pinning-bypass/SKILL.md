@@ -2,7 +2,9 @@
 name: SSL Pinning Bypass
 description: SSL certificate pinning detection and bypass for mobile apps
 tags: [ssl, pinning, mobile, android, ios, frida, https]
+triggers: [ssl pinning, certificate pinning, https bypass, pin bypass, trustmanager, sslcontext, okhttp pinning, afnetworking pinning, certificate pinner, ssl check, https certificate, mobile ssl, app transport security, ats]
 allowed_tools: [detect_ssl_pinning_impl, get_ssl_bypass, search_strings, list_imports]
+mode: exploration
 ---
 ---
 

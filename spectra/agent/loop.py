@@ -1433,7 +1433,7 @@ class AgentLoop:
     def _handle_spawn_subagent_tool(self, tc: ToolCall) -> Generator[TurnEvent, None, ToolResult]:
         """Handle the spawn_subagent pseudo-tool."""
         task = tc.arguments.get("task", "")
-        max_turns = tc.arguments.get("max_turns", 20)
+        max_turns = tc.arguments.get("max_turns", self.config.subagent_turn_limit)
         if not task:
             content = "Error: 'task' is required."
             is_err = True

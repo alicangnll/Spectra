@@ -4,7 +4,7 @@ description: Active vulnerability scanner for PHP and C# web applications — PO
 tags: [php, csharp, asp.net, web, security, vulnerability, sqli, xss, csrf, rce, deserialization, pop-chain, idor, ssrf, file-upload, auth-bypass, laravel, symfony, cakephp, codeigniter, wordpress, drupal, joomla, magento, aspnet-mvc, webforms, blazor, entity-framework, nhibernate, scanning, active-scan]
 author: Spectra Security Research
 version: 2.0
-triggers: [php, c#, csharp, asp.net, aspnet, .net, dotnet, laravel, symfony, wordpress, drupal, deserialization, rce, pop-chain, sqli]
+triggers: [php vulnerability, c# vulnerability, asp.net vulnerability, laravel vulnerability, wordpress vulnerability, drupal vulnerability, php sqli, php rce, asp.net rce, php deserialization, wordpress exploit, php pop chain, web application security, web scanner, web vuln scan]
 mode: exploration
 ---
 

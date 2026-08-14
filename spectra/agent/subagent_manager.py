@@ -73,10 +73,23 @@ class SubagentManager:
         agent_type: str = "custom",
         parent_id: str | None = None,
         perks: list[str] | None = None,
-        max_turns: int = 20,
+        max_turns: int | None = None,
         category: str = "",
     ) -> str:
-        """Spawn a new subagent in a background thread. Returns agent ID."""
+        """Spawn a new subagent in a background thread. Returns agent ID.
+
+        Args:
+            name: Display name for the subagent
+            task: Task description
+            agent_type: Type of subagent (custom, network_recon, report_writer)
+            parent_id: Parent agent ID for nested subagents
+            perks: Special capabilities for this agent
+            max_turns: Maximum turns (uses config.subagent_turn_limit if None)
+            category: Category for grouping (bulk_rename, etc.)
+        """
+        # Use config default if max_turns not specified
+        if max_turns is None:
+            max_turns = self._config.subagent_turn_limit
         agent_id = uuid.uuid4().hex[:12]
         cancel = threading.Event()
         self._cancel_events[agent_id] = cancel

@@ -52,6 +52,7 @@ class SpectraConfig:
     disclaimer_accepted: bool = False  # tracks if user has accepted the legal disclaimer
     approve_mutations: bool = False  # require approval for mutating tools (rename, retype, etc.)
     exploration_turn_limit: int = 100  # max turns in exploration phase before forcing transition
+    subagent_turn_limit: int = 20  # max turns for spawn_subagent tool
     max_retries: int = 3  # max retries on rate-limit / transient API errors
     silent_retry_mode: bool = False  # show loading indicator instead of error messages on retry
     theme: str = "dark"

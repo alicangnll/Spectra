@@ -422,6 +422,15 @@ class SettingsDialog(QDialog):
         )
         behavior_form.addRow("Exploration turn limit:", self._explore_turns_spin)
 
+        self._subagent_turns_spin = QSpinBox()
+        self._subagent_turns_spin.setRange(5, 100)
+        self._subagent_turns_spin.setValue(self._config.subagent_turn_limit)
+        self._subagent_turns_spin.setToolTip(
+            "Maximum turns for spawn_subagent tool before reaching the limit. "
+            "Subagents are used for delegated research tasks."
+        )
+        behavior_form.addRow("Subagent turn limit:", self._subagent_turns_spin)
+
         # --- Rate-limit handling ---
         self._max_retries_spin = QSpinBox()
         self._max_retries_spin.setRange(1, 10)
@@ -1019,6 +1028,7 @@ class SettingsDialog(QDialog):
         self._config.auto_context = self._auto_context_cb.isChecked()
         self._config.checkpoint_auto_save = self._auto_save_cb.isChecked()
         self._config.exploration_turn_limit = self._explore_turns_spin.value()
+        self._config.subagent_turn_limit = self._subagent_turns_spin.value()
         self._config.max_retries = self._max_retries_spin.value()
         self._config.silent_retry_mode = self._silent_retry_cb.isChecked()
         self._config.preserve_context = self._preserve_context_cb.isChecked()

@@ -63,7 +63,7 @@ class SubagentRunner:
     def run_task(
         self,
         task: str,
-        max_turns: int = 20,
+        max_turns: int | None = None,
         system_addendum: str = "",
         silent: bool = False,
     ) -> Generator[TurnEvent, None, str]:
@@ -71,6 +71,19 @@ class SubagentRunner:
 
         Yields TurnEvents from the subagent so the UI can show progress.
         Returns the subagent's final assistant text as a string summary.
+
+        Args:
+            task: The task description for the subagent
+            max_turns: Maximum turns before stopping (uses config.subagent_turn_limit if None)
+            system_addendum: Additional text to append to system prompt
+            silent: If True, suppress progress events to the UI
+
+        The subagent shares the parent's provider, tools, and config but has
+        its own message history and context window.
+        """
+        # Use config default if max_turns not specified
+        if max_turns is None:
+            max_turns = self.config.subagent_turn_limit
 
         When *silent* is True, only interactive events (tool approval,
         user questions) are forwarded — text, tool calls, and results
