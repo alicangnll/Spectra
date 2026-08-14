@@ -30,6 +30,7 @@ from .qt_compat import (
     QProgressBar,
     QPushButton,
     QSpinBox,
+    QSizePolicy,
     Qt,
     QTabWidget,
     QTimer,
@@ -295,9 +296,18 @@ class SettingsDialog(QDialog):
         self._api_key_edit = QLineEdit(self._config.provider.api_key)
         self._api_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
         self._api_key_edit.setPlaceholderText("sk-... or leave empty for auto-detect")
+        self._api_key_edit.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Fixed
+        )
         key_layout.addWidget(self._api_key_edit, 1)
         self._auth_status = QLabel()
-        key_layout.addWidget(self._auth_status)
+        self._auth_status.setMaximumWidth(100)
+        self._auth_status.setSizePolicy(
+            QSizePolicy.Policy.Preferred,
+            QSizePolicy.Policy.Fixed
+        )
+        key_layout.addWidget(self._auth_status, 0)
         provider_form.addRow("API Key:", key_layout)
 
         # OAuth checkbox — controls keychain autoload
@@ -329,6 +339,10 @@ class SettingsDialog(QDialog):
         row = QHBoxLayout()
         self._provider_combo = QComboBox()
         self._provider_combo.setMaxVisibleItems(15)
+        self._provider_combo.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Fixed
+        )
         self._populate_provider_combo()
         idx = self._provider_combo.findText(self._config.provider.name)
         if idx >= 0:
@@ -357,7 +371,11 @@ class SettingsDialog(QDialog):
         self._model_combo = QComboBox()
         self._model_combo.setMaxVisibleItems(15)
         self._model_combo.setEditable(True)
-        self._model_combo.setMinimumWidth(300)
+        self._model_combo.setMinimumWidth(200)
+        self._model_combo.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Fixed
+        )
         self._model_combo.setCurrentText(self._config.provider.model)
         model_layout.addWidget(self._model_combo, 1)
 
@@ -374,7 +392,12 @@ class SettingsDialog(QDialog):
         self._model_status = QLabel()
         self._model_status.setStyleSheet("color: #808080; font-size: 10px;")
         self._model_status.setWordWrap(True)
-        model_layout.addWidget(self._model_status)
+        self._model_status.setMaximumWidth(150)
+        self._model_status.setSizePolicy(
+            QSizePolicy.Policy.Preferred,
+            QSizePolicy.Policy.Fixed
+        )
+        model_layout.addWidget(self._model_status, 0)
         return model_layout
 
     def _build_generation_group(self) -> QGroupBox:
