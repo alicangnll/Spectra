@@ -257,6 +257,10 @@ main() {
     setup_skills
     echo ""
 
+    # Setup CLI dependencies (Qt bindings)
+    setup_cli_dependencies
+    echo ""
+
     # Install CLI wrapper
     setup_cli_wrapper
 }
@@ -287,6 +291,57 @@ setup_skills() {
         ok "Skills installed: $target_dir"
     else
         warn "claude_ext not found in $INSTALL_DIR - skipping skills installation"
+    fi
+}
+
+# ── CLI dependencies setup ────────────────────────────────────────────────────
+setup_cli_dependencies() {
+    info "Setting up CLI dependencies..."
+
+    # On macOS, ensure PyQt5 is installed and remove conflicting PySide6
+    # On other platforms, ensure PySide6 is installed
+    if [[ "$(uname)" == "Darwin" ]]; then
+        info "macOS detected: ensuring PyQt5 is installed"
+
+        # Check if PySide6 is installed and remove it to avoid conflicts
+        local pyside6_installed=false
+        if pip3 list 2>/dev/null | grep -q "PySide6"; then
+            pyside6_installed=true
+            warn "PySide6 found - removing to avoid Qt5/Qt6 conflicts on macOS"
+            pip3 uninstall -y --break-system-packages PySide6 PySide6_Addons PySide6_Essentials 2>/dev/null || \
+            pip3 uninstall -y PySide6 PySide6_Addons PySide6_Essentials 2>/dev/null || true
+            ok "PySide6 removed"
+        fi
+
+        # Ensure PyQt5 is installed
+        if ! pip3 show PyQt5 >/dev/null 2>&1; then
+            info "Installing PyQt5..."
+            if pip3 install --break-system-packages PyQt5 >/dev/null 2>&1; then
+                ok "PyQt5 installed successfully"
+            elif pip3 install --user PyQt5 >/dev/null 2>&1; then
+                ok "PyQt5 installed successfully (user)"
+            else
+                warn "Failed to install PyQt5 - CLI may not work properly"
+            fi
+        else
+            ok "PyQt5 already installed"
+        fi
+    else
+        info "Non-macOS platform: ensuring PySide6 is installed"
+
+        # Ensure PySide6 is installed on Linux/Windows
+        if ! pip3 show PySide6 >/dev/null 2>&1; then
+            info "Installing PySide6..."
+            if pip3 install --break-system-packages PySide6 >/dev/null 2>&1; then
+                ok "PySide6 installed successfully"
+            elif pip3 install --user PySide6 >/dev/null 2>&1; then
+                ok "PySide6 installed successfully (user)"
+            else
+                warn "Failed to install PySide6 - CLI may not work properly"
+            fi
+        else
+            ok "PySide6 already installed"
+        fi
     fi
 }
 

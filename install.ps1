@@ -532,6 +532,28 @@ function Setup-Skills {
     }
 }
 
+# ── CLI dependencies setup ────────────────────────────────────────────────────
+function Setup-CLIDependencies {
+    Write-Info "Setting up CLI dependencies..."
+
+    # Windows uses PySide6 (Qt6) by default
+    # Ensure PySide6 is installed
+    $pyside6Installed = python3 -m pip show PySide6 2>$null
+    if (-not $pyside6Installed) {
+        Write-Info "Installing PySide6..."
+        python3 -m pip install PySide6 --disable-pip-version-check 2>$null | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            Write-Ok "PySide6 installed successfully"
+        }
+        else {
+            Write-Warn "Failed to install PySide6 - CLI may not work properly"
+        }
+    }
+    else {
+        Write-Ok "PySide6 already installed"
+    }
+}
+
 # ── CLI wrapper setup ────────────────────────────────────────────────────
 function Setup-CLIWrapper {
     # Create CLI wrapper script in repository root
@@ -677,6 +699,10 @@ Write-Host ""
 
 # Install skills to ~/.claude/skills
 Setup-Skills
+Write-Host ""
+
+# Setup CLI dependencies (Qt bindings)
+Setup-CLIDependencies
 Write-Host ""
 
 # Install CLI wrapper

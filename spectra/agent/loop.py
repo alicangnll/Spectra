@@ -1785,6 +1785,9 @@ class AgentLoop:
                                 break
                     if _is_exploration_task:
                         use_exploration_mode = True
+                        # Auto-detected exploration tasks default to explore_only=True
+                        # Only /modify command explicitly sets explore_only=False for patching
+                        explore_only = True
                     else:
                         # Clear the persisted exploration mode for this non-exploration task
                         self.session.metadata.pop("active_mode", None)
