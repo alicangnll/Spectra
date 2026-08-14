@@ -74,11 +74,11 @@ class SessionHistory:
             data["subagent_logs"] = {key: [m.to_dict() for m in msgs] for key, msgs in session.subagent_logs.items()}
         if description:
             data["description"] = description
-        with open(path, "w") as f:
-            json.dump(data, f, indent=2)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
         summary_path = self._summary_path(session.id)
-        with open(summary_path, "w") as f:
-            json.dump(_build_summary_data(data, session.id), f, indent=2)
+        with open(summary_path, "w", encoding="utf-8") as f:
+            json.dump(_build_summary_data(data, session.id), f, indent=2, ensure_ascii=False)
         return path
 
     def load_session(self, session_id: str) -> SessionState | None:
@@ -87,7 +87,7 @@ class SessionHistory:
         if not os.path.exists(path):
             return None
         try:
-            with open(path) as f:
+            with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
         except (json.JSONDecodeError, OSError) as exc:
             log_debug(f"Failed to load session {session_id}: {exc}")
@@ -142,7 +142,7 @@ class SessionHistory:
                 continue
             path = os.path.join(self._dir, fname)
             try:
-                with open(path) as f:
+                with open(path, "r", encoding="utf-8") as f:
                     entry = json.load(f)
                 # When db_instance_id is provided, use it as the primary key
                 # (UUIDs are globally unique, so path matching is redundant).
