@@ -85,13 +85,9 @@ class SubagentRunner:
         if max_turns is None:
             max_turns = self.config.subagent_turn_limit
 
-        When *silent* is True, only interactive events (tool approval,
-        user questions) are forwarded — text, tool calls, and results
-        are suppressed from the parent UI.
+        # When silent, only interactive events (tool approval, user questions)
+        # are forwarded - text, tool calls, and results are suppressed from parent UI
 
-        The subagent gets a clean session and runs the task as a normal
-        agent loop (not exploration mode, not plan mode).
-        """
         from .loop import AgentLoop  # deferred to avoid circular import
 
         session = SessionState()
