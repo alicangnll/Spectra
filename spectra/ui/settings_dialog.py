@@ -26,6 +26,7 @@ from .qt_compat import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QObject,
     QProgressBar,
     QPushButton,
     QSpinBox,
@@ -35,6 +36,7 @@ from .qt_compat import (
     QVBoxLayout,
     QWidget,
     qt_run,
+    Signal,
 )
 
 _DEFAULT_MINIMAX_URL = "https://api.minimax.io/anthropic"
@@ -177,6 +179,10 @@ class _AddProviderDialog(QDialog):
         return self._base_edit.text().strip()
 
 
+class UpdateSignals(QObject):
+    """Thread-safe signals for update progress."""
+    download_progress = Signal(int, int)  # downloaded, total
+
 class SettingsDialog(QDialog):
     """Configuration dialog for Spectra."""
 
@@ -209,6 +215,11 @@ class SettingsDialog(QDialog):
         else:
             self.resize(700, 600)
         self.setMinimumWidth(400)
+
+        # Create update signals for thread-safe progress updates
+        self._update_signals = UpdateSignals()
+        self._update_signals.download_progress.connect(self._update_download_progress)
+
         self._build_ui()
         self._remove_provider_btn.setEnabled(self._config.is_custom_provider(self._config.provider.name))
 
@@ -1259,7 +1270,8 @@ class SettingsDialog(QDialog):
         cached = getattr(self, "_cached_update_info", None)
 
         def _on_dl_progress(downloaded: int, total: int) -> None:
-            QTimer.singleShot(0, lambda: self._update_download_progress(downloaded, total))
+            # Thread-safe signal emission instead of QTimer
+            self._update_signals.download_progress.emit(downloaded, total)
 
         def _update_in_thread():
             try:
