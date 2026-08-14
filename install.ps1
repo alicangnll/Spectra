@@ -497,53 +497,85 @@ function Install-BinaryNinja {
     return $success
 }
 
+# ── Skills installation ────────────────────────────────────────────────────
+function Setup-Skills {
+    $skillsDir = Join-Path $env:USERPROFILE ".claude\skills"
+    $claudeExtSource = Join-Path $InstallDir "claude_ext"
+
+    # Ensure ~/.claude/skills exists
+    if (-not (Test-Path $skillsDir)) {
+        try {
+            New-Item -ItemType Directory -Path $skillsDir -Force | Out-Null
+        }
+        catch {
+            Write-Warn "Could not create $skillsDir - skipping skills installation"
+            return
+        }
+    }
+
+    # Copy claude_ext to ~/.claude/skills if it exists
+    if (Test-Path $claudeExtSource) {
+        $targetDir = Join-Path $skillsDir "claude_ext"
+        Write-Info "Copying claude_ext to ~/.claude/skills..."
+
+        # Remove existing directory if present
+        if (Test-Path $targetDir) {
+            Remove-Item $targetDir -Recurse -Force
+        }
+
+        # Copy directory
+        Copy-Item -Path $claudeExtSource -Destination $targetDir -Recurse -Force
+        Write-Ok "Skills installed: $targetDir"
+    }
+    else {
+        Write-Warn "claude_ext not found in $InstallDir - skipping skills installation"
+    }
+}
+
 # ── CLI wrapper setup ────────────────────────────────────────────────────
 function Setup-CLIWrapper {
-    $wrapper = Join-Path $InstallDir "spectra-cli.ps1"
+    # Create CLI wrapper script in repository root
+    $repoWrapper = Join-Path $InstallDir "spectra-cli.ps1"
+    $wrapperContent = @"
+#!/usr/bin/env pwsh
+# Spectra CLI wrapper - launches interactive Spectra CLI shell
+# Usage: .\spectra-cli [target_directory]
 
-    if (-not (Test-Path $wrapper)) {
-        Write-Warn "CLI wrapper not found at $wrapper"
-        return
-    }
+`$SCRIPT_DIR = Split-Path -Parent `$PSCommandPath
+`$WORK_DIR = if (`$args.Count -gt 0) { `$args[0] } else { "." }
 
-    # Create a batch wrapper for easier usage
-    $batchWrapper = Join-Path $InstallDir "spectra-cli.bat"
-    $batchContent = @"
-@echo off
-REM Spectra CLI wrapper - starts Spectra in current or specified directory
-REM Usage: spectra-cli [directory]
-
-set "SCRIPT_DIR=%~dp0"
-set "WORK_DIR=%~1"
-
-if "%WORK_DIR%"=="" set "WORK_DIR=."
-
-python3 "%SCRIPT_DIR%spectra_cli.py" dir_loc "%WORK_DIR%"
+python3 "`$SCRIPT_DIR\spectra_cli.py" dir_loc "`$WORK_DIR"
 "@
-    $batchContent | Out-File -FilePath $batchWrapper -Encoding ASCII
+    $wrapperContent | Out-File -FilePath $repoWrapper -Encoding UTF8
 
-    # Determine bin directory (use user's local bin if possible)
-    $binDir = Join-Path $env:USERPROFILE "bin"
+    # Determine install location for the wrapper script
+    $binDir = Join-Path $env:USERPROFILE ".local\bin"
     if (-not (Test-Path $binDir)) {
-        # Fallback to InstallDir\bin
-        $binDir = Join-Path $InstallDir "bin"
-        New-Item -ItemType Directory -Path $binDir -Force | Out-Null
+        try {
+            New-Item -ItemType Directory -Path $binDir -Force | Out-Null
+        }
+        catch {
+            $binDir = Join-Path $InstallDir "bin"
+            New-Item -ItemType Directory -Path $binDir -Force | Out-Null
+        }
     }
 
-    # Create symlinks/shortcuts
-    $spectraBat = Join-Path $binDir "spectra.bat"
-    $spectraPs1 = Join-Path $binDir "spectra.ps1"
+    $targetCmd = Join-Path $binDir "spectra.ps1"
+    $oldLink = Join-Path $binDir "spectra-cli.ps1"
 
-    # Copy batch file
-    if (Test-Path $spectraBat) { Remove-Item $spectraBat -Force }
-    Copy-Item $batchWrapper $spectraBat -Force
+    # Remove old symlinks/files if present
+    if (Test-Path $oldLink) { Remove-Item $oldLink -Force }
+    if (Test-Path $targetCmd) { Remove-Item $targetCmd -Force }
 
-    # Create PowerShell wrapper
-    if (Test-Path $spectraPs1) { Remove-Item $spectraPs1 -Force }
-    Copy-Item $wrapper $spectraPs1 -Force
-
-    Write-Ok "CLI wrapper installed: $spectraBat"
-    Write-Ok "CLI wrapper installed: $spectraPs1"
+    # Write a direct, robust launcher script to binDir
+    $launcherContent = @"
+#!/usr/bin/env pwsh
+# Spectra CLI launcher
+`$WORK_DIR = if (`$args.Count -gt 0) { `$args[0] } else { "." }
+python3 "$InstallDir\spectra_cli.py" dir_loc "`$WORK_DIR"
+"@
+    $launcherContent | Out-File -FilePath $targetCmd -Encoding UTF8
+    Write-Ok "CLI wrapper installed: $targetCmd"
 
     # Check if binDir is in PATH
     $pathEntries = $env:PATH -split ';'
@@ -561,7 +593,7 @@ python3 "%SCRIPT_DIR%spectra_cli.py" dir_loc "%WORK_DIR%"
     Write-Host ""
     Write-Info "Usage:"
     Write-Host "  spectra          # Start Spectra in current directory" -ForegroundColor Cyan
-    Write-Host "  spectra C:\path  # Start Spectra in specified directory" -ForegroundColor Cyan
+    Write-Host "  spectra C:\path   # Start Spectra in specified directory" -ForegroundColor Cyan
     Write-Host ""
 }
 
@@ -641,6 +673,10 @@ else {
 }
 Write-Host "  Install location: $InstallDir" -ForegroundColor DarkGray
 Write-Host "  To update later:  cd $InstallDir; git pull" -ForegroundColor DarkGray
+Write-Host ""
+
+# Install skills to ~/.claude/skills
+Setup-Skills
 Write-Host ""
 
 # Install CLI wrapper
