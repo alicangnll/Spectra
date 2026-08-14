@@ -61,89 +61,100 @@ class Updater:
         # Fallback to hardcoded version
         return "1.2.2"
 
-    def check_for_updates(self, timeout: int = 10) -> UpdateInfo | None:
+    def check_for_updates(self, timeout: int = 30, max_retries: int = 3) -> UpdateInfo | None:
         """Check for updates from GitHub.
 
         Args:
-            timeout: Request timeout in seconds.
+            timeout: Request timeout in seconds (default: 30)
+            max_retries: Number of retry attempts on timeout (default: 3)
 
         Returns:
             UpdateInfo if update available, None otherwise.
         """
-        try:
-            log_info("Checking for updates...")
-            log_debug(f"Fetching update info from {self.UPDATE_URL}")
-
-            # Try to use IDA's msg function if available
+        for attempt in range(max_retries):
             try:
-                import ida_kernwin
+                if attempt > 0:
+                    log_info(f"Retry attempt {attempt + 1}/{max_retries}...")
 
-                ida_kernwin.msg("[Spectra] Checking for updates...\n")
-            except ImportError:
-                pass
+                log_info("Checking for updates...")
+                log_debug(f"Fetching update info from {self.UPDATE_URL}")
 
-            request = urllib.request.Request(self.UPDATE_URL, headers={"User-Agent": f"Spectra/{self.current_version}"})
-
-            with urllib.request.urlopen(request, timeout=timeout) as response:
-                data = json.loads(response.read().decode())
-
-            latest_version = data.get("version", self.current_version)
-            download_url = data.get("download_url", "")
-            changelog = data.get("changelog", [])
-            min_compatible = data.get("min_compatible_version", "1.0.0")
-            update_required = data.get("update_required", False)
-
-            is_newer = self._compare_versions(latest_version, self.current_version) > 0
-
-            update_info = UpdateInfo(
-                current_version=self.current_version,
-                latest_version=latest_version,
-                download_url=download_url,
-                changelog=changelog,
-                min_compatible_version=min_compatible,
-                update_required=update_required,
-                is_newer=is_newer,
-            )
-
-            if is_newer:
-                log_info(f"Update available: {self.current_version} → {latest_version}")
+                # Try to use IDA's msg function if available
                 try:
                     import ida_kernwin
 
-                    ida_kernwin.msg(f"[Spectra] Update available: {self.current_version} → {latest_version}\n")
+                    ida_kernwin.msg("[Spectra] Checking for updates...\n")
                 except ImportError:
                     pass
-                for item in changelog:
-                    log_debug(f"  - {item}")
-            else:
-                log_info("Already up to date")
+
+                request = urllib.request.Request(self.UPDATE_URL, headers={"User-Agent": f"Spectra/{self.current_version}"})
+
+                with urllib.request.urlopen(request, timeout=timeout) as response:
+                    data = json.loads(response.read().decode())
+
+                latest_version = data.get("version", self.current_version)
+                download_url = data.get("download_url", "")
+                changelog = data.get("changelog", [])
+                min_compatible = data.get("min_compatible_version", "1.0.0")
+                update_required = data.get("update_required", False)
+
+                is_newer = self._compare_versions(latest_version, self.current_version) > 0
+
+                update_info = UpdateInfo(
+                    current_version=self.current_version,
+                    latest_version=latest_version,
+                    download_url=download_url,
+                    changelog=changelog,
+                    min_compatible_version=min_compatible,
+                    update_required=update_required,
+                    is_newer=is_newer,
+                )
+
+                if is_newer:
+                    log_info(f"Update available: {self.current_version} → {latest_version}")
+                    try:
+                        import ida_kernwin
+
+                        ida_kernwin.msg(f"[Spectra] Update available: {self.current_version} → {latest_version}\n")
+                    except ImportError:
+                        pass
+                    for item in changelog:
+                        log_debug(f"  - {item}")
+                else:
+                    log_info("Already up to date")
+                    try:
+                        import ida_kernwin
+
+                        ida_kernwin.msg("[Spectra] Already up to date\n")
+                    except ImportError:
+                        pass
+
+                return update_info
+
+            except urllib.error.URLError as e:
+                if "timeout" in str(e).lower() or "timed out" in str(e).lower():
+                    if attempt < max_retries - 1:
+                        log_warn(f"Timeout on attempt {attempt + 1}, retrying...")
+                        continue
+                log_error(f"Failed to check for updates: {e}")
                 try:
                     import ida_kernwin
 
-                    ida_kernwin.msg("[Spectra] Already up to date\n")
+                    ida_kernwin.msg(f"[Spectra] Update check failed: {e}\n")
                 except ImportError:
                     pass
+                return None
+            except Exception as e:
+                log_error(f"Error checking for updates: {e}")
+                try:
+                    import ida_kernwin
 
-            return update_info
+                    ida_kernwin.msg(f"[Spectra] Update error: {e}\n")
+                except ImportError:
+                    pass
+                return None
 
-        except urllib.error.URLError as e:
-            log_error(f"Failed to check for updates: {e}")
-            try:
-                import ida_kernwin
-
-                ida_kernwin.msg(f"[Spectra] Update check failed: {e}\n")
-            except ImportError:
-                pass
-            return None
-        except Exception as e:
-            log_error(f"Error checking for updates: {e}")
-            try:
-                import ida_kernwin
-
-                ida_kernwin.msg(f"[Spectra] Update error: {e}\n")
-            except ImportError:
-                pass
-            return None
+        return None
 
     def download_update(
         self,
