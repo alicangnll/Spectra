@@ -12,10 +12,16 @@ from ..qt_compat import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QPushButton,
     QScrollArea,
     QVBoxLayout,
     QWidget,
+    QDialog,
+    QFormLayout,
+    QMessageBox,
+    QSpinBox,
+    QDoubleSpinBox,
 )
 
 if TYPE_CHECKING:
@@ -64,7 +70,7 @@ class MCPTab(QWidget):
             layout.addWidget(QLabel("No MCP servers configured"))
             return group
 
-        # Add "Select All" button row
+        # Add "Select All" and "Add Server" button row
         button_row = QHBoxLayout()
         select_all_btn = QPushButton("Select All")
         select_all_btn.setToolTip("Enable all Spectra MCP servers")
@@ -72,9 +78,13 @@ class MCPTab(QWidget):
         deselect_all_btn = QPushButton("Deselect All")
         deselect_all_btn.setToolTip("Disable all Spectra MCP servers")
         deselect_all_btn.clicked.connect(lambda: self._select_all_spectra_mcp(False))
+        add_server_btn = QPushButton("+ Add Server")
+        add_server_btn.setToolTip("Add a new MCP server")
+        add_server_btn.clicked.connect(self._add_server)
         button_row.addWidget(select_all_btn)
         button_row.addWidget(deselect_all_btn)
         button_row.addStretch()
+        button_row.addWidget(add_server_btn)
         layout.addLayout(button_row)
 
         for server in sorted(self._spectra_servers, key=lambda s: s.name):
@@ -152,3 +162,150 @@ class MCPTab(QWidget):
         config.enabled_external_mcp = [ext_id for ext_id, cb in self._external_checks.items() if cb.isChecked()]
 
         log_debug(f"MCP config: {len(config.enabled_external_mcp)} external enabled")
+
+    def _add_server(self) -> None:
+        """Open dialog to add a new MCP server."""
+        dlg = AddMCPServerDialog(parent=self)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            server_data = dlg.get_server_data()
+            if server_data:
+                # Check if server name already exists
+                existing_names = {s.name for s in self._spectra_servers}
+                if server_data["name"] in existing_names:
+                    QMessageBox.warning(
+                        self,
+                        "Duplicate Name",
+                        f"An MCP server named '{server_data['name']}' already exists."
+                    )
+                    return
+
+                # Create new server config
+                new_server = MCPServerConfig(
+                    name=server_data["name"],
+                    command=server_data["command"],
+                    args=server_data.get("args", []),
+                    env=server_data.get("env", {}),
+                    enabled=True,
+                    timeout=server_data.get("timeout", 30.0),
+                )
+                self._spectra_servers.append(new_server)
+
+                # Refresh UI
+                self._refresh_spectra_group()
+                log_debug(f"Added MCP server: {new_server.name}")
+
+    def _refresh_spectra_group(self) -> None:
+        """Rebuild the Spectra MCP group with current servers."""
+        # Find and remove the old spectra group
+        for i in range(self.layout().count()):
+            widget = self.layout().itemAt(i).widget()
+            if isinstance(widget, QScrollArea):
+                container = widget.widget()
+                if container:
+                    layout = container.layout()
+                    for j in range(layout.count()):
+                        item = layout.itemAt(j)
+                        if item and isinstance(item.widget(), QGroupBox):
+                            group = item.widget()
+                            if group.title() == "Spectra MCP Servers":
+                                # Remove old group
+                                layout.removeWidget(group)
+                                group.deleteLater()
+                                # Add new group
+                                new_group = self._build_spectra_group()
+                                layout.insertWidget(j - 1, new_group)  # Insert before stretch
+                                return
+
+
+class AddMCPServerDialog(QDialog):
+    """Dialog for adding a new MCP server."""
+
+    def __init__(self, parent: QWidget = None):
+        super().__init__(parent)
+        self.setWindowTitle("Add MCP Server")
+        self.setMinimumWidth(500)
+        self._build_ui()
+
+    def _build_ui(self) -> None:
+        layout = QVBoxLayout(self)
+
+        form = QFormLayout()
+
+        self._name_edit = QLineEdit()
+        self._name_edit.setPlaceholderText("e.g., filesystem")
+        form.addRow("Server Name:", self._name_edit)
+
+        self._command_edit = QLineEdit()
+        self._command_edit.setPlaceholderText("e.g., npx")
+        form.addRow("Command:", self._command_edit)
+
+        self._args_edit = QLineEdit()
+        self._args_edit.setPlaceholderText('e.g., -y @modelcontextprotocol/server-filesystem')
+        form.addRow("Arguments:", self._args_edit)
+
+        self._env_edit = QLineEdit()
+        self._env_edit.setPlaceholderText('e.g., KEY1=value1,KEY2=value2')
+        form.addRow("Environment:", self._env_edit)
+
+        self._timeout_spin = QDoubleSpinBox()
+        self._timeout_spin.setRange(1.0, 300.0)
+        self._timeout_spin.setValue(30.0)
+        self._timeout_spin.setSuffix(" seconds")
+        form.addRow("Timeout:", self._timeout_spin)
+
+        layout.addLayout(form)
+
+        # Buttons
+        button_box = QHBoxLayout()
+        ok_btn = QPushButton("Add")
+        ok_btn.clicked.connect(self.accept)
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+        button_box.addStretch()
+        button_box.addWidget(ok_btn)
+        button_box.addWidget(cancel_btn)
+        layout.addLayout(button_box)
+
+    def get_server_data(self) -> dict | None:
+        """Validate and return server data, or None if invalid."""
+        name = self._name_edit.text().strip()
+        if not name:
+            QMessageBox.warning(self, "Missing Name", "Please enter a server name.")
+            return None
+
+        command = self._command_edit.text().strip()
+        if not command:
+            QMessageBox.warning(self, "Missing Command", "Please enter a command.")
+            return None
+
+        # Parse arguments
+        args = []
+        args_text = self._args_edit.text().strip()
+        if args_text:
+            import shlex
+            try:
+                args = shlex.split(args_text)
+            except ValueError:
+                QMessageBox.warning(self, "Invalid Arguments", "Arguments could not be parsed. Use quotes for arguments with spaces.")
+                return None
+
+        # Parse environment variables
+        env = {}
+        env_text = self._env_edit.text().strip()
+        if env_text:
+            for pair in env_text.split(','):
+                if '=' in pair:
+                    key, value = pair.split('=', 1)
+                    env[key.strip()] = value.strip()
+                else:
+                    QMessageBox.warning(self, "Invalid Environment", f"Invalid environment variable format: {pair}")
+                    return None
+
+        return {
+            "name": name,
+            "command": command,
+            "args": args,
+            "env": env,
+            "timeout": self._timeout_spin.value(),
+        }
+
