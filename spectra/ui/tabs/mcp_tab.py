@@ -66,11 +66,7 @@ class MCPTab(QWidget):
         group = QGroupBox("Spectra MCP Servers")
         layout = QVBoxLayout(group)
 
-        if not self._spectra_servers:
-            layout.addWidget(QLabel("No MCP servers configured"))
-            return group
-
-        # Add "Select All" and "Add Server" button row
+        # Add "Select All" and "Add Server" button row (always show)
         button_row = QHBoxLayout()
         select_all_btn = QPushButton("Select All")
         select_all_btn.setToolTip("Enable all Spectra MCP servers")
@@ -86,6 +82,10 @@ class MCPTab(QWidget):
         button_row.addStretch()
         button_row.addWidget(add_server_btn)
         layout.addLayout(button_row)
+
+        if not self._spectra_servers:
+            layout.addWidget(QLabel("No MCP servers configured"))
+            return group
 
         for server in sorted(self._spectra_servers, key=lambda s: s.name):
             cb = QCheckBox(f"{server.name}  —  {server.command}")
