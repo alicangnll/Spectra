@@ -116,6 +116,7 @@ if QT_BINDING == "PySide6":
     from PySide6.QtWidgets import (
         QAbstractItemView,
         QApplication,
+        QButtonGroup,
         QCheckBox,
         QComboBox,
         QClipboard,
@@ -168,6 +169,7 @@ elif QT_BINDING == "PySide2":
     from PySide2.QtWidgets import (  # noqa: F401
         QAbstractItemView,
         QApplication,
+        QButtonGroup,
         QCheckBox,
         QComboBox,
         QDialog,
@@ -219,6 +221,7 @@ else:
     from PyQt5.QtWidgets import (  # noqa: F401
         QAbstractItemView,
         QApplication,
+        QButtonGroup,
         QCheckBox,
         QComboBox,
         QDialog,
