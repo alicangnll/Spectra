@@ -70,30 +70,33 @@ class MCPTab(QWidget):
         button_row = QHBoxLayout()
         select_all_btn = QPushButton("Select All")
         select_all_btn.setToolTip("Enable all Spectra MCP servers")
-        select_all_btn.setMinimumHeight(24)
+        select_all_btn.setMinimumSize(80, 28)
         select_all_btn.clicked.connect(lambda: self._select_all_spectra_mcp(True))
         deselect_all_btn = QPushButton("Deselect All")
         deselect_all_btn.setToolTip("Disable all Spectra MCP servers")
-        deselect_all_btn.setMinimumHeight(24)
+        deselect_all_btn.setMinimumSize(90, 28)
         deselect_all_btn.clicked.connect(lambda: self._select_all_spectra_mcp(False))
-        add_server_btn = QPushButton("+ Add Server")
+        add_server_btn = QPushButton("➕ Add Server")
         add_server_btn.setToolTip("Add a new MCP server")
-        add_server_btn.setMinimumHeight(24)
+        add_server_btn.setMinimumSize(100, 28)
         add_server_btn.setStyleSheet(
-            "QPushButton { background: #2d4a6e; color: #9cdcfe; border: 1px solid #4a7ab5; "
-            "border-radius: 4px; padding: 4px 12px; font-weight: bold; }"
-            "QPushButton:hover { background: #3a5a8a; }"
+            "QPushButton { background: #0066cc; color: white; border: 2px solid #004499; "
+            "border-radius: 5px; padding: 6px 16px; font-weight: bold; font-size: 12px; }"
+            "QPushButton:hover { background: #0077ee; border: 2px solid #0055bb; }"
+            "QPushButton:pressed { background: #004499; }"
         )
         add_server_btn.clicked.connect(self._add_server)
         button_row.addWidget(select_all_btn)
         button_row.addWidget(deselect_all_btn)
         button_row.addStretch()
         button_row.addWidget(add_server_btn)
-        button_row.setSpacing(6)
+        button_row.setSpacing(8)
         layout.addLayout(button_row)
 
         if not self._spectra_servers:
-            layout.addWidget(QLabel("No MCP servers configured"))
+            no_servers_label = QLabel("No MCP servers configured")
+            no_servers_label.setStyleSheet("color: #888; padding: 10px;")
+            layout.addWidget(no_servers_label)
             return group
 
         for server in sorted(self._spectra_servers, key=lambda s: s.name):
@@ -174,34 +177,52 @@ class MCPTab(QWidget):
 
     def _add_server(self) -> None:
         """Open dialog to add a new MCP server."""
+        # First show category selection dialog
+        category_dlg = MCPCategoryDialog(parent=self)
+        if category_dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        category = category_dlg.get_selected_category()
+
         dlg = AddMCPServerDialog(parent=self)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             server_data = dlg.get_server_data()
             if server_data:
-                # Check if server name already exists
-                existing_names = {s.name for s in self._spectra_servers}
-                if server_data["name"] in existing_names:
-                    QMessageBox.warning(
-                        self,
-                        "Duplicate Name",
-                        f"An MCP server named '{server_data['name']}' already exists."
+                if category == "spectra":
+                    # Check if server name already exists in Spectra
+                    existing_names = {s.name for s in self._spectra_servers}
+                    if server_data["name"] in existing_names:
+                        QMessageBox.warning(
+                            self,
+                            "Duplicate Name",
+                            f"An MCP server named '{server_data['name']}' already exists in Spectra."
+                        )
+                        return
+
+                    # Create new server config
+                    new_server = MCPServerConfig(
+                        name=server_data["name"],
+                        command=server_data["command"],
+                        args=server_data.get("args", []),
+                        env=server_data.get("env", {}),
+                        enabled=True,
+                        timeout=server_data.get("timeout", 30.0),
                     )
-                    return
+                    self._spectra_servers.append(new_server)
 
-                # Create new server config
-                new_server = MCPServerConfig(
-                    name=server_data["name"],
-                    command=server_data["command"],
-                    args=server_data.get("args", []),
-                    env=server_data.get("env", {}),
-                    enabled=True,
-                    timeout=server_data.get("timeout", 30.0),
-                )
-                self._spectra_servers.append(new_server)
-
-                # Refresh UI
-                self._refresh_spectra_group()
-                log_debug(f"Added MCP server: {new_server.name}")
+                    # Refresh UI
+                    self._refresh_spectra_group()
+                    log_debug(f"Added MCP server to Spectra: {new_server.name}")
+                else:
+                    # For external categories, we'd need to handle them differently
+                    # For now, just show info that this is not implemented
+                    QMessageBox.information(
+                        self,
+                        "Not Implemented",
+                        f"Adding MCP servers to {category.upper()} is not yet supported.\n"
+                        "Currently, you can only add servers to Spectra MCP Servers.\n\n"
+                        f"External MCP servers from {category.capitalize()} are auto-detected."
+                    )
 
     def _refresh_spectra_group(self) -> None:
         """Rebuild the Spectra MCP group with current servers."""
@@ -317,4 +338,94 @@ class AddMCPServerDialog(QDialog):
             "env": env,
             "timeout": self._timeout_spin.value(),
         }
+
+
+class MCPCategoryDialog(QDialog):
+    """Dialog for selecting MCP server category."""
+
+    CATEGORIES = [
+        ("spectra", "Spectra MCP Servers", "Custom MCP servers configured in Spectra"),
+        ("claude", "Claude Code MCP Servers", "External MCP servers from Claude Code"),
+        ("codex", "Codex MCP Servers", "External MCP servers from Codex"),
+    ]
+
+    def __init__(self, parent: QWidget = None):
+        super().__init__(parent)
+        self.setWindowTitle("Select MCP Server Category")
+        self.setMinimumWidth(450)
+        self._selected_category = ""
+        self._build_ui()
+
+    def _build_ui(self) -> None:
+        layout = QVBoxLayout(self)
+
+        # Title
+        title = QLabel("Which type of MCP server do you want to add?")
+        title.setStyleSheet("font-size: 13px; font-weight: bold; color: #d4d4d4;")
+        layout.addWidget(title)
+
+        # Description
+        desc = QLabel(
+            "Select the category where you want to add the new MCP server:\n"
+            "• Spectra: Custom servers you configure manually\n"
+            "• Claude/Codex: External servers (auto-detected, read-only)"
+        )
+        desc.setStyleSheet("color: #888; font-size: 11px;")
+        desc.setWordWrap(True)
+        layout.addWidget(desc)
+
+        layout.addSpacing(10)
+
+        # Category options
+        from ..qt_compat import QRadioButton, QButtonGroup
+
+        self._button_group = QButtonGroup(self)
+        self._radio_buttons = {}
+
+        for value, title, description in self.CATEGORIES:
+            radio = QRadioButton(title)
+            radio.setStyleSheet(
+                "QRadioButton { color: #d4d4d4; font-size: 12px; }"
+                "QRadioButton::indicator { width: 18px; height: 18px; }"
+            )
+            self._radio_buttons[value] = radio
+            self._button_group.addButton(radio)
+
+            # Description label
+            desc_label = QLabel(f"  {description}")
+            desc_label.setStyleSheet("color: #888; font-size: 10px; margin-left: 24px;")
+
+            layout.addWidget(radio)
+            layout.addWidget(desc_label)
+            layout.addSpacing(5)
+
+        # Select first option by default
+        if self._radio_buttons:
+            first_radio = next(iter(self._radio_buttons.values()))
+            first_radio.setChecked(True)
+
+        layout.addStretch()
+
+        # Buttons
+        button_layout = QHBoxLayout()
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+        ok_btn = QPushButton("Next")
+        ok_btn.setStyleSheet(
+            "QPushButton { background: #0066cc; color: white; border: 2px solid #004499; "
+            "border-radius: 5px; padding: 6px 16px; font-weight: bold; }"
+            "QPushButton:hover { background: #0077ee; }"
+        )
+        ok_btn.clicked.connect(self.accept)
+        button_layout.addStretch()
+        button_layout.addWidget(cancel_btn)
+        button_layout.addWidget(ok_btn)
+        layout.addLayout(button_layout)
+
+    def get_selected_category(self) -> str:
+        """Return the selected category value."""
+        for value, radio in self._radio_buttons.items():
+            if radio.isChecked():
+                return value
+        return "spectra"  # Default fallback
 

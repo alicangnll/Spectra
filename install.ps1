@@ -426,6 +426,53 @@ function Install-Repository {
         git clone --branch $Branch --depth 1 $RepoUrl $InstallDir --quiet 2>$null
         Write-Ok "Cloned successfully"
     }
+
+    # Clear Python cache to ensure fresh module loading
+    Clear-PythonCache
+}
+
+# ── Clear Python cache ──────────────────────────────────────────────────
+function Clear-PythonCache {
+    Write-Info "Clearing Python cache..."
+    $cacheCount = 0
+
+    # Clear __pycache__ directories in Spectra installation
+    if (Test-Path $InstallDir) {
+        Get-ChildItem -Path $InstallDir -Recurse -Directory -Filter "__pycache__" -ErrorAction SilentlyContinue | ForEach-Object {
+            Remove-Item $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
+            $cacheCount++
+        }
+
+        # Clear .pyc files
+        Get-ChildItem -Path $InstallDir -Recurse -File -Filter "*.pyc" -ErrorAction SilentlyContinue | ForEach-Object {
+            Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue
+            $cacheCount++
+        }
+    }
+
+    # Clear IDA plugin cache if present
+    $idaCacheDir = Join-Path $HOME ".idapro\plugins\__pycache__"
+    if (Test-Path $idaCacheDir) {
+        Get-ChildItem -Path $idaCacheDir -Filter "spectra*" -ErrorAction SilentlyContinue | ForEach-Object {
+            Remove-Item $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
+            $cacheCount++
+        }
+    }
+
+    # Clear Binary Ninja plugin cache if present
+    $bnCacheDir = Join-Path $HOME ".binaryninja\plugins\__pycache__"
+    if (Test-Path $bnCacheDir) {
+        Get-ChildItem -Path $bnCacheDir -Filter "spectra*" -ErrorAction SilentlyContinue | ForEach-Object {
+            Remove-Item $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
+            $cacheCount++
+        }
+    }
+
+    if ($cacheCount -gt 0) {
+        Write-Ok "Cleared $cacheCount Python cache entries"
+    } else {
+        Write-Info "No Python cache to clear"
+    }
 }
 
 # ── Run installers ───────────────────────────────────────────────────

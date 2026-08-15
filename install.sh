@@ -159,6 +159,45 @@ clone_or_update() {
         git clone --branch "$BRANCH" --depth 1 "$REPO_URL" "$INSTALL_DIR" --quiet
         ok "Cloned successfully"
     fi
+
+    # Clear Python cache to ensure fresh module loading
+    clear_python_cache
+}
+
+# ── Clear Python cache ──────────────────────────────────────────────────
+clear_python_cache() {
+    info "Clearing Python cache..."
+    local cache_count=0
+
+    # Clear __pycache__ directories in Spectra installation
+    if [[ -d "$INSTALL_DIR" ]]; then
+        while IFS= read -r -d '' cache_dir; do
+            rm -rf "$cache_dir" 2>/dev/null && ((cache_count++))
+        done < <(find "$INSTALL_DIR" -type d -name "__pycache__" -print0 2>/dev/null)
+
+        # Clear .pyc files
+        while IFS= read -r -d '' pyc_file; do
+            rm -f "$pyc_file" 2>/dev/null && ((cache_count++))
+        done < <(find "$INSTALL_DIR" -type f -name "*.pyc" -print0 2>/dev/null)
+    fi
+
+    # Clear IDA plugin cache if present
+    local ida_cache_dir="$HOME/.idapro/plugins/__pycache__"
+    if [[ -d "$ida_cache_dir" ]]; then
+        rm -rf "${ida_cache_dir}/spectra"* 2>/dev/null && ((cache_count++))
+    fi
+
+    # Clear Binary Ninja plugin cache if present
+    local bn_cache_dir="$HOME/.binaryninja/plugins/__pycache__"
+    if [[ -d "$bn_cache_dir" ]]; then
+        rm -rf "${bn_cache_dir}/spectra"* 2>/dev/null && ((cache_count++))
+    fi
+
+    if [[ $cache_count -gt 0 ]]; then
+        ok "Cleared $cache_count Python cache entries"
+    else
+        info "No Python cache to clear"
+    fi
 }
 
 # ── Run installers ───────────────────────────────────────────────────
