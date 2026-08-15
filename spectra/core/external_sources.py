@@ -31,13 +31,39 @@ except ModuleNotFoundError:
     except ModuleNotFoundError:
         tomllib = None  # type: ignore[assignment]
 
-from ..core.logging import log_debug, log_info
+from ..core.logging import log_debug, log_info, log_warn
 from ..mcp.config import MCPServerConfig
+from ..mcp.security import get_security_validator
 from ..skills.loader import SkillDefinition, discover_skills
 
 # ---------------------------------------------------------------------------
 # Path resolution
 # ---------------------------------------------------------------------------
+
+
+def _validate_mcp_server(server: MCPServerConfig, source: str) -> bool:
+    """Validate an MCP server config for security compliance.
+
+    Returns True if the server passes security validation, False otherwise.
+    Logs warnings for any security issues found.
+    """
+    validator = get_security_validator(strict_mode=True)
+    is_allowed, warnings = validator.validate_server_config(
+        name=server.name,
+        command=server.command,
+        args=server.args,
+        env=server.env if server.env else {},
+        timeout=server.timeout
+    )
+
+    if not is_allowed:
+        log_warn(f"External MCP ({source}) BLOCKED: {server.name} - {'; '.join(warnings)}")
+        return False
+
+    if warnings:
+        log_warn(f"External MCP ({source}) warnings for {server.name}: {'; '.join(warnings)}")
+
+    return True
 
 
 def get_claude_code_base() -> Path:
@@ -120,10 +146,11 @@ def discover_all_external_skills() -> dict[str, list[SkillDefinition]]:
 # ---------------------------------------------------------------------------
 
 
-def _load_mcp_json(path: Path) -> list[MCPServerConfig]:
+def _load_mcp_json(path: Path, source: str = "claude") -> list[MCPServerConfig]:
     """Load MCP server configs from a JSON file (``mcpServers`` key).
 
     Returns an empty list if the file doesn't exist or is malformed.
+    Applies security validation to filter out unsafe servers.
     """
     if not path.is_file():
         log_debug(f"External MCP config not found: {path}")
@@ -153,8 +180,11 @@ def _load_mcp_json(path: Path) -> list[MCPServerConfig]:
             enabled=True,
             timeout=float(cfg.get("timeout", 30.0)),
         )
-        servers.append(server)
-        log_debug(f"External MCP server: {name} cmd={command}")
+
+        # SECURITY VALIDATION - Only add if passes security checks
+        if _validate_mcp_server(server, source):
+            servers.append(server)
+            log_debug(f"External MCP server: {name} cmd={command}")
 
     return servers
 
@@ -172,6 +202,7 @@ def _load_codex_mcp_toml(path: Path) -> list[MCPServerConfig]:
 
     Returns an empty list if the file doesn't exist, is malformed, or if
     no TOML parser is available (``pip install tomli`` for Python < 3.11).
+    Applies security validation to filter out unsafe servers.
     """
     if tomllib is None:
         log_debug("TOML parser unavailable — skipping Codex config (pip install tomli)")
@@ -207,8 +238,11 @@ def _load_codex_mcp_toml(path: Path) -> list[MCPServerConfig]:
             enabled=True,
             timeout=timeout,
         )
-        servers.append(server)
-        log_debug(f"External MCP server (Codex): {name} cmd={command}")
+
+        # SECURITY VALIDATION - Only add if passes security checks
+        if _validate_mcp_server(server, "codex"):
+            servers.append(server)
+            log_debug(f"External MCP server (Codex): {name} cmd={command}")
 
     return servers
 

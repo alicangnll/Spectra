@@ -10,9 +10,10 @@ from typing import Any
 
 from ..constants import MCP_DEFAULT_TIMEOUT
 from ..core.errors import MCPConnectionError, MCPError, MCPTimeoutError
-from ..core.logging import log_debug, log_error, log_info
+from ..core.logging import log_debug, log_error, log_info, log_warn
 from ..core.sanitize import sanitize_mcp_result
 from .config import MCPServerConfig
+from .security import get_security_validator
 
 try:
     from mcp import ClientSession
@@ -114,6 +115,25 @@ class MCPClient:
 
         Blocks until the server is ready or the timeout expires.
         """
+        # SECURITY VALIDATION - Validate configuration before starting subprocess
+        # This is defense-in-depth validation; the UI also validates when adding servers
+        validator = get_security_validator(strict_mode=True)
+        is_allowed, warnings = validator.validate_server_config(
+            name=self.name,
+            command=self.config.command,
+            args=self.config.args,
+            env=self.config.env if self.config.env else {},
+            timeout=timeout
+        )
+
+        if not is_allowed:
+            error_msg = f"MCP[{self.name}]: BLOCKED by security validator - " + "; ".join(warnings)
+            log_error(error_msg)
+            raise MCPError(error_msg)
+
+        if warnings:
+            log_warn(f"MCP[{self.name}]: security warnings: {'; '.join(warnings)}")
+
         log_info(f"MCP[{self.name}]: starting server: {self.config.command} {self.config.args}")
 
         self._running = True

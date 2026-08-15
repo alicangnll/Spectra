@@ -88,15 +88,268 @@ Codex yapılandırmanızdan otomatik olarak keşfedilen sunucular:
 
 ## 3. MCP Sunucuları Ekleme
 
-### 3.1 MCP Ayarlarına Erişim
+### 3.1 Önce Gereksinimleri Karşılayın
 
-1. IDA Pro veya Binary Ninja'da **Spectra'yı açın**
-2. **⚙ Settings** butonuna tıklayın
-3. **MCP** sekmesine gidin
+MCP sunucuları eklemeden önce şu araçların kurulu olduğundan emin olun:
 
-### 3.2 Spectra MCP Sunucusu Ekleme
+#### Node.js Tabanlı Sunucular İçin:
+
+```bash
+# Node.js'in kurulu olduğunu kontrol edin
+node --version
+npm --version
+
+# Node.js kurulu değilse:
+# macOS (Homebrew):
+brew install node
+
+# Linux (Ubuntu/Debian):
+sudo apt update && sudo apt install nodejs npm
+
+# Windows:
+# https://nodejs.org/en/download/ adresinden indirin
+```
+
+#### Python Tabanlı Sunucular İçin:
+
+```bash
+# Python'un kurulu olduğunu kontrol edin
+python --version
+pip --version
+
+# Python kurulu değilse:
+# macOS:
+brew install python3
+
+# Linux:
+sudo apt install python3 python3-pip
+
+# Windows:
+# https://www.python.org/downloads/ adresinden indirin
+```
+
+### 3.2 MCP Ayarlarına Erişim
+
+1. **IDA Pro'yu açın** ve bir dosya yükleyin
+2. Spectra paneli görünecek şekilde konumlandırın
+3. Panelin alt kısmındaki **⚙ Settings** butonuna tıklayın
+4. Açılan **Spectra Settings** penceresinde **MCP** sekmesine tıklayın
+
+### 3.3 Spectra MCP Sunucusu Ekleme - Adım Adım
 
 #### Adım 1: "+ Add Server" Butonuna Tıklayın
+
+MCP sunucu kategori seçim diyaloğu açılacaktır:
+
+```
+┌─────────────────────────────────────────┐
+│  MCP Sunucu Kategorisi Seçin           │
+├─────────────────────────────────────────┤
+│  Hangi tür MCP sunucusunu eklemek       │
+│  istiyorsunuz?                          │
+│                                         │
+│  ◉ Spectra MCP Sunucuları              │
+│    Spectra'da manuel olarak            │
+│    yapılandırılan özel sunucular        │
+│                                         │
+│  ○ Claude Code MCP Sunucuları          │
+│    Claude Code'dan harici sunucular     │
+│    (salt okunur)                       │
+│                                         │
+│  ○ Codex MCP Sunucuları                │
+│    Codex'ten harici sunucular           │
+│    (salt okunur)                       │
+│                                         │
+│                    [İptal]  [İleri]   │
+└─────────────────────────────────────────┘
+```
+
+#### Adım 2: "Spectra MCP Sunucuları" Seçin ve "İleri" Butonuna Tıklayın
+
+#### Adım 3: Sunucu Detaylarını Doldurun
+
+MCP Sunucu yapılandırma diyaloğu açılacaktır:
+
+```
+┌─────────────────────────────────────────┐
+│  MCP Sunucusu Ekle                      │
+├─────────────────────────────────────────┤
+│  Sunucu Adı:     [________________]    │
+│  Komut:          [________________]    │
+│  Argümanlar:     [________________]    │
+│  Ortam Değişkenleri: [______________]  │
+│  Zaman Aşımı:    [30 ▲] saniye        │
+│                                         │
+│                    [İptal]  [Ekle]    │
+└─────────────────────────────────────────┘
+```
+
+#### Adım 4: Alanları Doldurun
+
+Her alanın anlamı ve kullanımı:
+
+| Alan | Açıklama | Örnek | Zorunlu |
+|------|----------|-------|---------|
+| **Sunucu Adı** | Sunucu için benzersiz tanımlayıcı | `filesystem`, `postgres-db` | ✅ Evet |
+| **Komut** | Sunucuyu başlatan çalıştırılabilir | `npx`, `uvx`, `python3` | ✅ Evet |
+| **Argümanlar** | Komut satırı argümanları | `-y @modelcontextprotocol/server-filesystem` | ❌ Hayır |
+| **Ortam Değişkenleri** | KEY=value formatında değişkenler | `ALLOWED_PATHS=/tmp,/home/user` | ❌ Hayır |
+| **Zaman Aşımı** | Saniye cinsinden bekleme süresi | `30.0` | ❌ Hayır (varsayılan: 30) |
+
+#### Adım 5: "Ekle" Butonuna Tıklayın
+
+Sunucu **Spectra MCP Sunucuları** listesine eklenecektir.
+
+### 3.4 Popüler MCP Sunucuları - Kurulum Örnekleri
+
+#### Örnek 1: Dosya Sistemi Sunucusu (En Popüler)
+
+**Ne yapar:** Spectra'nın dosya sistemi okuma/yazma yapmasına izin verir
+
+**Kurulum:**
+
+| Alan | Değer |
+|------|-------|
+| **Sunucu Adı** | `filesystem` |
+| **Komut** | `npx` |
+| **Argümanlar** | `-y @modelcontextprotocol/server-filesystem` |
+| **Ortam Değişkenleri** | `ALLOWED_PATHS=/tmp,/home/user/Documents,/Users/user/Desktop` |
+| **Zaman Aşımı** | `30` |
+
+**Alternatif Kurulumlar (Python tabanlı):**
+
+```bash
+# Önce Python sunucusunu kurun
+pip install mcp-server-filesystem
+
+# Ardından Spectra'da şu şekilde yapılandırın:
+# Komut: python3
+# Argümanlar: -m mcp_server_filesystem
+# Ortam: ALLOWED_PATHS=/tmp,/home/user
+```
+
+#### Örnek 2: PostgreSQL Veritabanı Sunucusu
+
+**Ne yapar:** Spectra'nın PostgreSQL veritabanlarını sorgulamasına izin verir
+
+**Önce Kurulum:**
+
+```bash
+# Python sunucusunu kurun
+pip install mcp-server-postgres
+```
+
+**Spectra Yapılandırması:**
+
+| Alan | Değer |
+|------|-------|
+| **Sunucu Adı** | `postgres-prod` |
+| **Komut** | `uvx` |
+| **Argümanlar** | `--from mcp-server-postgres mcp_server_postgres.server` |
+| **Ortam Değişkenleri** | `POSTGRES_CONNECTION_STRING=postgresql://kullanici:sifre@localhost:5432/veritabani` |
+| **Zaman Aşımı** | `45` |
+
+#### Örnek 3: GitHub Entegrasyon Sunucusu
+
+**Ne yapar:** Spectra'nın GitHub repositorilerini okumasına ve analiz etmesine izin verir
+
+**Spectra Yapılandırması:**
+
+| Alan | Değer |
+|------|-------|
+| **Sunucu Adı** | `github-repos` |
+| **Komut** | `npx` |
+| **Argümanlar** | `-y @modelcontextprotocol/server-github` |
+| **Ortam Değişkenleri** | `GITHUB_TOKEN=ghp_your_token_here` |
+| **Zaman Aşımı** | `60` |
+
+**Not:** GitHub token almak için:
+1. GitHub.com → Settings → Developer settings → Personal access tokens
+2. "Generate new token (classic)" seçin
+3. `repo` ve `read:org` izinlerini verin
+
+#### Örnek 4: SQLite Veritabanı Sunucusu
+
+**Ne yapar:** SQLite veritabanlarını sorgulama yeteneği
+
+**Önce Kurulum:**
+
+```bash
+pip install mcp-server-sqlite
+```
+
+**Spectra Yapılandırması:**
+
+| Alan | Değer |
+|------|-------|
+| **Sunucu Adı** | `sqlite-local` |
+| **Komut** | `python3` |
+| **Argümanlar** | `-m mcp_server_sqlite` |
+| **Ortam Değişkenleri** | `SQLITE_DB_PATH=/path/to/database.db` |
+| **Zaman Aşımı** | `30` |
+
+#### Örnek 5: Web Arama Sunucusu (Brave Search)
+
+**Ne yapar:** Spectra'nın web'den bilgi aramasına izin verir
+
+**Önce Kurulum:**
+
+```bash
+# Brave Search API key alın
+# https://api.search.brave.com/app/keys
+```
+
+**Spectra Yapılandırması:**
+
+| Alan | Değer |
+|------|-------|
+| **Sunucu Adı** | `brave-search` |
+| **Komut** | `npx` |
+| **Argümanlar** | `-y @modelcontextprotocol/server-brave-search` |
+| **Ortam Değişkenleri** | `BRAVE_API_KEY=your_brave_api_key_here` |
+| **Zaman Aşımı** | `30` |
+
+### 3.5 Topluluk MCP Sunucuları
+
+Popüler topluluk sunucuları ve kullanım alanları:
+
+| Sunucu | Platform | Kurulum | Kullanım |
+|--------|----------|---------|----------|
+| **mcp-server-sqlite** | Python | `pip install mcp-server-sqlite` | SQLite veritabanı sorguları |
+| **mcp-server-kubernetes** | Python | `pip install mcp-server-kubernetes` | Kubernetes küme yönetimi |
+| **mcp-server-aws** | Python | `pip install mcp-server-aws` | AWS hizmeti entegrasyonu |
+| **mcp-server-git** | Node.js | `npm install -g mcp-server-git` | Git deposu işlemleri |
+| **mcp-server-puppeteer** | Node.js | `npx @modelcontextprotocol/server-puppeteer` | Web otomasyonu |
+
+### 3.6 Özel MCP Sunucuları
+
+Kendi MCP sunucunuzu yazmak istiyorsanız:
+
+```python
+# my_mcp_server.py
+import mcp.server import Server
+
+server = Server("my-custom-server")
+
+@server.tool()
+def analyze_binary(file_path: str) -> str:
+    """Binary dosyasını analiz eder"""
+    # Analiz kodunuz
+    return "Analiz sonucu"
+
+if __name__ == "__main__":
+    server.run()
+```
+
+**Spectra'da Yapılandırma:**
+
+| Alan | Değer |
+|------|-------|
+| **Sunucu Adı** | `my-custom` |
+| **Komut** | `python3` |
+| **Argümanlar** | `/path/to/my_mcp_server.py` |
+| **Ortam Değişkenleri** | (gerekirse) |
+| **Zaman Aşımı** | `30` |
 
 MCP sunucu kategori seçim diyaloğu açılacaktır:
 

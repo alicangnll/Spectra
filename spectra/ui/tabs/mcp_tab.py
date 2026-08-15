@@ -5,8 +5,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ...core.config import SpectraConfig
-from ...core.logging import log_debug
+from ...core.logging import log_debug, log_warn, log_error
 from ...mcp.config import MCPServerConfig
+from ...mcp.security import MCPSecurityValidator, get_security_validator
 from ..qt_compat import (
     QCheckBox,
     QGroupBox,
@@ -66,31 +67,32 @@ class MCPTab(QWidget):
         group = QGroupBox("Spectra MCP Servers")
         layout = QVBoxLayout(group)
 
+        # Common button style matching Spectra's overall UI
+        _BUTTON_STYLE = (
+            "QPushButton { background: #252526; color: #cccccc; border: 1px solid #383838; "
+            "border-radius: 4px; padding: 4px 6px; font-size: 11px; font-weight: 500; min-height: 22px; }"
+            "QPushButton:hover { background: #3c3c3c; }"
+        )
+
         # Add "Select All" and "Add Server" button row (always show)
         button_row = QHBoxLayout()
         select_all_btn = QPushButton("Select All")
         select_all_btn.setToolTip("Enable all Spectra MCP servers")
-        select_all_btn.setMinimumSize(80, 28)
+        select_all_btn.setStyleSheet(_BUTTON_STYLE)
         select_all_btn.clicked.connect(lambda: self._select_all_spectra_mcp(True))
         deselect_all_btn = QPushButton("Deselect All")
         deselect_all_btn.setToolTip("Disable all Spectra MCP servers")
-        deselect_all_btn.setMinimumSize(90, 28)
+        deselect_all_btn.setStyleSheet(_BUTTON_STYLE)
         deselect_all_btn.clicked.connect(lambda: self._select_all_spectra_mcp(False))
-        add_server_btn = QPushButton("➕ Add Server")
+        add_server_btn = QPushButton("Add Server")
         add_server_btn.setToolTip("Add a new MCP server")
-        add_server_btn.setMinimumSize(100, 28)
-        add_server_btn.setStyleSheet(
-            "QPushButton { background: #0066cc; color: white; border: 2px solid #004499; "
-            "border-radius: 5px; padding: 6px 16px; font-weight: bold; font-size: 12px; }"
-            "QPushButton:hover { background: #0077ee; border: 2px solid #0055bb; }"
-            "QPushButton:pressed { background: #004499; }"
-        )
+        add_server_btn.setStyleSheet(_BUTTON_STYLE)
         add_server_btn.clicked.connect(self._add_server)
         button_row.addWidget(select_all_btn)
         button_row.addWidget(deselect_all_btn)
         button_row.addStretch()
         button_row.addWidget(add_server_btn)
-        button_row.setSpacing(8)
+        button_row.setSpacing(6)
         layout.addLayout(button_row)
 
         if not self._spectra_servers:
@@ -124,6 +126,13 @@ class MCPTab(QWidget):
         group = QGroupBox(title)
         layout = QVBoxLayout(group)
 
+        # Common button style matching Spectra's overall UI
+        _BUTTON_STYLE = (
+            "QPushButton { background: #252526; color: #cccccc; border: 1px solid #383838; "
+            "border-radius: 4px; padding: 4px 6px; font-size: 11px; font-weight: 500; min-height: 22px; }"
+            "QPushButton:hover { background: #3c3c3c; }"
+        )
+
         if not servers:
             layout.addWidget(QLabel("No MCP servers found"))
             return group
@@ -134,9 +143,11 @@ class MCPTab(QWidget):
         button_row = QHBoxLayout()
         select_all_btn = QPushButton("Select All")
         select_all_btn.setToolTip(f"Enable all {source_key} MCP servers")
+        select_all_btn.setStyleSheet(_BUTTON_STYLE)
         select_all_btn.clicked.connect(lambda: self._select_all_external_mcp(source_key, True))
         deselect_all_btn = QPushButton("Deselect All")
         deselect_all_btn.setToolTip(f"Disable all {source_key} MCP servers")
+        deselect_all_btn.setStyleSheet(_BUTTON_STYLE)
         deselect_all_btn.clicked.connect(lambda: self._select_all_external_mcp(source_key, False))
         button_row.addWidget(select_all_btn)
         button_row.addWidget(deselect_all_btn)
@@ -285,11 +296,19 @@ class AddMCPServerDialog(QDialog):
 
         layout.addLayout(form)
 
-        # Buttons
+        # Buttons with consistent styling
+        _BUTTON_STYLE = (
+            "QPushButton { background: #252526; color: #cccccc; border: 1px solid #383838; "
+            "border-radius: 4px; padding: 6px 16px; font-size: 11px; font-weight: 500; min-height: 24px; }"
+            "QPushButton:hover { background: #3c3c3c; }"
+        )
+
         button_box = QHBoxLayout()
         ok_btn = QPushButton("Add")
+        ok_btn.setStyleSheet(_BUTTON_STYLE)
         ok_btn.clicked.connect(self.accept)
         cancel_btn = QPushButton("Cancel")
+        cancel_btn.setStyleSheet(_BUTTON_STYLE)
         cancel_btn.clicked.connect(self.reject)
         button_box.addStretch()
         button_box.addWidget(ok_btn)
@@ -330,6 +349,34 @@ class AddMCPServerDialog(QDialog):
                 else:
                     QMessageBox.warning(self, "Invalid Environment", f"Invalid environment variable format: {pair}")
                     return None
+
+        # SECURITY VALIDATION - Check the command and arguments for security issues
+        validator = get_security_validator(strict_mode=True)
+        is_allowed, warnings = validator.validate_server_config(
+            name=name,
+            command=command,
+            args=args,
+            env=env,
+            timeout=self._timeout_spin.value()
+        )
+
+        # Build security warning message
+        if warnings:
+            warning_msg = "Security Validation Results:\n\n" + "\n".join(warnings) + "\n\n"
+            if not is_allowed:
+                # BLOCKED - Show error dialog
+                warning_msg += (
+                    "⛔ This MCP server configuration has been BLOCKED for security reasons.\n\n"
+                    "The command or arguments contain potentially dangerous patterns that could "
+                    "lead to arbitrary code execution or system compromise."
+                )
+                QMessageBox.critical(self, "Security Block", warning_msg)
+                return None
+            else:
+                # Show warnings but allow in non-strict mode (for now)
+                log_warn(f"MCP Server '{name}' added with security warnings: {warnings}")
+                # In strict mode, warnings are allowed but we should inform the user
+                pass
 
         return {
             "name": name,
@@ -407,15 +454,18 @@ class MCPCategoryDialog(QDialog):
         layout.addStretch()
 
         # Buttons
+        _BUTTON_STYLE = (
+            "QPushButton { background: #252526; color: #cccccc; border: 1px solid #383838; "
+            "border-radius: 4px; padding: 6px 16px; font-size: 11px; font-weight: 500; min-height: 24px; }"
+            "QPushButton:hover { background: #3c3c3c; }"
+        )
+
         button_layout = QHBoxLayout()
         cancel_btn = QPushButton("Cancel")
+        cancel_btn.setStyleSheet(_BUTTON_STYLE)
         cancel_btn.clicked.connect(self.reject)
         ok_btn = QPushButton("Next")
-        ok_btn.setStyleSheet(
-            "QPushButton { background: #0066cc; color: white; border: 2px solid #004499; "
-            "border-radius: 5px; padding: 6px 16px; font-weight: bold; }"
-            "QPushButton:hover { background: #0077ee; }"
-        )
+        ok_btn.setStyleSheet(_BUTTON_STYLE)
         ok_btn.clicked.connect(self.accept)
         button_layout.addStretch()
         button_layout.addWidget(cancel_btn)
