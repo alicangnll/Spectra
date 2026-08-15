@@ -216,6 +216,7 @@ class SpectraConfig:
             "oauth_consent_accepted",
             "encrypt_api_keys",
             "shell_auto_approve_limit",
+            "token_limiter",
         ):
             if k in data:
                 setattr(self, k, data[k])
