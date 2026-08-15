@@ -136,7 +136,7 @@ def _check_path_security(env: dict[str, str]) -> tuple[bool, list[str]]:
     """Validate environment variables for path security.
 
     Returns:
-        (is_safe, warnings) - List of security warnings
+        (is_safe, warnings) - is_safe is False if critical path issues found
     """
     warnings = []
 
@@ -146,30 +146,38 @@ def _check_path_security(env: dict[str, str]) -> tuple[bool, list[str]]:
         for path in allowed_paths:
             path = path.strip()
 
-            # Warn about dangerous paths
+            # CRITICAL: Block the most dangerous paths
+            critical_paths = [
+                "/",              # Root directory - ENTIRE filesystem access
+                "C:\\",            # Windows root - ENTIRE filesystem access
+                "/root",           # Root user directory
+            ]
+
+            if path in critical_paths:
+                warnings.append(f"CRITICAL: ALLOWED_PATHS includes entire filesystem: {path}")
+                return False, warnings  # BLOCK these entirely
+
+            # WARN about moderately dangerous paths
             dangerous_paths = [
-                "/",              # Root directory
                 "/home",          # All home directories
                 "/Users",          # All macOS users
-                "C:\\",            # Windows root
                 "/etc",            # System config
-                "/root",           # Root user
-                "~",               # Home directory shortcut
+                "~",               # Home directory shortcut (can expand to user home)
             ]
 
             if path in dangerous_paths:
-                warnings.append(f"ALLOWED_PATHS includes potentially dangerous path: {path}")
+                warnings.append(f"WARNING: ALLOWED_PATHS includes potentially dangerous path: {path}")
 
             # Check for parent directory traversal in paths
             if ".." in path:
-                warnings.append(f"ALLOWED_PATHS contains parent directory reference: {path}")
+                warnings.append(f"WARNING: ALLOWED_PATHS contains parent directory reference: {path}")
 
     # Check for other sensitive environment variables
     sensitive_keys = ["PASSWORD", "TOKEN", "KEY", "SECRET", "CREDENTIALS"]
     for key in env:
         if any(sensitive in key.upper() for sensitive in sensitive_keys):
             if env[key] and not any(redaction in env[key].lower() for redaction in ["****", "xxx", "redacted"]):
-                warnings.append(f"Environment variable {key} may contain sensitive credentials")
+                warnings.append(f"WARNING: Environment variable {key} may contain sensitive credentials")
 
     return True, warnings
 
@@ -247,10 +255,21 @@ class MCPSecurityValidator:
             if arg.startswith("/") and any(system_dir in arg for system_dir in ["/etc", "/root", "/boot"]):
                 warnings.append(f"Argument accesses system directory: {arg}")
 
-            # Flag potential code execution
-            suspicious_keywords = ["eval", "exec", "system", "import", "__", "compile"]
-            if any(keyword in arg.lower() for keyword in suspicious_keywords):
-                warnings.append(f"Argument may trigger code execution: {arg}")
+            # Flag potential code execution - but avoid false positives from package names
+            # Check for actual dangerous patterns, not just substring matches
+            dangerous_patterns = [
+                r"eval\s*\(",           # eval function call
+                r"exec\s*\(",           # exec function call
+                r"__import__\s*\(",     # Python import execution
+                r"system\s*\(",         # system() call
+                r"compile\s*\(",        # compile() call
+            ]
+            import re
+            arg_lower = arg.lower()
+            for pattern in dangerous_patterns:
+                if re.search(pattern, arg_lower):
+                    warnings.append(f"Argument may trigger code execution: {arg}")
+                    break
 
         return True, warnings
 
