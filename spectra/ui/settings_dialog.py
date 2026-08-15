@@ -1424,4 +1424,3 @@ class SettingsDialog(QDialog):
         except Exception as e:
             from ..core.logging import log_error
             log_error(f"Agent creation dialog error: {e}")
-        super().customEvent(event)
