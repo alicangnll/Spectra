@@ -70,17 +70,26 @@ class MCPTab(QWidget):
         button_row = QHBoxLayout()
         select_all_btn = QPushButton("Select All")
         select_all_btn.setToolTip("Enable all Spectra MCP servers")
+        select_all_btn.setMinimumHeight(24)
         select_all_btn.clicked.connect(lambda: self._select_all_spectra_mcp(True))
         deselect_all_btn = QPushButton("Deselect All")
         deselect_all_btn.setToolTip("Disable all Spectra MCP servers")
+        deselect_all_btn.setMinimumHeight(24)
         deselect_all_btn.clicked.connect(lambda: self._select_all_spectra_mcp(False))
         add_server_btn = QPushButton("+ Add Server")
         add_server_btn.setToolTip("Add a new MCP server")
+        add_server_btn.setMinimumHeight(24)
+        add_server_btn.setStyleSheet(
+            "QPushButton { background: #2d4a6e; color: #9cdcfe; border: 1px solid #4a7ab5; "
+            "border-radius: 4px; padding: 4px 12px; font-weight: bold; }"
+            "QPushButton:hover { background: #3a5a8a; }"
+        )
         add_server_btn.clicked.connect(self._add_server)
         button_row.addWidget(select_all_btn)
         button_row.addWidget(deselect_all_btn)
         button_row.addStretch()
         button_row.addWidget(add_server_btn)
+        button_row.setSpacing(6)
         layout.addLayout(button_row)
 
         if not self._spectra_servers:
