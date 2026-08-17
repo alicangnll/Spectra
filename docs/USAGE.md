@@ -2578,11 +2578,12 @@ Every tool that could run something on your system sits behind a safety gate. By
 | Gate | Tool(s) | Default behavior |
 |------|---------|------------------|
 | ADB shell safe-list | `adb_shell` | Only known-safe command prefixes (≈39: `ls`, `cat`, `dumpsys`, `pm`, `logcat`, `sqlite3`, …); everything else (e.g. `curl`) rejected; dangerous patterns (`rm -rf`, `dd`, factory reset, …) always rejected |
+| iOS shell safe-list | `ios_shell` | Same gate for jailbroken iOS devices over SSH: safe prefixes (`ls`, `cat`, `ps`, `sw_vers`, …), read-only invocations (`dpkg -l`, `plutil -p`); dangerous patterns (`rm -rf`, `reboot`, `dpkg -i`, `killall`, `passwd`, …) always rejected |
 | Python script guard | `run_script`, script tools | AST check blocks `subprocess`/`os.system`/`exec`/`eval`/dynamic imports; builtins restricted |
 | Command safety | shared `ToolSafety` | Destructive commands blocked; unknown commands require approval |
 | Network safety | scapy (`send`/`sniff`/`scan`), mitmproxy (`intercept`) | Flood/inject blocked; sniff/scan require approval |
 
-**Unsafe-command mode.** Settings → Behavior → **"Allow unsafe commands (all tools)"** (config key `allow_unsafe_commands`) turns every gate above off at once — `adb_shell` accepts any command, script tools may use `subprocess`/`os.system`, and network/fuzzing tools skip their approval prompts. The setting is read from disk on every call, so toggling the checkbox takes effect immediately without restarting the plugin.
+**Unsafe-command mode.** Settings → Behavior → **"Allow unsafe commands (all tools)"** (config key `allow_unsafe_commands`) turns every gate above off at once — `adb_shell`/`ios_shell` accept any command, script tools may use `subprocess`/`os.system`, and network/fuzzing tools skip their approval prompts. The setting is read from disk on every call, so toggling the checkbox takes effect immediately without restarting the plugin.
 
 > ⚠️ **Warning:** this is a single global switch with no per-tool scoping. Enable it only on systems and devices you fully control, and turn it off when you are done.
 
@@ -2602,6 +2603,30 @@ Every tool that could run something on your system sits behind a safety gate. By
 - **Confidence-backed verdict** — HIGH (pin material, native trust-manager symbols, pinning-specific import with callers), MEDIUM (generic verification import with callers, possible pin hash), LOW (library present, no callers), plus corroborating TLS strings
 
 The report ends with per-framework bypass techniques (Frida/objection/hook/patch) driven by the detected framework list.
+
+### 13.6 iOS Device Tools (libimobiledevice)
+
+The iOS counterpart of the ADB tools — same safety model, same Settings
+bypass — for iPhones/iPads connected over USB. Built on
+[libimobiledevice](https://libimobiledevice.org/), which **install.sh sets
+up automatically** (Homebrew on macOS, apt/dnf/pacman/zypper on Linux;
+skip with `--no-ios`). Binaries are discovered from PATH and Homebrew
+locations, and each tool reports exactly which binary is missing.
+
+| Tool | What it does |
+|------|--------------|
+| `ios_check` | Tooling availability + list connected devices (UDID, name, iOS version) |
+| `ios_pair` | Pair with the device (user accepts the Trust dialog) |
+| `ios_connect` | Validate pairing; device snapshot (name, iOS, ProductType, serial, activation state) |
+| `ios_info` | Raw lockdown query (`ideviceinfo`), optional domain/key |
+| `ios_syslog` | Capture N seconds of syslog, return the last lines (like `logcat`) |
+| `ios_list_apps` / `ios_app_info` | List installed apps / per-app details (bundle id, versions, install path) |
+| `ios_install` / `ios_uninstall` | Install an IPA / uninstall by bundle id |
+| `ios_screenshot` | Save the device screen to a local PNG |
+| `ios_pull_crash_reports` | Pull crash reports locally (RE triage gold) |
+| `ios_backup` | Full device backup via `idevicebackup2` (15 min timeout) |
+| `ios_jailbreak_check` | Probe an `iproxy`-forwarded SSH port to test for a jailbreak |
+| `ios_shell` | SSH command on a jailbroken device (default `root@127.0.0.1:2222` via `iproxy 2222 22`, password auth through `sshpass`) — gated exactly like `adb_shell` (§13.4) |
 
 ---
 

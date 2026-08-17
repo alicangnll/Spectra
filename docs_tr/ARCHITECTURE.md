@@ -350,6 +350,11 @@ Agent'tan açıkca kaçınılan:
 geçidin danıştığı tek doğruluk kaynağıdır:
 
 - **adb_shell** — güvenli komut önek listesi + tehlikeli kalıp regexleri
+- **ios_shell** — jailbreak'li iOS cihazlarda SSH üzerinden aynı geçit
+  (`spectra/tools/ios.py` içindeki libimobiledevice takımı: `ios_check`,
+  `ios_pair`, `ios_connect`, `ios_info`, `ios_syslog`, uygulama kurma/
+  listeleme/kaldırma, ekran görüntüsü, çökme raporları, yedekler,
+  jailbreak yoklaması)
 - **script_guard** — AST denetimi (subprocess/os.system/exec/eval/…) ve
   yerleşikler kısıtlaması
 - **ToolSafety** — paylaşılan komut ve ağ onay denetimleri

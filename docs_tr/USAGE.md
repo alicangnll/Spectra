@@ -2667,11 +2667,12 @@ Sisteminizde bir şey çalıştırabilen her araç bir güvenlik geçidinin arka
 | Geçit | Araç(lar) | Varsayılan davranış |
 |-------|-----------|---------------------|
 | ADB shell güvenli liste | `adb_shell` | Yalnızca bilinen güvenli komut önekleri (≈39: `ls`, `cat`, `dumpsys`, `pm`, `logcat`, `sqlite3`, …); diğer her şey (örn. `curl`) reddedilir; tehlikeli kalıplar (`rm -rf`, `dd`, fabrika ayarları, …) her zaman reddedilir |
+| iOS shell güvenli liste | `ios_shell` | Jailbreak'li iOS cihazlarda SSH için aynı geçit: güvenli önekler (`ls`, `cat`, `ps`, `sw_vers`, …), salt-okunur çağrılar (`dpkg -l`, `plutil -p`); tehlikeli kalıplar (`rm -rf`, `reboot`, `dpkg -i`, `killall`, `passwd`, …) her zaman reddedilir |
 | Python betik koruması | `run_script`, betik araçları | AST denetimi `subprocess`/`os.system`/`exec`/`eval`/dinamik içe aktarmayı engeller; yerleşikler kısıtlanır |
 | Komut güvenliği | paylaşılan `ToolSafety` | Yıkıcı komutlar engellenir; bilinmeyen komutlar onay ister |
 | Ağ güvenliği | scapy (`send`/`sniff`/`scan`), mitmproxy (`intercept`) | Flood/inject engellenir; sniff/scan onay ister |
 
-**Güvensiz komut modu.** Ayarlar → Davranış → **"Allow unsafe commands (all tools)"** (config anahtarı `allow_unsafe_commands`) yukarıdaki tüm geçitleri tek seferde kapatır — `adb_shell` her komutu kabul eder, betik araçları `subprocess`/`os.system` kullanabilir, ağ/fuzzing araçları onay sorularını atlar. Ayar her çağrıda diskten okunduğu için checkbox'ı işaretlemek eklentiyi yeniden başlatmadan hemen etkili olur.
+**Güvensiz komut modu.** Ayarlar → Davranış → **"Allow unsafe commands (all tools)"** (config anahtarı `allow_unsafe_commands`) yukarıdaki tüm geçitleri tek seferde kapatır — `adb_shell`/`ios_shell` her komutu kabul eder, betik araçları `subprocess`/`os.system` kullanabilir, ağ/fuzzing araçları onay sorularını atlar. Ayar her çağrıda diskten okunduğu için checkbox'ı işaretlemek eklentiyi yeniden başlatmadan hemen etkili olur.
 
 > ⚠️ **Uyarı:** Bu, araç başına kapsamı olmayan tek bir küresel anahtardır. Yalnızca tam olarak kontrol ettiğiniz sistem ve cihazlarda etkinleştirin ve işiniz bitince kapatın.
 
@@ -2691,6 +2692,31 @@ Sisteminizde bir şey çalıştırabilen her araç bir güvenlik geçidinin arka
 - **Güven destekli karar** — YÜKSEK (sabitleme malzemesi, yerel trust-manager sembolleri, çağıranı olan sabitlemeye özgü içe aktarma), ORTA (çağıranı olan genel doğrulama içe aktarması, olası pin özeti), DÜŞÜK (kitaplık var, çağıran yok); ayrıca teyit eden TLS dizgileri
 
 Rapor, tespit edilen çerçeve listesinden üretilen çerçeveye özel atlama teknikleriyle (Frida/objection/hook/patch) biter.
+
+### 13.6 iOS Cihaz Araçları (libimobiledevice)
+
+ADB araçlarının iOS karşılığı — aynı güvenlik modeli, aynı Ayarlar izni —
+USB üzerinden bağlı iPhone/iPad cihazlar için.
+[libimobiledevice](https://libimobiledevice.org/) üzerine kuruludur ve
+**install.sh bunu otomatik kurar** (macOS'ta Homebrew, Linux'ta
+apt/dnf/pacman/zypper; atlamak için `--no-ios`). Çalıştırılabilirler PATH
+ve Homebrew konumlarından bulunur ve her araç tam olarak hangi binary'nin
+eksik olduğunu bildirir.
+
+| Araç | Ne yapar |
+|------|----------|
+| `ios_check` | Araç kullanılabilirliği + bağlı cihaz listesi (UDID, isim, iOS sürümü) |
+| `ios_pair` | Cihazla eşleştirme (kullanıcı Güven iletişim kutusunu onaylar) |
+| `ios_connect` | Eşleştirmeyi doğrular; cihaz anlık görüntüsü (isim, iOS, ProductType, seri no, aktivasyon durumu) |
+| `ios_info` | Ham lockdown sorgusu (`ideviceinfo`), isteğe bağlı domain/anahtar |
+| `ios_syslog` | N saniyelik syslog yakalar, son satırları döndürür (`logcat` gibi) |
+| `ios_list_apps` / `ios_app_info` | Yüklü uygulamaları listeler / uygulama başına ayrıntı (bundle id, sürümler, kurulum yolu) |
+| `ios_install` / `ios_uninstall` | IPA kurar / bundle id ile kaldırır |
+| `ios_screenshot` | Cihaz ekranını yerel PNG olarak kaydeder |
+| `ios_pull_crash_reports` | Çökme raporlarını yerel olarak çeker (RE triyajı için değerli) |
+| `ios_backup` | `idevicebackup2` ile tam cihaz yedeği (15 dk zaman aşımı) |
+| `ios_jailbreak_check` | Jailbreak testi için `iproxy` ile yönlendirilmiş SSH portunu yoklar |
+| `ios_shell` | Jailbreak'li cihazda SSH komutu (varsayılan `root@127.0.0.1:2222`, `iproxy 2222 22` üzerinden; parola kimlik doğrulaması `sshpass` ile) — tam olarak `adb_shell` gibi geçitli (§13.4) |
 
 ---
 

@@ -2,10 +2,15 @@
 # ──────────────────────────────────────────────────────────────────────
 # Spectra — universal installer (Linux / macOS)
 #
-#   curl -fsSL https://raw.githubusercontent.com/alicangnll/Spectra/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/alicangonll/Spectra/main/install.sh | bash
 #   curl -fsSL https://raw.githubusercontent.com/alicangnll/Spectra/main/install.sh | bash -s -- --ida
 #   curl -fsSL https://raw.githubusercontent.com/alicangnll/Spectra/main/install.sh | bash -s -- --binja
-#   curl -fsSL https://raw.githubusercontent.com/alicangnll/Spectra/main/install.sh | bash -s -- --both
+#   curl -fsSL https://raw.githubusercontent.com/alicangonll/Spectra/main/install.sh | bash -s -- --both
+#   curl -fsSL https://raw.githubusercontent.com/alicangnll/Spectra/main/install.sh | bash -s -- --no-ios
+#
+# The installer also sets up iOS device tooling (libimobiledevice +
+# usbmuxd) on Linux and macOS so the ios_* Spectra tools work out of the
+# box. Skip it with --no-ios.
 #
 # Environment variables:
 #   SPECTRA_DIR     — where to clone the repo   (default: ~/.spectra)
@@ -48,11 +53,13 @@ EOF
 
 # ── Parse arguments ──────────────────────────────────────────────────
 TARGET=""
+SKIP_IOS="false"
 for arg in "$@"; do
     case "$arg" in
         --ida)       TARGET="ida"   ;;
         --binja|--bn) TARGET="binja" ;;
         --both)      TARGET="both"  ;;
+        --no-ios)    SKIP_IOS="true" ;;
         --help|-h)
             echo "Usage: curl -fsSL https://raw.githubusercontent.com/alicangnll/Spectra/main/install.sh | bash -s -- [OPTIONS]"
             echo ""
@@ -60,6 +67,7 @@ for arg in "$@"; do
             echo "  --ida       Install for IDA Pro only"
             echo "  --binja     Install for Binary Ninja only"
             echo "  --both      Install for both hosts"
+            echo "  --no-ios    Skip iOS device tooling (libimobiledevice) installation"
             echo "  (no flag)   Auto-detect installed hosts"
             echo ""
             echo "Environment:"
@@ -231,6 +239,76 @@ run_binja_installer() {
     bash "$script"
 }
 
+# ── iOS device tooling (libimobiledevice) ────────────────────────────
+# Installs libimobiledevice + usbmuxd on Linux (apt/dnf/pacman/zypper)
+# and macOS (Homebrew). Never fatal: the Spectra ios_* tools degrade to
+# an actionable error message when the binaries are missing.
+install_libimobiledevice() {
+    info "Setting up iOS device tooling (libimobiledevice)..."
+
+    if command -v idevice_id &>/dev/null; then
+        ok "libimobiledevice already installed ($(command -v idevice_id))"
+        return 0
+    fi
+
+    local sudo_cmd=""
+    if [[ "${EUID}" -ne 0 ]]; then
+        sudo_cmd="sudo"
+    fi
+
+    if [[ "$(uname)" == "Darwin" ]]; then
+        if ! command -v brew &>/dev/null; then
+            warn "Homebrew not found — skipping libimobiledevice"
+            warn "Install Homebrew (https://brew.sh), then run: brew install libimobiledevice"
+            return 0
+        fi
+        if brew install libimobiledevice; then
+            ok "libimobiledevice installed via Homebrew"
+        else
+            warn "brew install libimobiledevice failed — iOS tools will be unavailable"
+            return 0
+        fi
+    else
+        if command -v apt-get &>/dev/null; then
+            $sudo_cmd apt-get update -qq || true
+            $sudo_cmd apt-get install -y libimobiledevice-utils usbmuxd || {
+                warn "apt-get install failed — iOS tools will be unavailable"
+                return 0
+            }
+        elif command -v dnf &>/dev/null; then
+            $sudo_cmd dnf install -y libimobiledevice usbmuxd || {
+                warn "dnf install failed — iOS tools will be unavailable"
+                return 0
+            }
+        elif command -v pacman &>/dev/null; then
+            $sudo_cmd pacman -S --noconfirm libimobiledevice usbmuxd || {
+                warn "pacman install failed — iOS tools will be unavailable"
+                return 0
+            }
+        elif command -v zypper &>/dev/null; then
+            $sudo_cmd zypper --non-interactive install libimobiledevice-tools usbmuxd || {
+                warn "zypper install failed — iOS tools will be unavailable"
+                return 0
+            }
+        else
+            warn "No supported package manager (apt/dnf/pacman/zypper) — skipping libimobiledevice"
+            warn "Install libimobiledevice + usbmuxd manually for iOS device tools"
+            return 0
+        fi
+
+        # Best-effort service start; usbmuxd activates on device plug anyway.
+        if command -v systemctl &>/dev/null; then
+            $sudo_cmd systemctl enable --now usbmuxd 2>/dev/null || true
+        fi
+    fi
+
+    if command -v idevice_id &>/dev/null; then
+        ok "libimobiledevice ready: $(command -v idevice_id)"
+    else
+        warn "Installed, but idevice_id is not on PATH — open a new shell (Spectra also checks /opt/homebrew/bin and /usr/local/bin)"
+    fi
+}
+
 # ── Main ─────────────────────────────────────────────────────────────
 main() {
     banner
@@ -281,6 +359,14 @@ main() {
             run_binja_installer || { warn "Binary Ninja installation failed"; failed=true; }
             ;;
     esac
+
+    # iOS device tooling (libimobiledevice) — skipped with --no-ios, never fatal
+    echo ""
+    if [[ "$SKIP_IOS" == "true" ]]; then
+        info "Skipping iOS device tooling (--no-ios)"
+    else
+        install_libimobiledevice || warn "iOS tooling setup failed (continuing)"
+    fi
 
     echo ""
     if $failed; then

@@ -68,7 +68,8 @@ Spectra, **reverse engineering araçlarına gömülü bir yapay zeka aracısıd�
 - **Şüpheli API Vurgulama** — Tehlikeli API'leri vurgula
 - **Anti-Debug Tespiti** — Otomatik anti-debug tespiti
 - **Yapısal SSL Sabitleme Tespiti** — Sabitlemeyi ikilinin kendisinden bulur (içe aktarmalar, XREF'ler, yerel trust sembolleri, gömülü pin malzemesi); güven destekli kararlar ve hook/patch hedefleriyle
-- **Güvensiz Komut İzni** — Tek bir Ayarlar anahtarı tüm araç düzeyi güvenlik geçitlerini atlar (ADB güvenli listesi, betik koruması, ağ onayları)
+- **iOS Cihaz Araçları** — libimobiledevice tabanlı iPhone/iPad etkileşimi (eşleştirme, syslog, uygulama yönetimi, çökme raporları, yedekler, jailbreak'li cihazlarda SSH) — ADB'nin iOS karşılığı
+- **Güvensiz Komut İzni** — Tek bir Ayarlar anahtarı tüm araç düzeyi güvenlik geçitlerini atlar (ADB/iOS güvenli listeleri, betik koruması, ağ onayları)
 - **Windows otomatik kurulum** — Otomatik bağımlılık kurulumu
 
 ---
@@ -114,6 +115,8 @@ curl -fsSL https://raw.githubusercontent.com/alicangnll/Spectra/main/install.sh 
 # Windows (PowerShell)
 irm https://raw.githubusercontent.com/alicangnll/Spectra/main/install.ps1 | iex
 ```
+
+Kurulum betiği ayrıca **iOS cihaz araçlarını** da kurar (macOS'ta Homebrew ile, Linux'ta apt/dnf/pacman/zypper ile libimobiledevice + usbmuxd); böylece `ios_*` araçları kutudan çıktığı gibi çalışır. Atlamak için: `--no-ios`.
 
 ---
 

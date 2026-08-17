@@ -349,6 +349,11 @@ Agent explicitly prevented from:
 of truth every tool-level gate consults:
 
 - **adb_shell** — safe-command prefix list + dangerous-pattern regexes
+- **ios_shell** — the same gate over SSH for jailbroken iOS devices
+  (libimobiledevice suite in `spectra/tools/ios.py`: `ios_check`,
+  `ios_pair`, `ios_connect`, `ios_info`, `ios_syslog`, app
+  install/list/uninstall, screenshots, crash reports, backups,
+  jailbreak probe)
 - **script_guard** — AST check (subprocess/os.system/exec/eval/…) and
   builtins restriction
 - **ToolSafety** — shared command and network approval checks

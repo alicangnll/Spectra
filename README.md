@@ -68,7 +68,8 @@ Spectra is an **AI agent embedded in reverse engineering tools**. An assistant t
 - **Suspicious API Highlighting** — Highlight dangerous APIs
 - **Anti-Debugging Detection** — Automatic anti-debug detection
 - **Structural SSL Pinning Detection** — Finds pinning from the binary itself (imports, XREFs, native trust symbols, embedded pin material) with confidence-backed verdicts and hook/patch targets
-- **Unsafe-Command Opt-In** — One Settings toggle bypasses every tool-level safety gate (ADB safe-list, script guard, network approvals)
+- **iOS Device Tools** — libimobiledevice-based iPhone/iPad interaction (pair, syslog, app management, crash reports, backups, SSH on jailbroken devices) — the ADB counterpart for iOS
+- **Unsafe-Command Opt-In** — One Settings toggle bypasses every tool-level safety gate (ADB/iOS safe-lists, script guard, network approvals)
 - **Windows auto-install** — Automatic dependency installation
 
 ---
@@ -117,6 +118,8 @@ curl -fsSL https://raw.githubusercontent.com/alicangnll/Spectra/main/install.sh 
 # Windows (PowerShell)
 irm https://raw.githubusercontent.com/alicangnll/Spectra/main/install.ps1 | iex
 ```
+
+The installer also sets up **iOS device tooling** (libimobiledevice + usbmuxd via Homebrew on macOS, apt/dnf/pacman/zypper on Linux) so the `ios_*` tools work out of the box. Skip it with `--no-ios`.
 
 ### Docker Installation
 

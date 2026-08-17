@@ -79,7 +79,7 @@ chore/deps     ─┘
 2. Make your changes in small, focused commits
 3. Run the local CI script (see below) before pushing
 4. Open a PR targeting `dev`
-5. Once reviewed and CI passes, it gets merged to `dev`
+5. Once reviewed and CI passes (run `./ci-local.sh`; the Actions workflow is manual-only), it gets merged to `dev`
 6. Releases go from `dev` → `main` with a version tag
 
 **Direct pushes to `main` are not allowed** — must go through a PR. `dev` accepts direct pushes.
@@ -94,7 +94,15 @@ Run this script after every feature or fix, before opening a PR:
 ./ci-local.sh
 ```
 
-This mirrors exactly what GitHub Actions runs. It will catch formatting errors, lint issues, type errors, test failures, and code quality regressions before they reach CI.
+This mirrors exactly what the GitHub Actions workflow runs. It will catch formatting errors, lint issues, type errors, test failures, and code quality regressions.
+
+**GitHub Actions CI is manual-only** — it does *not* run on push or PR.
+This script is the primary gate for every commit. Run the remote workflow
+when you want it: **Actions → CI → "Run workflow"**, or:
+
+```bash
+gh workflow run ci.yml
+```
 
 If ruff reports formatting issues, auto-fix them:
 

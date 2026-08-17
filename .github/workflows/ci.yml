@@ -1,14 +1,15 @@
 # Spectra CI — mirrors ci-local.sh
 # Runs the same five checks the local script runs, plus a version
-# consistency gate, on every push/PR to main.
+# consistency gate.
+#
+# Manual-only: triggered from Actions → CI → "Run workflow" (or
+# `gh workflow run ci.yml`). It deliberately does NOT run on push/PR so
+# every GitHub commit stays free; run it when you want the gate.
 
 name: CI
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read

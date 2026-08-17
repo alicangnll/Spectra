@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from spectra.core.host import HAS_HEXRAYS
 from spectra.core.thread_safety import idasync
-from spectra.tools import adb  # ADB tools (standalone, shared across hosts)
+from spectra.tools import adb, ios  # Device tools (standalone, shared across hosts)
 from spectra.tools.registry import ToolRegistry
 
 from . import (
@@ -64,6 +64,7 @@ def create_default_registry() -> ToolRegistry:
     registry.set_capabilities({"hexrays": HAS_HEXRAYS})
     for mod in _TOOL_MODULES:
         registry.register_module(mod)
-    # Register standalone ADB tools
+    # Register standalone device tools
     registry.register_module(adb)
+    registry.register_module(ios)
     return registry

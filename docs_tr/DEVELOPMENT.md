@@ -79,7 +79,7 @@ chore/deps     ─┘
 2. Değişikliklerinizi küçük, odaklanmış commitlerle yapın
 3. İtmek önce yerel CI betiğini çalıştırın (aşağıya bakın)
 4. `dev`'i hedefleyen bir PR açın
-5. İncelendikten ve CI geçtikten sonra `dev`'e birleştirilir
+5. İncelendikten ve CI geçtikten sonra (`./ci-local.sh` çalıştırın; Actions iş akışı manuel-only) `dev`'e birleştirilir
 6. Yayınlar `dev` → `main` şeklinde bir sürüm etiketiyle gider
 
 **`main`'e doğrudan itmeye izin verilmez** — PR üzerinden gitmelidir. `dev` doğrudan itmeleri kabul eder.
@@ -94,7 +94,15 @@ Her özellik veya düzeltmeden sonra, PR açmadan önce bu betiği çalıştır�
 ./ci-local.sh
 ```
 
-Bu, GitHub Actions'ın çalıştırdıklarının aynısını yansıtır. CI'ya ulaşmadan önce biçimlendirme hatalarını, lint sorunlarını, tip hatalarını, test başarısızlıklarını ve kod kalitesi gerilemelerini yakalar.
+Bu, GitHub Actions iş akışının çalıştırdıklarının aynısını yansıtır. Biçimlendirme hatalarını, lint sorunlarını, tip hatalarını, test başarısızlıklarını ve kod kalitesi gerilemelerini yakalar.
+
+**GitHub Actions CI yalnızca manuel çalışır** — push veya PR'de tetiklenmez.
+Bu betik her commit için birincil kontrol kapısıdır. Uzak iş akışını
+istediğinizde çalıştırın: **Actions → CI → "Run workflow"**, veya:
+
+```bash
+gh workflow run ci.yml
+```
 
 Ruff biçimlendirme sorunları bildirirse, otomatik düzeltin:
 

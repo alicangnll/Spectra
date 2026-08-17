@@ -80,7 +80,7 @@ class _AdbManager:
             return True, "Unsafe-command mode enabled in Settings"
 
         dangerous_patterns = [
-            r"\brm\b.*-\rf",
+            r"\brm\b.*-[a-z]*r[a-z]*f",
             r"\brm\b.*/",
             r"\bformat\b",
             r"\bwipe\b",

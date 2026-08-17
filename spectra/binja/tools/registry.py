@@ -6,7 +6,7 @@ Wires Binary Ninja-specific tool modules into the shared ToolRegistry.
 from __future__ import annotations
 
 from ...core.thread_safety import idasync
-from ...tools import adb  # ADB tools (standalone, shared across hosts)
+from ...tools import adb, ios  # Device tools (standalone, shared across hosts)
 from ...tools.registry import ToolRegistry
 from . import (  # type: ignore[assignment]
     advanced_decomp,
@@ -68,6 +68,7 @@ def create_default_registry() -> ToolRegistry:
     registry = ToolRegistry(dispatch_wrapper=idasync)
     for mod in _TOOL_MODULES:
         registry.register_module(mod)
-    # Register standalone ADB tools
+    # Register standalone device tools
     registry.register_module(adb)
+    registry.register_module(ios)
     return registry
