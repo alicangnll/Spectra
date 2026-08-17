@@ -29,15 +29,16 @@ from .qt_compat import (
     QObject,
     QProgressBar,
     QPushButton,
-    QSpinBox,
     QSizePolicy,
+    QSpinBox,
     Qt,
     QTabWidget,
     QTimer,
     QVBoxLayout,
     QWidget,
-    qt_run,
     Signal,
+    qt_flags,
+    qt_run,
 )
 
 _DEFAULT_MINIMAX_URL = "https://api.minimax.io/anthropic"
@@ -182,7 +183,9 @@ class _AddProviderDialog(QDialog):
 
 class UpdateSignals(QObject):
     """Thread-safe signals for update progress."""
+
     download_progress = Signal(int, int)  # downloaded, total
+
 
 class SettingsDialog(QDialog):
     """Configuration dialog for Spectra."""
@@ -296,17 +299,11 @@ class SettingsDialog(QDialog):
         self._api_key_edit = QLineEdit(self._config.provider.api_key)
         self._api_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
         self._api_key_edit.setPlaceholderText("sk-... or leave empty for auto-detect")
-        self._api_key_edit.setSizePolicy(
-            QSizePolicy.Policy.Expanding,
-            QSizePolicy.Policy.Fixed
-        )
+        self._api_key_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         key_layout.addWidget(self._api_key_edit, 1)
         self._auth_status = QLabel()
         self._auth_status.setMaximumWidth(100)
-        self._auth_status.setSizePolicy(
-            QSizePolicy.Policy.Preferred,
-            QSizePolicy.Policy.Fixed
-        )
+        self._auth_status.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         key_layout.addWidget(self._auth_status, 0)
         provider_form.addRow("API Key:", key_layout)
 
@@ -339,10 +336,7 @@ class SettingsDialog(QDialog):
         row = QHBoxLayout()
         self._provider_combo = QComboBox()
         self._provider_combo.setMaxVisibleItems(15)
-        self._provider_combo.setSizePolicy(
-            QSizePolicy.Policy.Expanding,
-            QSizePolicy.Policy.Fixed
-        )
+        self._provider_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._populate_provider_combo()
         idx = self._provider_combo.findText(self._config.provider.name)
         if idx >= 0:
@@ -372,10 +366,7 @@ class SettingsDialog(QDialog):
         self._model_combo.setMaxVisibleItems(15)
         self._model_combo.setEditable(True)
         self._model_combo.setMinimumWidth(200)
-        self._model_combo.setSizePolicy(
-            QSizePolicy.Policy.Expanding,
-            QSizePolicy.Policy.Fixed
-        )
+        self._model_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._model_combo.setCurrentText(self._config.provider.model)
         model_layout.addWidget(self._model_combo, 1)
 
@@ -393,10 +384,7 @@ class SettingsDialog(QDialog):
         self._model_status.setStyleSheet("color: #808080; font-size: 10px;")
         self._model_status.setWordWrap(True)
         self._model_status.setMaximumWidth(150)
-        self._model_status.setSizePolicy(
-            QSizePolicy.Policy.Preferred,
-            QSizePolicy.Policy.Fixed
-        )
+        self._model_status.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         model_layout.addWidget(self._model_status, 0)
         return model_layout
 
@@ -1012,7 +1000,7 @@ class SettingsDialog(QDialog):
 
         self._changelog_text = QLabel()
         self._changelog_text.setWordWrap(True)
-        self._changelog_text.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        self._changelog_text.setAlignment(qt_flags(Qt.AlignmentFlag.AlignTop, Qt.AlignmentFlag.AlignLeft))
         self._changelog_text.setStyleSheet(
             "background: #2d2d2d; color: #d4d4d4; padding: 10px; "
             "border: 1px solid #3c3c3c; font-family: monospace; font-size: 11px;"
@@ -1405,9 +1393,11 @@ class SettingsDialog(QDialog):
     def _on_create_agent(self) -> None:
         """Open the agent creation dialog from settings."""
         try:
-            from .agent_creator_dialog import AgentCreatorDialog
             from pathlib import Path
+
             import spectra.skills
+
+            from .agent_creator_dialog import AgentCreatorDialog
 
             # Get the built-in skills directory directly
             skills_dir = Path(spectra.skills.__file__).parent / "builtins"
@@ -1419,8 +1409,10 @@ class SettingsDialog(QDialog):
             created_path = dlg.get_created_skill_path()
             if created_path:
                 from ..core.logging import log_info
+
                 log_info(f"New agent created at: {created_path}")
 
         except Exception as e:
             from ..core.logging import log_error
+
             log_error(f"Agent creation dialog error: {e}")

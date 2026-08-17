@@ -17,8 +17,9 @@ from typing import Any
 # Try to import IDA API
 try:
     import idaapi
-    import idc
     import idautils
+    import idc
+
     IDA_AVAILABLE = True
 except ImportError:
     IDA_AVAILABLE = False
@@ -26,143 +27,106 @@ except ImportError:
 # Import compatibility helpers
 from .ida_helpers import get_disasm_text
 
-
 # Anti-debugging API patterns
 ANTI_DEBUG_APIS = {
     "IsDebuggerPresent": {
         "category": "windows_api",
         "severity": "high",
-        "description": "Checks if debugger is present via Windows API"
+        "description": "Checks if debugger is present via Windows API",
     },
     "CheckRemoteDebuggerPresent": {
         "category": "windows_api",
         "severity": "high",
-        "description": "Checks if process is being debugged remotely"
+        "description": "Checks if process is being debugged remotely",
     },
     "OutputDebugStringA": {
         "category": "windows_api",
         "severity": "medium",
-        "description": "Can detect debugger by DebugBreak behavior"
+        "description": "Can detect debugger by DebugBreak behavior",
     },
     "OutputDebugStringW": {
         "category": "windows_api",
         "severity": "medium",
-        "description": "Can detect debugger by DebugBreak behavior"
+        "description": "Can detect debugger by DebugBreak behavior",
     },
     "DebugBreak": {
         "category": "windows_api",
         "severity": "medium",
-        "description": "Triggers breakpoint to detect debugger"
+        "description": "Triggers breakpoint to detect debugger",
     },
     "ContinueDebugEvent": {
         "category": "windows_api",
         "severity": "medium",
-        "description": "Can be used for anti-debugging"
+        "description": "Can be used for anti-debugging",
     },
     "WaitForDebugEvent": {
         "category": "windows_api",
         "severity": "medium",
-        "description": "Can be used for anti-debugging"
+        "description": "Can be used for anti-debugging",
     },
     "UnhandledExceptionFilter": {
         "category": "exception",
         "severity": "high",
-        "description": "Exception-based anti-debugging"
+        "description": "Exception-based anti-debugging",
     },
     "SetUnhandledExceptionFilter": {
         "category": "exception",
         "severity": "high",
-        "description": "Sets up exception-based anti-debug"
+        "description": "Sets up exception-based anti-debug",
     },
     "AddVectoredExceptionHandler": {
         "category": "exception",
         "severity": "high",
-        "description": "Vectored exception handler for anti-debug"
+        "description": "Vectored exception handler for anti-debug",
     },
     "RaiseException": {
         "category": "exception",
         "severity": "medium",
-        "description": "Can trigger anti-debug via exceptions"
+        "description": "Can trigger anti-debug via exceptions",
     },
     "NtQueryInformationProcess": {
         "category": "nt_api",
         "severity": "high",
-        "description": "Queries ProcessDebugPort/ProcessDebugObjectHandle"
+        "description": "Queries ProcessDebugPort/ProcessDebugObjectHandle",
     },
     "NtSetInformationThread": {
         "category": "nt_api",
         "severity": "high",
-        "description": "Can hide thread from debugger"
+        "description": "Can hide thread from debugger",
     },
     "NtQueryObject": {
         "category": "nt_api",
         "severity": "medium",
-        "description": "Can detect debugger via object namespaces"
+        "description": "Can detect debugger via object namespaces",
     },
-    "NtClose": {
-        "category": "nt_api",
-        "severity": "medium",
-        "description": "Invalid handle close to detect debugger"
-    },
-    "GetTickCount": {
-        "category": "timing",
-        "severity": "low",
-        "description": "Timing check via tick count"
-    },
+    "NtClose": {"category": "nt_api", "severity": "medium", "description": "Invalid handle close to detect debugger"},
+    "GetTickCount": {"category": "timing", "severity": "low", "description": "Timing check via tick count"},
     "QueryPerformanceCounter": {
         "category": "timing",
         "severity": "medium",
-        "description": "High-resolution timing check"
+        "description": "High-resolution timing check",
     },
-    "timeGetTime": {
-        "category": "timing",
-        "severity": "low",
-        "description": "Timing check via multimedia timer"
-    },
+    "timeGetTime": {"category": "timing", "severity": "low", "description": "Timing check via multimedia timer"},
 }
 
 # Assembly instruction patterns for anti-debug
 ANTI_DEBUG_INSTRUCTIONS = {
-    "rdtsc": {
-        "category": "timing",
-        "severity": "medium",
-        "description": "Read Time-Stamp Counter for timing checks"
-    },
-    "int 2d": {
-        "category": "exception",
-        "severity": "high",
-        "description": "INT 2D exception-based anti-debug"
-    },
-    "int 3": {
-        "category": "exception",
-        "severity": "medium",
-        "description": "Software breakpoint (can be anti-debug)"
-    },
-    "icebp": {
-        "category": "exception",
-        "severity": "high",
-        "description": "ICEBP instruction (F1 byte) for anti-debug"
-    },
+    "rdtsc": {"category": "timing", "severity": "medium", "description": "Read Time-Stamp Counter for timing checks"},
+    "int 2d": {"category": "exception", "severity": "high", "description": "INT 2D exception-based anti-debug"},
+    "int 3": {"category": "exception", "severity": "medium", "description": "Software breakpoint (can be anti-debug)"},
+    "icebp": {"category": "exception", "severity": "high", "description": "ICEBP instruction (F1 byte) for anti-debug"},
     "str": {
         "category": "hardware",
         "severity": "medium",
-        "description": "Store Task Register - detects hardware debug registers"
+        "description": "Store Task Register - detects hardware debug registers",
     },
-    "sidt": {
-        "category": "hardware",
-        "severity": "medium",
-        "description": "Store IDT - can detect debugger patches"
-    },
+    "sidt": {"category": "hardware", "severity": "medium", "description": "Store IDT - can detect debugger patches"},
     "sgdt": {
         "category": "hardware",
         "severity": "medium",
-        "description": "Store GDT - can detect debugger modifications"
+        "description": "Store GDT - can detect debugger modifications",
     },
-    "smsw": {
-        "category": "hardware",
-        "severity": "low",
-        "description": "Store Machine Status Word"
-    },
+    "smsw": {"category": "hardware", "severity": "low", "description": "Store Machine Status Word"},
 }
 
 
@@ -184,14 +148,16 @@ def detect_anti_debug_apis() -> list[dict[str, Any]]:
         # Check if function name matches anti-debug APIs
         for api_name, api_info in ANTI_DEBUG_APIS.items():
             if api_name.lower() in func_name.lower():
-                results.append({
-                    "address": func_ea,
-                    "function": func_name,
-                    "api": api_name,
-                    "category": api_info["category"],
-                    "severity": api_info["severity"],
-                    "description": api_info["description"],
-                })
+                results.append(
+                    {
+                        "address": func_ea,
+                        "function": func_name,
+                        "api": api_name,
+                        "category": api_info["category"],
+                        "severity": api_info["severity"],
+                        "description": api_info["description"],
+                    }
+                )
 
     return results
 
@@ -229,13 +195,15 @@ def detect_anti_debug_instructions() -> list[dict[str, Any]]:
                 # Check for anti-debug instructions
                 for instr_name, instr_info in ANTI_DEBUG_INSTRUCTIONS.items():
                     if instr_name in disasm_lower:
-                        results.append({
-                            "address": instr_ea,
-                            "instruction": disasm,
-                            "category": instr_info["category"],
-                            "severity": instr_info["severity"],
-                            "description": instr_info["description"],
-                        })
+                        results.append(
+                            {
+                                "address": instr_ea,
+                                "instruction": disasm,
+                                "category": instr_info["category"],
+                                "severity": instr_info["severity"],
+                                "description": instr_info["description"],
+                            }
+                        )
                         break
 
     return results
@@ -257,9 +225,9 @@ def detect_peb_checks() -> list[dict[str, Any]]:
     peb_patterns = [
         r"mov.*\[.*0x30\]",  # x86 PEB access
         r"mov.*\[.*0x60\]",  # x64 PEB access
-        r"mov.*\[.*48\]",    # x64 PEB+2 offset
-        r"fs:\[30\]",       # Direct x86 PEB
-        r"gs:\[60\]",       # Direct x64 PEB
+        r"mov.*\[.*48\]",  # x64 PEB+2 offset
+        r"fs:\[30\]",  # Direct x86 PEB
+        r"gs:\[60\]",  # Direct x64 PEB
     ]
 
     for func_ea in idautils.Functions():
@@ -276,13 +244,15 @@ def detect_peb_checks() -> list[dict[str, Any]]:
 
         for pattern in peb_patterns:
             if re.search(pattern, func_text, re.IGNORECASE):
-                results.append({
-                    "address": func_ea,
-                    "function": func_name,
-                    "category": "peb_check",
-                    "severity": "high",
-                    "description": "PEB BeingDebugged check",
-                })
+                results.append(
+                    {
+                        "address": func_ea,
+                        "function": func_name,
+                        "category": "peb_check",
+                        "severity": "high",
+                        "description": "PEB BeingDebugged check",
+                    }
+                )
                 break
 
     return results
@@ -324,8 +294,7 @@ def format_anti_debug_report(results: dict[str, list[dict[str, Any]]]) -> str:
         for item in results["api_calls"]:
             severity_icon = {"high": "[HIGH]", "medium": "[MED]", "low": "[LOW]"}.get(item["severity"], "[?]")
             report_lines.append(
-                f"- {severity_icon} **{item['function']}** at `{item['address']:X}`\n"
-                f"  - *{item['description']}*\n"
+                f"- {severity_icon} **{item['function']}** at `{item['address']:X}`\n  - *{item['description']}*\n"
             )
 
     # Instructions
@@ -334,8 +303,7 @@ def format_anti_debug_report(results: dict[str, list[dict[str, Any]]]) -> str:
         for item in results["instructions"]:
             severity_icon = {"high": "[HIGH]", "medium": "[MED]", "low": "[LOW]"}.get(item["severity"], "[?]")
             report_lines.append(
-                f"- {severity_icon} `{item['instruction']}` at `{item['address']:X}`\n"
-                f"  - *{item['description']}*\n"
+                f"- {severity_icon} `{item['instruction']}` at `{item['address']:X}`\n  - *{item['description']}*\n"
             )
 
     # PEB checks
@@ -343,8 +311,7 @@ def format_anti_debug_report(results: dict[str, list[dict[str, Any]]]) -> str:
         report_lines.append("\n### PEB Checks\n")
         for item in results["peb_checks"]:
             report_lines.append(
-                f"- [HIGH] **{item['function']}** at `{item['address']:X}`\n"
-                f"  - *{item['description']}*\n"
+                f"- [HIGH] **{item['function']}** at `{item['address']:X}`\n  - *{item['description']}*\n"
             )
 
     return "\n".join(report_lines)

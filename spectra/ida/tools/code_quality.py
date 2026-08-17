@@ -50,7 +50,7 @@ def get_function_security_score(
 
     func_data = _analyze_function_ida(address)
 
-    report = f"## Function Security Analysis\n\n"
+    report = "## Function Security Analysis\n\n"
     report += f"**Function:** {func_data['name']}\n"
     report += f"**Address:** `0x{func_data['address']:X}`\n"
     report += f"**Complexity:** {func_data['complexity']} ({func_data['complexity_rating']})\n"
@@ -59,14 +59,12 @@ def get_function_security_score(
     # Security issues
     if func_data["security_issues"]:
         sec_score = _calculate_security_score(func_data["security_issues"])
-        report += f"\n### Security Score\n"
+        report += "\n### Security Score\n"
         report += f"**Grade:** {sec_score['grade']} ({sec_score['score']}/100)\n"
 
-        report += f"\n### Issues Found\n"
+        report += "\n### Issues Found\n"
         for issue in func_data["security_issues"]:
-            severity_icon = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🟢"}.get(
-                issue["severity"], ""
-            )
+            severity_icon = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🟢"}.get(issue["severity"], "")
             report += f"- {severity_icon} **{issue['type']}** ({issue['severity']})\n"
     else:
         report += "\n### Security Score\n"
@@ -75,12 +73,12 @@ def get_function_security_score(
 
     # Code smells
     if func_data["code_smells"]:
-        report += f"\n### Code Smells\n"
+        report += "\n### Code Smells\n"
         for smell in func_data["code_smells"]:
             report += f"- {smell}\n"
 
     # Recommendations
-    report += f"\n### Recommendations\n"
+    report += "\n### Recommendations\n"
     if func_data["complexity_rating"] in ["high", "very_high"]:
         report += "- Consider refactoring to reduce complexity\n"
 

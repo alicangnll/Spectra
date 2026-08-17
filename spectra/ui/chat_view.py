@@ -152,7 +152,7 @@ class ChatView(QScrollArea):
         if self._thinking is None:
             return
         # Optional: Show elapsed time to indicate how long AI has been thinking
-        elapsed_ms = (time.monotonic() - self._thinking_shown_at) * 1000
+        _elapsed_ms = (time.monotonic() - self._thinking_shown_at) * 1000
         # Keep thinking widget visible - don't auto-hide
         # self._force_hide_thinking()
 

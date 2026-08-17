@@ -6,8 +6,8 @@ Wires Binary Ninja-specific tool modules into the shared ToolRegistry.
 from __future__ import annotations
 
 from ...core.thread_safety import idasync
-from ...tools.registry import ToolRegistry
 from ...tools import adb  # ADB tools (standalone, shared across hosts)
+from ...tools.registry import ToolRegistry
 from . import (  # type: ignore[assignment]
     advanced_decomp,
     ai_features,

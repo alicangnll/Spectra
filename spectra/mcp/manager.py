@@ -28,14 +28,22 @@ class MCPManager:
 
     def __init__(self):
         self._configs: list[MCPServerConfig] = []
+        self._external_configs: list[MCPServerConfig] = []
         self._clients: dict[str, MCPClient] = {}
         self._lock = threading.Lock()
         self._shut_down = False
         self._generation = 0  # incremented on each start/reload cycle
 
     def load_config(self, path: str = "") -> int:
-        """Load MCP config. Returns number of enabled servers found."""
+        """Load MCP config. Returns number of enabled servers found.
+
+        Externally-discovered configs (added via ``add_external_configs``)
+        are preserved across reloads: they are re-appended after the config
+        file is re-read.
+        """
         self._configs = load_mcp_config(path)
+        if self._external_configs:
+            self._configs.extend(self._external_configs)
         enabled = [c for c in self._configs if c.enabled]
         log_info(f"MCP config: {len(enabled)} enabled servers out of {len(self._configs)} total")
         return len(enabled)
@@ -43,10 +51,12 @@ class MCPManager:
     def add_external_configs(self, configs: list[MCPServerConfig]) -> None:
         """Append additional MCP server configs (from external sources).
 
-        These are added to ``_configs`` before ``start_servers()`` is called.
+        These are added to ``_configs`` before ``start_servers()`` is called,
+        and tracked separately so a ``reload()`` does not drop them.
         """
         if not configs:
             return
+        self._external_configs.extend(configs)
         self._configs.extend(configs)
         log_info(f"MCP: added {len(configs)} external server config(s)")
 
@@ -95,6 +105,11 @@ class MCPManager:
         reload or shutdown has superseded this start cycle.
         """
         hard = min(config.timeout, _HARD_TIMEOUT)
+        if config.timeout > _HARD_TIMEOUT:
+            log_warning(
+                f"MCP[{config.name}]: configured timeout {config.timeout}s exceeds "
+                f"hard limit {_HARD_TIMEOUT}s — capping startup wait at {_HARD_TIMEOUT}s"
+            )
         client = MCPClient(config)
         t0 = time.monotonic()
         try:

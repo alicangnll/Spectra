@@ -34,10 +34,10 @@ The `execute_python` tool provides:
 
 ### Reading Data
 ```python
-val = ida_bytes.get_byte(ea)            # uint8
-val = ida_bytes.get_dword(ea)           # uint32
-val = ida_bytes.get_qword(ea)           # uint64
-raw = ida_bytes.get_bytes(ea, size)     # bytes
+val = ida_bytes.get_byte(ea)  # uint8
+val = ida_bytes.get_dword(ea)  # uint32
+val = ida_bytes.get_qword(ea)  # uint64
+raw = ida_bytes.get_bytes(ea, size)  # bytes
 s = ida_bytes.get_strlit_contents(ea, -1, ida_nalt.STRTYPE_C)
 ```
 
@@ -46,16 +46,16 @@ s = ida_bytes.get_strlit_contents(ea, -1, ida_nalt.STRTYPE_C)
 for func_ea in idautils.Functions():
     name = idc.get_func_name(func_ea)
 
-func = ida_funcs.get_func(ea)           # func_t or None
+func = ida_funcs.get_func(ea)  # func_t or None
 # func.start_ea, func.end_ea, func.flags
-idc.add_func(ea)                        # create function
+idc.add_func(ea)  # create function
 ida_name.set_name(ea, "new_name", ida_name.SN_CHECK)
 ```
 
 ### Decompiler (Hex-Rays)
 ```python
-cfunc = ida_hexrays.decompile(ea)       # cfuncptr_t
-pseudocode = cfunc.get_pseudocode()     # simpleline_t vector
+cfunc = ida_hexrays.decompile(ea)  # cfuncptr_t
+pseudocode = cfunc.get_pseudocode()  # simpleline_t vector
 for line in pseudocode:
     print(ida_lines.tag_remove(line.line))
 
@@ -63,14 +63,17 @@ for line in pseudocode:
 for lvar in cfunc.get_lvars():
     print(f"{lvar.name}: {lvar.type()}")
 
+
 # CTree visitor
 class MyVisitor(ida_hexrays.ctree_visitor_t):
     def __init__(self):
         super().__init__(ida_hexrays.CV_FAST)
+
     def visit_expr(self, expr):
         if expr.op == ida_hexrays.cot_call:
             print(f"Call at {hex(expr.ea)}")
         return 0
+
 
 visitor = MyVisitor()
 visitor.apply_to(cfunc.body, None)
@@ -82,7 +85,7 @@ for xref in idautils.XrefsTo(ea):
     print(f"from {hex(xref.frm)}, type={xref.type}")
 for xref in idautils.XrefsFrom(ea):
     print(f"to {hex(xref.to)}")
-for ref in idautils.CodeRefsTo(ea, False):   # False = no flow
+for ref in idautils.CodeRefsTo(ea, False):  # False = no flow
     print(hex(ref))
 for ref in idautils.DataRefsTo(ea):
     print(hex(ref))
@@ -95,21 +98,23 @@ for ref in idautils.DataRefsTo(ea):
 ```python
 import ida_typeinf
 
+
 # Helper: make a simple integer tinfo_t
 def make_int_type(byte_size: int, signed: bool = False) -> ida_typeinf.tinfo_t:
     bt_map = {
         (1, False): ida_typeinf.BT_INT8,
-        (1, True):  ida_typeinf.BT_INT8,
+        (1, True): ida_typeinf.BT_INT8,
         (2, False): ida_typeinf.BT_INT16,
-        (2, True):  ida_typeinf.BT_INT16,
+        (2, True): ida_typeinf.BT_INT16,
         (4, False): ida_typeinf.BT_INT32,
-        (4, True):  ida_typeinf.BT_INT32,
+        (4, True): ida_typeinf.BT_INT32,
         (8, False): ida_typeinf.BT_INT64,
-        (8, True):  ida_typeinf.BT_INT64,
+        (8, True): ida_typeinf.BT_INT64,
     }
     t = ida_typeinf.tinfo_t()
     t.create_simple_type(bt_map[(byte_size, signed)])
     return t
+
 
 # Helper: make a pointer type
 def make_ptr_type(inner: ida_typeinf.tinfo_t) -> ida_typeinf.tinfo_t:
@@ -118,6 +123,7 @@ def make_ptr_type(inner: ida_typeinf.tinfo_t) -> ida_typeinf.tinfo_t:
     t = ida_typeinf.tinfo_t()
     t.create_ptr(pd)
     return t
+
 
 # Helper: make an array type
 def make_array_type(elem: ida_typeinf.tinfo_t, count: int) -> ida_typeinf.tinfo_t:
@@ -128,6 +134,7 @@ def make_array_type(elem: ida_typeinf.tinfo_t, count: int) -> ida_typeinf.tinfo_
     t.create_array(ad)
     return t
 
+
 # Build struct — offsets in BITS
 def make_struct(name: str, fields: list) -> ida_typeinf.tinfo_t:
     """fields = [(name, tinfo_t, byte_offset), ...]"""
@@ -136,27 +143,35 @@ def make_struct(name: str, fields: list) -> ida_typeinf.tinfo_t:
         udm = ida_typeinf.udm_t()
         udm.name = fname
         udm.type = ftype
-        udm.offset = byte_off * 8   # ← BITS, not bytes
+        udm.offset = byte_off * 8  # ← BITS, not bytes
         udt.push_back(udm)
     tif = ida_typeinf.tinfo_t()
     tif.create_udt(udt, ida_typeinf.BTF_STRUCT)
     tif.set_named_type(None, name, ida_typeinf.NTF_REPLACE)
     return tif
 
+
 # Example: struct Elf32_auxv_entry { uint32_t a_type; uint32_t a_val; }
-auxv_tif = make_struct("Elf32_auxv_entry", [
-    ("a_type", make_int_type(4, False), 0),
-    ("a_val",  make_int_type(4, False), 4),
-])
+auxv_tif = make_struct(
+    "Elf32_auxv_entry",
+    [
+        ("a_type", make_int_type(4, False), 0),
+        ("a_val", make_int_type(4, False), 4),
+    ],
+)
 
 # Example: struct with pointer and array fields
-char_ptr = make_ptr_type(make_int_type(1))          # char*
-char_pp  = make_ptr_type(char_ptr)                  # char**
-u8_arr   = make_array_type(make_int_type(1), 16)    # uint8_t[16]
-make_struct("StartupInfo", [
-    ("argv",  char_pp, 0),
-    ("buf",   u8_arr,  8),
-])
+char_ptr = make_ptr_type(make_int_type(1))  # char*
+char_pp = make_ptr_type(char_ptr)  # char**
+u8_arr = make_array_type(make_int_type(1), 16)  # uint8_t[16]
+make_struct(
+    "StartupInfo",
+    [
+        ("argv", char_pp, 0),
+        ("buf", u8_arr, 8),
+    ],
+)
+
 
 # Reference a previously defined struct by name
 def get_named_type(name: str) -> ida_typeinf.tinfo_t:
@@ -164,6 +179,7 @@ def get_named_type(name: str) -> ida_typeinf.tinfo_t:
     if not t.get_named_type(None, name):
         raise ValueError(f"Type '{name}' not found in type library")
     return t
+
 
 # Apply type to address
 ida_typeinf.apply_tinfo(ea, auxv_tif, ida_typeinf.TINFO_DEFINITE)
@@ -183,7 +199,8 @@ ida_typeinf.apply_cdecl(None, ea, "int __cdecl func(int a, char *b)")
 edt = ida_typeinf.enum_type_data_t()
 for vname, vval in [("VAL_A", 0), ("VAL_B", 1)]:
     edm = ida_typeinf.edm_t()
-    edm.name = vname; edm.value = vval
+    edm.name = vname
+    edm.value = vval
     edt.push_back(edm)
 tif_enum = ida_typeinf.tinfo_t()
 tif_enum.create_enum(edt)
@@ -207,7 +224,7 @@ for ea, name in idautils.Names():
     print(f"{hex(ea)}: {name}")
 
 ida_name.set_name(ea, "my_label", ida_name.SN_CHECK)
-idc.set_cmt(ea, "note", 0)              # 0=regular, 1=repeatable
+idc.set_cmt(ea, "note", 0)  # 0=regular, 1=repeatable
 idc.set_func_cmt(ea, "description", 0)
 ```
 
@@ -219,8 +236,9 @@ ea = ida_bytes.find_bytes(start_ea, "48 8B ?? ?? 90", 0)
 # Pattern search loop
 ea = start_ea
 while ea != idaapi.BADADDR:
-    ea = ida_search.find_binary(ea, idaapi.BADADDR, "E8 ?? ?? ?? ??", 16,
-                                 ida_search.SEARCH_DOWN | ida_search.SEARCH_NEXT)
+    ea = ida_search.find_binary(
+        ea, idaapi.BADADDR, "E8 ?? ?? ?? ??", 16, ida_search.SEARCH_DOWN | ida_search.SEARCH_NEXT
+    )
     if ea != idaapi.BADADDR:
         print(hex(ea))
 ```

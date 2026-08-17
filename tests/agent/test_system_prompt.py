@@ -11,9 +11,10 @@ from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from tests.mocks.ida_mock import install_ida_mocks
+
 install_ida_mocks()
 
-from spectra.agent.system_prompt import build_system_prompt, _BASE_PROMPT, _load_persistent_memory
+from spectra.agent.system_prompt import _BASE_PROMPT, _load_persistent_memory, build_system_prompt
 
 
 class TestBuildSystemPrompt(unittest.TestCase):
@@ -99,13 +100,14 @@ class TestBasePromptContent(unittest.TestCase):
         self.assertIn("## Capabilities", _BASE_PROMPT)
 
     def test_has_safety_section(self):
-        self.assertIn("## Safety", _BASE_PROMPT)
+        # The safety guidance now lives under the anti-injection heading.
+        self.assertIn("## Data Integrity", _BASE_PROMPT)
 
     def test_has_renaming_section(self):
         self.assertIn("## Renaming", _BASE_PROMPT)
 
     def test_has_analysis_section(self):
-        self.assertIn("## Analysis Approach", _BASE_PROMPT)
+        self.assertIn("## Complete Code Context Analysis", _BASE_PROMPT)
 
 
 class TestPersistentMemoryCaching(unittest.TestCase):
@@ -149,7 +151,9 @@ class TestPersistentMemoryCaching(unittest.TestCase):
             first = _load_persistent_memory(tmpdir)
             self.assertEqual(first, "first value")
 
-            same_stat = SimpleNamespace(st_mtime=1234.0, st_mtime_ns=1234000000000, st_size=len("second value is longer\n"), st_mode=33188)
+            same_stat = SimpleNamespace(
+                st_mtime=1234.0, st_mtime_ns=1234000000000, st_size=len("second value is longer\n"), st_mode=33188
+            )
             with patch("os.stat", return_value=same_stat):
                 with open(md_path, "w", encoding="utf-8") as f:
                     f.write("second value is longer\n")
@@ -163,14 +167,24 @@ class TestPersistentMemoryCaching(unittest.TestCase):
             with open(md_path, "w", encoding="utf-8") as f:
                 f.write("first value\n")
 
-            with patch("os.stat", return_value=SimpleNamespace(st_mtime=100.0, st_mtime_ns=1000, st_size=len("first value\n"), st_mode=33188)):
+            with patch(
+                "os.stat",
+                return_value=SimpleNamespace(
+                    st_mtime=100.0, st_mtime_ns=1000, st_size=len("first value\n"), st_mode=33188
+                ),
+            ):
                 first = _load_persistent_memory(tmpdir)
             self.assertEqual(first, "first value")
 
             with open(md_path, "w", encoding="utf-8") as f:
                 f.write("second value\n")
 
-            with patch("os.stat", return_value=SimpleNamespace(st_mtime=100.0, st_mtime_ns=2000, st_size=len("second value\n"), st_mode=33188)):
+            with patch(
+                "os.stat",
+                return_value=SimpleNamespace(
+                    st_mtime=100.0, st_mtime_ns=2000, st_size=len("second value\n"), st_mode=33188
+                ),
+            ):
                 second = _load_persistent_memory(tmpdir)
 
             self.assertEqual(second, "second value")

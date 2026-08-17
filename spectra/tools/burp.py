@@ -11,15 +11,12 @@ Provides tools for:
 from __future__ import annotations
 
 import json
-import os
 import re
-import subprocess
-import tempfile
 from typing import Any
 from urllib.parse import urlparse
 
-from ..core.tool_infrastructure import ExternalTool, ToolSafety
-from ..core.logging import log_debug, log_error, log_info
+from ..core.logging import log_info
+from ..core.tool_infrastructure import ExternalTool
 from ..tools.base import ParameterSchema, ToolDefinition
 
 
@@ -90,6 +87,7 @@ def _ensure_burp() -> str:
 # ============================================================================
 # Tool Functions
 # ============================================================================
+
 
 def burp_api_status() -> str:
     """Check Burp API status.
@@ -168,7 +166,7 @@ def burp_scan(target: str, scan_type: str = "crawl", api_configured: bool = Fals
         ]
     else:
         output = [
-            f"=== Burp Scan (Manual) ===",
+            "=== Burp Scan (Manual) ===",
             f"Target: {target}",
             f"Type: {scan_type}",
             "",
@@ -199,24 +197,28 @@ def burp_replay(request: str, modifications: dict, api_configured: bool = False)
     output = ["=== Burp Replay ==="]
 
     if api_configured and burp.has_api_config():
-        output.extend([
-            "Request replay via API",
-            "",
-            "Modifications:",
-            json.dumps(modifications, indent=2),
-            "",
-            "Note: API replay requires Burp Suite Professional",
-        ])
+        output.extend(
+            [
+                "Request replay via API",
+                "",
+                "Modifications:",
+                json.dumps(modifications, indent=2),
+                "",
+                "Note: API replay requires Burp Suite Professional",
+            ]
+        )
     else:
-        output.extend([
-            "Manual replay instructions:",
-            "1. Copy request to Burp Repeater",
-            "2. Apply modifications:",
-            "",
-            json.dumps(modifications, indent=2),
-            "",
-            "3. Send request",
-        ])
+        output.extend(
+            [
+                "Manual replay instructions:",
+                "1. Copy request to Burp Repeater",
+                "2. Apply modifications:",
+                "",
+                json.dumps(modifications, indent=2),
+                "",
+                "3. Send request",
+            ]
+        )
 
     return "\n".join(output)
 
@@ -243,7 +245,7 @@ def burp_intruder(request: str, payloads: list, attack_type: str = "sniper", api
 
     # Show first few payloads
     for i, payload in enumerate(payloads[:5]):
-        output.append(f"  {i+1}. {payload[:100]}...")
+        output.append(f"  {i + 1}. {payload[:100]}...")
 
     if len(payloads) > 5:
         output.append(f"  ... and {len(payloads) - 5} more")
@@ -253,14 +255,16 @@ def burp_intruder(request: str, payloads: list, attack_type: str = "sniper", api
     if api_configured and burp.has_api_config():
         output.append("API Intruder requires Burp Suite Professional")
     else:
-        output.extend([
-            "Manual Intruder steps:",
-            "1. Send request to Intruder",
-            "2. Set payload positions",
-            "3. Load payloads",
-            f"4. Choose '{attack_type}' attack",
-            "5. Start attack",
-        ])
+        output.extend(
+            [
+                "Manual Intruder steps:",
+                "1. Send request to Intruder",
+                "2. Set payload positions",
+                "3. Load payloads",
+                f"4. Choose '{attack_type}' attack",
+                "5. Start attack",
+            ]
+        )
 
     return "\n".join(output)
 
@@ -302,19 +306,23 @@ def burp_issues(filter: str = "", severity: str = "", api_configured: bool = Fal
     output = ["=== Burp Issues ==="]
 
     if api_configured and get_burp().has_api_config():
-        output.extend([
-            "API: Fetch issues from Burp",
-            "",
-            f"Filter: {filter or 'none'}",
-            f"Severity: {severity or 'all'}",
-        ])
+        output.extend(
+            [
+                "API: Fetch issues from Burp",
+                "",
+                f"Filter: {filter or 'none'}",
+                f"Severity: {severity or 'all'}",
+            ]
+        )
     else:
-        output.extend([
-            "Manual issue review:",
-            "1. Go to Target > Site map > Issues",
-            "2. Filter by severity",
-            "3. Review and report",
-        ])
+        output.extend(
+            [
+                "Manual issue review:",
+                "1. Go to Target > Site map > Issues",
+                "2. Filter by severity",
+                "3. Review and report",
+            ]
+        )
 
     return "\n".join(output)
 
@@ -372,6 +380,7 @@ def burp_generate_report(format: str = "html", scope: str = "") -> str:
 # Tool Definitions
 # ============================================================================
 
+
 def create_burp_tools() -> list[ToolDefinition]:
     """Create Burp tool definitions.
 
@@ -386,46 +395,74 @@ def create_burp_tools() -> list[ToolDefinition]:
             parameters=[],
             handler=lambda **kwargs: burp_api_status(),
         ),
-
         ToolDefinition(
             name="burp_configure_api",
             description="Configure Burp API connection",
             category="network",
             parameters=[
-                ParameterSchema(name="api_url", type="string", description="Burp API URL (e.g., http://127.0.0.1:1337)", required=True),
-                ParameterSchema(name="api_key", type="string", description="Optional API key", required=False, default=""),
+                ParameterSchema(
+                    name="api_url",
+                    type="string",
+                    description="Burp API URL (e.g., http://127.0.0.1:1337)",
+                    required=True,
+                ),
+                ParameterSchema(
+                    name="api_key", type="string", description="Optional API key", required=False, default=""
+                ),
             ],
             handler=lambda api_url, api_key="", **kwargs: burp_configure_api(api_url, api_key),
         ),
-
         ToolDefinition(
             name="burp_scan",
             description="Run Burp scan on target",
             category="network",
             parameters=[
                 ParameterSchema(name="target", type="string", description="Target URL", required=True),
-                ParameterSchema(name="scan_type", type="string", description="Scan type", required=False, default="crawl", enum=["crawl", "audit", "scan"]),
-                ParameterSchema(name="api_configured", type="boolean", description="API is configured", required=False, default=False),
+                ParameterSchema(
+                    name="scan_type",
+                    type="string",
+                    description="Scan type",
+                    required=False,
+                    default="crawl",
+                    enum=["crawl", "audit", "scan"],
+                ),
+                ParameterSchema(
+                    name="api_configured",
+                    type="boolean",
+                    description="API is configured",
+                    required=False,
+                    default=False,
+                ),
             ],
-            handler=lambda target, scan_type="crawl", api_configured=False, **kwargs: burp_scan(target, scan_type, api_configured),
+            handler=lambda target, scan_type="crawl", api_configured=False, **kwargs: burp_scan(
+                target, scan_type, api_configured
+            ),
         ),
-
         ToolDefinition(
             name="burp_replay",
             description="Replay request with modifications",
             category="network",
             parameters=[
                 ParameterSchema(name="request", type="string", description="HTTP request", required=True),
-                ParameterSchema(name="modifications", type="string", description="Modifications as JSON", required=False, default="{}"),
-                ParameterSchema(name="api_configured", type="boolean", description="API is configured", required=False, default=False),
+                ParameterSchema(
+                    name="modifications",
+                    type="string",
+                    description="Modifications as JSON",
+                    required=False,
+                    default="{}",
+                ),
+                ParameterSchema(
+                    name="api_configured",
+                    type="boolean",
+                    description="API is configured",
+                    required=False,
+                    default=False,
+                ),
             ],
             handler=lambda request, modifications="{}", api_configured=False, **kwargs: burp_replay(
-                request,
-                json.loads(modifications) if isinstance(modifications, str) else modifications,
-                api_configured
+                request, json.loads(modifications) if isinstance(modifications, str) else modifications, api_configured
             ),
         ),
-
         ToolDefinition(
             name="burp_intruder",
             description="Run Intruder with payloads",
@@ -433,24 +470,35 @@ def create_burp_tools() -> list[ToolDefinition]:
             parameters=[
                 ParameterSchema(name="request", type="string", description="HTTP request", required=True),
                 ParameterSchema(name="payloads", type="string", description="Payloads as JSON array", required=True),
-                ParameterSchema(name="attack_type", type="string", description="Attack type", required=False, default="sniper", enum=["sniper", "battering_ram", "pitchfork", "cluster_bomb"]),
-                ParameterSchema(name="api_configured", type="boolean", description="API is configured", required=False, default=False),
+                ParameterSchema(
+                    name="attack_type",
+                    type="string",
+                    description="Attack type",
+                    required=False,
+                    default="sniper",
+                    enum=["sniper", "battering_ram", "pitchfork", "cluster_bomb"],
+                ),
+                ParameterSchema(
+                    name="api_configured",
+                    type="boolean",
+                    description="API is configured",
+                    required=False,
+                    default=False,
+                ),
             ],
             handler=lambda request, payloads, attack_type="sniper", api_configured=False, **kwargs: burp_intruder(
-                request,
-                json.loads(payloads) if isinstance(payloads, str) else payloads,
-                attack_type,
-                api_configured
+                request, json.loads(payloads) if isinstance(payloads, str) else payloads, attack_type, api_configured
             ),
         ),
-
         ToolDefinition(
             name="burp_fuzz",
             description="Fuzz request with payloads",
             category="network",
             parameters=[
                 ParameterSchema(name="request", type="string", description="HTTP request", required=True),
-                ParameterSchema(name="fuzz_points", type="string", description="Fuzz positions (JSON array)", required=True),
+                ParameterSchema(
+                    name="fuzz_points", type="string", description="Fuzz positions (JSON array)", required=True
+                ),
                 ParameterSchema(name="payloads", type="string", description="Payloads (JSON array)", required=True),
             ],
             handler=lambda request, fuzz_points, payloads, **kwargs: burp_fuzz(
@@ -459,35 +507,56 @@ def create_burp_tools() -> list[ToolDefinition]:
                 json.loads(payloads) if isinstance(payloads, str) else payloads,
             ),
         ),
-
         ToolDefinition(
             name="burp_issues",
             description="Get Burp issues/vulnerabilities",
             category="network",
             parameters=[
                 ParameterSchema(name="filter", type="string", description="Issue filter", required=False, default=""),
-                ParameterSchema(name="severity", type="string", description="Severity filter", required=False, default="", enum=["high", "medium", "low", "info", ""]),
-                ParameterSchema(name="api_configured", type="boolean", description="API is configured", required=False, default=False),
+                ParameterSchema(
+                    name="severity",
+                    type="string",
+                    description="Severity filter",
+                    required=False,
+                    default="",
+                    enum=["high", "medium", "low", "info", ""],
+                ),
+                ParameterSchema(
+                    name="api_configured",
+                    type="boolean",
+                    description="API is configured",
+                    required=False,
+                    default=False,
+                ),
             ],
-            handler=lambda filter="", severity="", api_configured=False, **kwargs: burp_issues(filter, severity, api_configured),
+            handler=lambda filter="", severity="", api_configured=False, **kwargs: burp_issues(
+                filter, severity, api_configured
+            ),
         ),
-
         ToolDefinition(
             name="burp_proxy_captures",
             description="Get proxy captures info",
             category="network",
             parameters=[
-                ParameterSchema(name="host_filter", type="string", description="Host filter", required=False, default=""),
+                ParameterSchema(
+                    name="host_filter", type="string", description="Host filter", required=False, default=""
+                ),
             ],
             handler=lambda host_filter="", **kwargs: burp_proxy_captures(host_filter),
         ),
-
         ToolDefinition(
             name="burp_generate_report",
             description="Generate security report",
             category="network",
             parameters=[
-                ParameterSchema(name="format", type="string", description="Report format", required=False, default="html", enum=["html", "pdf", "xml"]),
+                ParameterSchema(
+                    name="format",
+                    type="string",
+                    description="Report format",
+                    required=False,
+                    default="html",
+                    enum=["html", "pdf", "xml"],
+                ),
                 ParameterSchema(name="scope", type="string", description="Report scope", required=False, default=""),
             ],
             handler=lambda format="html", scope="", **kwargs: burp_generate_report(format, scope),

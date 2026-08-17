@@ -195,7 +195,7 @@ class AdvancedSearchTool(Tool):
     def _is_ida(self) -> bool:
         """Check if running in IDA Pro environment."""
         try:
-            import ida_kernwin
+            import ida_kernwin  # noqa: F401 — availability probe
 
             return True
         except ImportError:

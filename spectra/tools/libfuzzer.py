@@ -10,12 +10,10 @@ Provides tools for:
 from __future__ import annotations
 
 import os
-import re
-import subprocess
 from typing import Any
 
+from ..core.logging import log_info
 from ..core.tool_infrastructure import ExternalTool, ToolSafety
-from ..core.logging import log_debug, log_error, log_info
 from ..tools.base import ParameterSchema, ToolDefinition
 
 
@@ -34,9 +32,11 @@ class LibFuzzerTool(ExternalTool):
         """LibFuzzer is a library, not a standalone tool."""
         # Check if we can find any fuzzer binaries
         import shutil
+
         fuzzer_binaries = shutil.which("llvm-symbolizer") or shutil.which("asan_symbolize")
         if fuzzer_binaries:
             from ..core.tool_infrastructure import ToolLocation
+
             location = ToolLocation(path=fuzzer_binaries, version="linked")
             location.is_valid = True
             self._location = location
@@ -64,6 +64,7 @@ def check_libfuzzer_available() -> bool:
 # ============================================================================
 # Tool Functions
 # ============================================================================
+
 
 def libfuzzer_run(target: str, corpus_dir: str, max_time: int = 600, max_inputs: int = 0, args: str = "") -> str:
     """Run LibFuzzer on target.
@@ -143,6 +144,7 @@ def libfuzzer_minimize_crash(crash: str, target: str, args: str = "") -> str:
 
     # Create temp directory for minimization
     import tempfile
+
     temp_dir = tempfile.mkdtemp(prefix="libfuzzer_min_")
 
     cmd = [
@@ -261,7 +263,7 @@ def libfuzzer_crash_info(crash_file: str) -> str:
     size = os.path.getsize(crash_file)
 
     output = [
-        f"=== LibFuzzer Crash Info ===",
+        "=== LibFuzzer Crash Info ===",
         f"File: {crash_file}",
         f"Size: {size} bytes",
         "",
@@ -275,7 +277,7 @@ def libfuzzer_crash_info(crash_file: str) -> str:
 
     # Show hexdump
     try:
-        with open(crash_file, 'rb') as f:
+        with open(crash_file, "rb") as f:
             data = f.read()
 
         output.append("Crash data (hex, first 100 bytes):")
@@ -316,8 +318,8 @@ def libfuzzer_dict(target: str, dict_file: str, corpus_dir: str) -> str:
         "",
         "Dictionary format:",
         "  # Comments start with #",
-        "  kw1=\"keyword 1\"",
-        "  kw2=\"keyword 2\"",
+        '  kw1="keyword 1"',
+        '  kw2="keyword 2"',
         "",
         "Run this command in a terminal.",
     ]
@@ -366,6 +368,7 @@ def libfuzzer_parallel(target: str, corpus_dir: str, jobs: int = 4, workers: int
 # Tool Definitions
 # ============================================================================
 
+
 def create_libfuzzer_tools() -> list[ToolDefinition]:
     """Create LibFuzzer tool definitions.
 
@@ -378,15 +381,35 @@ def create_libfuzzer_tools() -> list[ToolDefinition]:
             description="Run LibFuzzer on target (requires approval)",
             category="fuzzing",
             parameters=[
-                ParameterSchema(name="target", type="string", description="Fuzzer binary (compiled with -fsanitize=fuzzer)", required=True),
+                ParameterSchema(
+                    name="target",
+                    type="string",
+                    description="Fuzzer binary (compiled with -fsanitize=fuzzer)",
+                    required=True,
+                ),
                 ParameterSchema(name="corpus_dir", type="string", description="Corpus directory", required=True),
-                ParameterSchema(name="max_time", type="integer", description="Maximum fuzzing time in seconds", required=False, default=600),
-                ParameterSchema(name="max_inputs", type="integer", description="Maximum number of inputs (0 = unlimited)", required=False, default=0),
-                ParameterSchema(name="args", type="string", description="Additional LibFuzzer arguments", required=False, default=""),
+                ParameterSchema(
+                    name="max_time",
+                    type="integer",
+                    description="Maximum fuzzing time in seconds",
+                    required=False,
+                    default=600,
+                ),
+                ParameterSchema(
+                    name="max_inputs",
+                    type="integer",
+                    description="Maximum number of inputs (0 = unlimited)",
+                    required=False,
+                    default=0,
+                ),
+                ParameterSchema(
+                    name="args", type="string", description="Additional LibFuzzer arguments", required=False, default=""
+                ),
             ],
-            handler=lambda target, corpus_dir, max_time=600, max_inputs=0, args="", **kwargs: libfuzzer_run(target, corpus_dir, max_time, max_inputs, args),
+            handler=lambda target, corpus_dir, max_time=600, max_inputs=0, args="", **kwargs: libfuzzer_run(
+                target, corpus_dir, max_time, max_inputs, args
+            ),
         ),
-
         ToolDefinition(
             name="libfuzzer_minimize_crash",
             description="Minimize crash input",
@@ -394,23 +417,32 @@ def create_libfuzzer_tools() -> list[ToolDefinition]:
             parameters=[
                 ParameterSchema(name="crash", type="string", description="Crash input file", required=True),
                 ParameterSchema(name="target", type="string", description="Fuzzer binary", required=True),
-                ParameterSchema(name="args", type="string", description="Additional arguments", required=False, default=""),
+                ParameterSchema(
+                    name="args", type="string", description="Additional arguments", required=False, default=""
+                ),
             ],
             handler=lambda crash, target, args="", **kwargs: libfuzzer_minimize_crash(crash, target, args),
         ),
-
         ToolDefinition(
             name="libfuzzer_merge_corpus",
             description="Merge and minimize multiple corpora",
             category="fuzzing",
             parameters=[
                 ParameterSchema(name="target", type="string", description="Fuzzer binary", required=True),
-                ParameterSchema(name="corpus_dirs", type="string", description="Comma-separated list of corpus directories", required=True),
-                ParameterSchema(name="output_dir", type="string", description="Output directory for merged corpus", required=True),
+                ParameterSchema(
+                    name="corpus_dirs",
+                    type="string",
+                    description="Comma-separated list of corpus directories",
+                    required=True,
+                ),
+                ParameterSchema(
+                    name="output_dir", type="string", description="Output directory for merged corpus", required=True
+                ),
             ],
-            handler=lambda target, corpus_dirs, output_dir, **kwargs: libfuzzer_merge_corpus(target, corpus_dirs.split(","), output_dir),
+            handler=lambda target, corpus_dirs, output_dir, **kwargs: libfuzzer_merge_corpus(
+                target, corpus_dirs.split(","), output_dir
+            ),
         ),
-
         ToolDefinition(
             name="libfuzzer_cov",
             description="Check corpus coverage",
@@ -421,7 +453,6 @@ def create_libfuzzer_tools() -> list[ToolDefinition]:
             ],
             handler=lambda target, corpus_dir, **kwargs: libfuzzer_cov(target, corpus_dir),
         ),
-
         ToolDefinition(
             name="libfuzzer_crash_info",
             description="Analyze crash file",
@@ -431,7 +462,6 @@ def create_libfuzzer_tools() -> list[ToolDefinition]:
             ],
             handler=lambda crash_file, **kwargs: libfuzzer_crash_info(crash_file),
         ),
-
         ToolDefinition(
             name="libfuzzer_dict",
             description="Run fuzzer with dictionary",
@@ -443,7 +473,6 @@ def create_libfuzzer_tools() -> list[ToolDefinition]:
             ],
             handler=lambda target, dict_file, corpus_dir, **kwargs: libfuzzer_dict(target, dict_file, corpus_dir),
         ),
-
         ToolDefinition(
             name="libfuzzer_parallel",
             description="Run fuzzer in parallel mode",
@@ -451,10 +480,16 @@ def create_libfuzzer_tools() -> list[ToolDefinition]:
             parameters=[
                 ParameterSchema(name="target", type="string", description="Fuzzer binary", required=True),
                 ParameterSchema(name="corpus_dir", type="string", description="Corpus directory", required=True),
-                ParameterSchema(name="jobs", type="integer", description="Number of parallel jobs", required=False, default=4),
-                ParameterSchema(name="workers", type="integer", description="Number of parallel workers", required=False, default=4),
+                ParameterSchema(
+                    name="jobs", type="integer", description="Number of parallel jobs", required=False, default=4
+                ),
+                ParameterSchema(
+                    name="workers", type="integer", description="Number of parallel workers", required=False, default=4
+                ),
             ],
-            handler=lambda target, corpus_dir, jobs=4, workers=4, **kwargs: libfuzzer_parallel(target, corpus_dir, jobs, workers),
+            handler=lambda target, corpus_dir, jobs=4, workers=4, **kwargs: libfuzzer_parallel(
+                target, corpus_dir, jobs, workers
+            ),
         ),
     ]
 

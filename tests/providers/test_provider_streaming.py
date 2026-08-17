@@ -14,6 +14,7 @@ from unittest.mock import MagicMock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from tests.mocks.ida_mock import install_ida_mocks
+
 install_ida_mocks()
 
 from spectra.core.types import Message, Role
@@ -31,6 +32,7 @@ class TestAnthropicStreaming(unittest.TestCase):
     def _make_provider(self):
         _reload_anthropic_provider_module()
         from spectra.providers.anthropic_provider import AnthropicProvider
+
         p = AnthropicProvider(api_key="test-key", model="claude-test")
         return p
 
@@ -45,15 +47,11 @@ class TestAnthropicStreaming(unittest.TestCase):
     def test_text_only_stream(self):
         """Stream with text-only content blocks."""
         events = [
-            SimpleNamespace(type="content_block_start",
-                            content_block=SimpleNamespace(type="text", text="")),
-            SimpleNamespace(type="content_block_delta",
-                            delta=SimpleNamespace(type="text_delta", text="Hello ")),
-            SimpleNamespace(type="content_block_delta",
-                            delta=SimpleNamespace(type="text_delta", text="world")),
+            SimpleNamespace(type="content_block_start", content_block=SimpleNamespace(type="text", text="")),
+            SimpleNamespace(type="content_block_delta", delta=SimpleNamespace(type="text_delta", text="Hello ")),
+            SimpleNamespace(type="content_block_delta", delta=SimpleNamespace(type="text_delta", text="world")),
             SimpleNamespace(type="content_block_stop"),
-            SimpleNamespace(type="message_delta",
-                            delta=SimpleNamespace(stop_reason="end_turn")),
+            SimpleNamespace(type="message_delta", delta=SimpleNamespace(stop_reason="end_turn")),
         ]
 
         p = self._make_provider()
@@ -72,12 +70,15 @@ class TestAnthropicStreaming(unittest.TestCase):
     def test_tool_call_stream(self):
         """Stream with a tool_use content block."""
         events = [
-            SimpleNamespace(type="content_block_start",
-                            content_block=SimpleNamespace(type="tool_use", id="tc_1", name="get_info")),
-            SimpleNamespace(type="content_block_delta",
-                            delta=SimpleNamespace(type="input_json_delta", partial_json='{"key":')),
-            SimpleNamespace(type="content_block_delta",
-                            delta=SimpleNamespace(type="input_json_delta", partial_json='"val"}')),
+            SimpleNamespace(
+                type="content_block_start", content_block=SimpleNamespace(type="tool_use", id="tc_1", name="get_info")
+            ),
+            SimpleNamespace(
+                type="content_block_delta", delta=SimpleNamespace(type="input_json_delta", partial_json='{"key":')
+            ),
+            SimpleNamespace(
+                type="content_block_delta", delta=SimpleNamespace(type="input_json_delta", partial_json='"val"}')
+            ),
             SimpleNamespace(type="content_block_stop"),
         ]
 
@@ -102,13 +103,9 @@ class TestAnthropicStreaming(unittest.TestCase):
     def test_message_start_usage(self):
         """Stream emits usage from message_start event."""
         events = [
-            SimpleNamespace(type="message_start",
-                            message=SimpleNamespace(
-                                usage=SimpleNamespace(input_tokens=42))),
-            SimpleNamespace(type="content_block_start",
-                            content_block=SimpleNamespace(type="text", text="")),
-            SimpleNamespace(type="content_block_delta",
-                            delta=SimpleNamespace(type="text_delta", text="OK")),
+            SimpleNamespace(type="message_start", message=SimpleNamespace(usage=SimpleNamespace(input_tokens=42))),
+            SimpleNamespace(type="content_block_start", content_block=SimpleNamespace(type="text", text="")),
+            SimpleNamespace(type="content_block_delta", delta=SimpleNamespace(type="text_delta", text="OK")),
             SimpleNamespace(type="content_block_stop"),
         ]
 
@@ -128,23 +125,39 @@ class TestOpenAIStreaming(unittest.TestCase):
 
     def _make_provider(self):
         from spectra.providers.openai_provider import OpenAIProvider
+
         return OpenAIProvider(api_key="test-key", model="gpt-test")
 
     def test_text_only_stream(self):
         """Stream with text-only deltas."""
         stream_chunks = [
-            SimpleNamespace(choices=[SimpleNamespace(
-                delta=SimpleNamespace(content="Hello ", tool_calls=None),
-                finish_reason=None,
-            )], usage=None),
-            SimpleNamespace(choices=[SimpleNamespace(
-                delta=SimpleNamespace(content="world", tool_calls=None),
-                finish_reason=None,
-            )], usage=None),
-            SimpleNamespace(choices=[SimpleNamespace(
-                delta=SimpleNamespace(content=None, tool_calls=None),
-                finish_reason="stop",
-            )], usage=None),
+            SimpleNamespace(
+                choices=[
+                    SimpleNamespace(
+                        delta=SimpleNamespace(content="Hello ", tool_calls=None),
+                        finish_reason=None,
+                    )
+                ],
+                usage=None,
+            ),
+            SimpleNamespace(
+                choices=[
+                    SimpleNamespace(
+                        delta=SimpleNamespace(content="world", tool_calls=None),
+                        finish_reason=None,
+                    )
+                ],
+                usage=None,
+            ),
+            SimpleNamespace(
+                choices=[
+                    SimpleNamespace(
+                        delta=SimpleNamespace(content=None, tool_calls=None),
+                        finish_reason="stop",
+                    )
+                ],
+                usage=None,
+            ),
         ]
 
         p = self._make_provider()
@@ -164,34 +177,53 @@ class TestOpenAIStreaming(unittest.TestCase):
         """Stream with tool call deltas."""
         stream_chunks = [
             # First chunk: tool call start
-            SimpleNamespace(choices=[SimpleNamespace(
-                delta=SimpleNamespace(
-                    content=None,
-                    tool_calls=[SimpleNamespace(
-                        index=0,
-                        id="tc_1",
-                        function=SimpleNamespace(name="get_info", arguments=""),
-                    )],
-                ),
-                finish_reason=None,
-            )], usage=None),
+            SimpleNamespace(
+                choices=[
+                    SimpleNamespace(
+                        delta=SimpleNamespace(
+                            content=None,
+                            tool_calls=[
+                                SimpleNamespace(
+                                    index=0,
+                                    id="tc_1",
+                                    function=SimpleNamespace(name="get_info", arguments=""),
+                                )
+                            ],
+                        ),
+                        finish_reason=None,
+                    )
+                ],
+                usage=None,
+            ),
             # Second chunk: tool args
-            SimpleNamespace(choices=[SimpleNamespace(
-                delta=SimpleNamespace(
-                    content=None,
-                    tool_calls=[SimpleNamespace(
-                        index=0,
-                        id=None,
-                        function=SimpleNamespace(name=None, arguments='{"x": 1}'),
-                    )],
-                ),
-                finish_reason=None,
-            )], usage=None),
+            SimpleNamespace(
+                choices=[
+                    SimpleNamespace(
+                        delta=SimpleNamespace(
+                            content=None,
+                            tool_calls=[
+                                SimpleNamespace(
+                                    index=0,
+                                    id=None,
+                                    function=SimpleNamespace(name=None, arguments='{"x": 1}'),
+                                )
+                            ],
+                        ),
+                        finish_reason=None,
+                    )
+                ],
+                usage=None,
+            ),
             # Third chunk: finish
-            SimpleNamespace(choices=[SimpleNamespace(
-                delta=SimpleNamespace(content=None, tool_calls=None),
-                finish_reason="tool_calls",
-            )], usage=None),
+            SimpleNamespace(
+                choices=[
+                    SimpleNamespace(
+                        delta=SimpleNamespace(content=None, tool_calls=None),
+                        finish_reason="tool_calls",
+                    )
+                ],
+                usage=None,
+            ),
         ]
 
         p = self._make_provider()
@@ -212,12 +244,19 @@ class TestOpenAIStreaming(unittest.TestCase):
     def test_usage_chunk(self):
         """Stream reports usage in final chunk."""
         stream_chunks = [
-            SimpleNamespace(choices=[SimpleNamespace(
-                delta=SimpleNamespace(content="OK", tool_calls=None),
-                finish_reason="stop",
-            )], usage=SimpleNamespace(
-                prompt_tokens=10, completion_tokens=5, total_tokens=15,
-            )),
+            SimpleNamespace(
+                choices=[
+                    SimpleNamespace(
+                        delta=SimpleNamespace(content="OK", tool_calls=None),
+                        finish_reason="stop",
+                    )
+                ],
+                usage=SimpleNamespace(
+                    prompt_tokens=10,
+                    completion_tokens=5,
+                    total_tokens=15,
+                ),
+            ),
         ]
 
         p = self._make_provider()

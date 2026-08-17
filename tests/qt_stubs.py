@@ -42,6 +42,7 @@ class _Signal:
 _WIDGET_NAMES = [
     "QAbstractItemView",
     "QApplication",
+    "QButtonGroup",
     "QCheckBox",
     "QClipboard",
     "QComboBox",

@@ -11,7 +11,7 @@ import platform
 import re
 import shutil
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +21,7 @@ from .logging import log_debug, log_error, log_info
 @dataclass
 class ToolLocation:
     """Represents a discovered tool location."""
+
     path: str
     version: str = ""
     is_valid: bool = True
@@ -44,8 +45,8 @@ class ExternalTool:
     """
 
     tool_name: str = "base_tool"
-    executable_names: list[str] = None
-    common_paths: dict[str, list[str]] = None
+    executable_names: list[str] = field(default_factory=list)
+    common_paths: dict[str, list[str]] = field(default_factory=dict)
 
     def __init__(self, required: bool = False):
         self.required = required
@@ -105,7 +106,7 @@ class ExternalTool:
         """
         try:
             result = subprocess.run(
-                [location.path] + self.get_version_args(),
+                [location.path, *self.get_version_args()],
                 capture_output=True,
                 text=True,
                 timeout=10,
@@ -179,7 +180,7 @@ class ExternalTool:
         if not path:
             raise RuntimeError(f"{self.tool_name} not available")
 
-        cmd = [path] + args
+        cmd = [path, *args]
 
         log_debug(f"Running {self.tool_name}: {' '.join(cmd)}")
 
@@ -228,18 +229,42 @@ class ToolSafety:
     # Safe command prefixes
     SAFE_PREFIXES = {
         # Analysis tools
-        "frida-", "tshark", "tcpdump", "ngrep",
-        "gdb", "lldb", "windbg",
-        "valgrind", "strace", "ltrace",
-        "radare2", "r2",
+        "frida-",
+        "tshark",
+        "tcpdump",
+        "ngrep",
+        "gdb",
+        "lldb",
+        "windbg",
+        "valgrind",
+        "strace",
+        "ltrace",
+        "radare2",
+        "r2",
         # File operations (read-only)
-        "ls", "cat", "head", "tail", "less", "more",
-        "file", "strings", "hexdump",
+        "ls",
+        "cat",
+        "head",
+        "tail",
+        "less",
+        "more",
+        "file",
+        "strings",
+        "hexdump",
         # Network (read-only)
-        "netstat", "ss", "lsof", "tcpdump",
+        "netstat",
+        "ss",
+        "lsof",
         # System info
-        "ps", "top", "htop", "vmstat", "free",
-        "uname", "hostname", "id", "whoami",
+        "ps",
+        "top",
+        "htop",
+        "vmstat",
+        "free",
+        "uname",
+        "hostname",
+        "id",
+        "whoami",
     }
 
     @staticmethod
@@ -276,7 +301,11 @@ class ToolSafety:
 
         # If patterns detected, require approval
         if detected_patterns:
-            return False, f"Command requires approval: matched {len(detected_patterns)} risk patterns", detected_patterns
+            return (
+                False,
+                f"Command requires approval: matched {len(detected_patterns)} risk patterns",
+                detected_patterns,
+            )
 
         # Unknown command - require approval
         return False, "Unknown command - requires approval", []
@@ -303,7 +332,7 @@ class ToolSafety:
             return False, f"Network operation '{operation}' requires approval"
 
         # Explicitly blocked operations
-        blocked_operations = {"flood", "dos", "flood", "syn flood"}
+        blocked_operations = {"flood", "dos", "syn flood"}
         if operation.lower() in blocked_operations:
             return False, f"CRITICAL: Network operation '{operation}' blocked"
 
@@ -402,7 +431,7 @@ class ToolConfig:
         try:
             import json
 
-            with open(cls.TOOLS_CONFIG_FILE, "r") as f:
+            with open(cls.TOOLS_CONFIG_FILE) as f:
                 config = json.load(f)
 
             log_debug(f"Loaded tool config from {cls.TOOLS_CONFIG_FILE}")

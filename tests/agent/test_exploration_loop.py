@@ -6,29 +6,34 @@ import json
 import os
 import sys
 import unittest
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from tests.mocks.ida_mock import install_ida_mocks
+
 install_ida_mocks()
 
-from spectra.core.types import (
-    Message, ModelInfo, ProviderCapabilities, Role,
-    StreamChunk, TokenUsage,
-)
-from spectra.core.config import SpectraConfig
 from spectra.agent.loop import AgentLoop
 from spectra.agent.turn import TurnEvent, TurnEventType
+from spectra.core.config import SpectraConfig
+from spectra.core.types import (
+    Message,
+    ModelInfo,
+    ProviderCapabilities,
+    Role,
+    StreamChunk,
+    TokenUsage,
+)
+from spectra.providers.base import LLMProvider
+from spectra.state.session import SessionState
 from spectra.tools.base import ParameterSchema, ToolDefinition
 from spectra.tools.registry import ToolRegistry
-from spectra.state.session import SessionState
-from spectra.providers.base import LLMProvider
 
 
 class MockProvider(LLMProvider):
     """Mock LLM provider that returns scripted responses."""
 
-    def __init__(self, responses: Optional[List[List[StreamChunk]]] = None):
+    def __init__(self, responses: list[list[StreamChunk]] | None = None):
         super().__init__(api_key="test", model="mock-model")
         self._responses = responses or []
         self._call_count = 0
@@ -44,11 +49,11 @@ class MockProvider(LLMProvider):
     def _get_client(self):
         return None
 
-    def _fetch_models_live(self) -> List[ModelInfo]:
+    def _fetch_models_live(self) -> list[ModelInfo]:
         return [ModelInfo(id="mock-model", name="Mock", provider="mock")]
 
     @staticmethod
-    def _builtin_models() -> List[ModelInfo]:
+    def _builtin_models() -> list[ModelInfo]:
         return [ModelInfo(id="mock-model", name="Mock", provider="mock")]
 
     def _format_messages(self, messages):
@@ -76,20 +81,19 @@ class MockProvider(LLMProvider):
         if self._call_count < len(self._responses):
             chunks = self._responses[self._call_count]
             self._call_count += 1
-            for chunk in chunks:
-                yield chunk
+            yield from chunks
         else:
             yield StreamChunk(text="No more scripted responses.")
 
 
-def _text_response(text: str) -> List[StreamChunk]:
+def _text_response(text: str) -> list[StreamChunk]:
     return [
         StreamChunk(text=text),
         StreamChunk(usage=TokenUsage(prompt_tokens=10, completion_tokens=5, total_tokens=15)),
     ]
 
 
-def _tool_call_response(tool_name: str, args: Dict[str, Any], call_id: str = "call_1") -> List[StreamChunk]:
+def _tool_call_response(tool_name: str, args: dict[str, Any], call_id: str = "call_1") -> list[StreamChunk]:
     return [
         StreamChunk(is_tool_call_start=True, tool_call_id=call_id, tool_name=tool_name),
         StreamChunk(tool_args_delta=json.dumps(args), tool_call_id=call_id),
@@ -115,7 +119,7 @@ def _make_registry() -> ToolRegistry:
 class TestExplorationModeEvents(unittest.TestCase):
     """Verify exploration mode emits events in the correct order."""
 
-    def _run_loop(self, loop: AgentLoop, message: str) -> List[TurnEvent]:
+    def _run_loop(self, loop: AgentLoop, message: str) -> list[TurnEvent]:
         """Consume the generator, collecting all events."""
         events = []
         for event in loop.run(message):
@@ -124,24 +128,29 @@ class TestExplorationModeEvents(unittest.TestCase):
 
     def test_explore_only_emits_phase_change(self):
         """Explore-only mode should emit exploration_phase_change at start."""
-        provider = MockProvider([
-            # Turn 1: agent calls exploration_report
-            _tool_call_response("exploration_report", {
-                "category": "function_purpose",
-                "summary": "main() is the entry point",
-                "address": 4198400,  # 0x401000
-                "function_name": "main",
-                "relevance": "high",
-            }),
-            # Turn 2: text-only response, agent is done
-            _text_response("I found that main() is the entry point."),
-        ])
+        provider = MockProvider(
+            [
+                # Turn 1: agent calls exploration_report
+                _tool_call_response(
+                    "exploration_report",
+                    {
+                        "category": "function_purpose",
+                        "summary": "main() is the entry point",
+                        "address": 4198400,  # 0x401000
+                        "function_name": "main",
+                        "relevance": "high",
+                    },
+                ),
+                # Turn 2: text-only response, agent is done
+                _text_response("I found that main() is the entry point."),
+            ]
+        )
 
         loop = AgentLoop(
             provider=provider,
             tool_registry=_make_registry(),
             config=SpectraConfig(),
-            session=SessionState(),
+            session=SessionState(idb_path="/tmp/test.i64"),
         )
 
         events = self._run_loop(loop, "/explore Find the entry point")
@@ -164,9 +173,11 @@ class TestExplorationModeEvents(unittest.TestCase):
 
     def test_explore_only_no_plan_phase(self):
         """Explore-only mode should NOT enter plan phase."""
-        provider = MockProvider([
-            _text_response("Here's what I found about the binary."),
-        ])
+        provider = MockProvider(
+            [
+                _text_response("Here's what I found about the binary."),
+            ]
+        )
 
         loop = AgentLoop(
             provider=provider,
@@ -185,27 +196,37 @@ class TestExplorationModeEvents(unittest.TestCase):
 
     def test_knowledge_base_populated_from_findings(self):
         """exploration_report should populate the knowledge base."""
-        provider = MockProvider([
-            _tool_call_response("exploration_report", {
-                "category": "hypothesis",
-                "summary": "Change constant at 0x401248",
-                "relevance": "high",
-            }, "c1"),
-            _tool_call_response("exploration_report", {
-                "category": "function_purpose",
-                "summary": "Score handler",
-                "address": 4198400,
-                "function_name": "score_handler",
-                "relevance": "high",
-            }, "c2"),
-            _text_response("Done exploring."),
-        ])
+        provider = MockProvider(
+            [
+                _tool_call_response(
+                    "exploration_report",
+                    {
+                        "category": "hypothesis",
+                        "summary": "Change constant at 0x401248",
+                        "relevance": "high",
+                    },
+                    "c1",
+                ),
+                _tool_call_response(
+                    "exploration_report",
+                    {
+                        "category": "function_purpose",
+                        "summary": "Score handler",
+                        "address": 4198400,
+                        "function_name": "score_handler",
+                        "relevance": "high",
+                    },
+                    "c2",
+                ),
+                _text_response("Done exploring."),
+            ]
+        )
 
         loop = AgentLoop(
             provider=provider,
             tool_registry=_make_registry(),
             config=SpectraConfig(),
-            session=SessionState(),
+            session=SessionState(idb_path="/tmp/test.i64"),
         )
 
         self._run_loop(loop, "/explore Find score functions")
@@ -218,19 +239,24 @@ class TestExplorationModeEvents(unittest.TestCase):
 
     def test_phase_transition_denied_without_findings(self):
         """phase_transition to plan should be denied without sufficient findings."""
-        provider = MockProvider([
-            _tool_call_response("phase_transition", {
-                "to_phase": "plan",
-                "reason": "Ready to plan",
-            }),
-            _text_response("OK, I'll keep exploring."),
-        ])
+        provider = MockProvider(
+            [
+                _tool_call_response(
+                    "phase_transition",
+                    {
+                        "to_phase": "plan",
+                        "reason": "Ready to plan",
+                    },
+                ),
+                _text_response("OK, I'll keep exploring."),
+            ]
+        )
 
         loop = AgentLoop(
             provider=provider,
             tool_registry=_make_registry(),
             config=SpectraConfig(),
-            session=SessionState(),
+            session=SessionState(idb_path="/tmp/test.i64"),
         )
 
         events = self._run_loop(loop, "/explore Find something")
@@ -246,25 +272,32 @@ class TestMutationTracking(unittest.TestCase):
 
     def test_rename_function_recorded(self):
         """rename_function should be recorded in mutation log."""
-        provider = MockProvider([
-            _tool_call_response("rename_function", {
-                "old_name": "sub_401000",
-                "new_name": "main",
-            }),
-            _text_response("Renamed the function."),
-        ])
+        provider = MockProvider(
+            [
+                _tool_call_response(
+                    "rename_function",
+                    {
+                        "old_name": "sub_401000",
+                        "new_name": "main",
+                    },
+                ),
+                _text_response("Renamed the function."),
+            ]
+        )
 
         registry = ToolRegistry()
-        registry.register(ToolDefinition(
-            name="rename_function",
-            description="Rename a function",
-            parameters=[
-                ParameterSchema(name="old_name", type="string"),
-                ParameterSchema(name="new_name", type="string"),
-            ],
-            mutating=True,
-            handler=lambda old_name="", new_name="": f"Renamed {old_name} to {new_name}",
-        ))
+        registry.register(
+            ToolDefinition(
+                name="rename_function",
+                description="Rename a function",
+                parameters=[
+                    ParameterSchema(name="old_name", type="string"),
+                    ParameterSchema(name="new_name", type="string"),
+                ],
+                mutating=True,
+                handler=lambda old_name="", new_name="": f"Renamed {old_name} to {new_name}",
+            )
+        )
 
         loop = AgentLoop(
             provider=provider,
@@ -282,28 +315,34 @@ class TestMutationTracking(unittest.TestCase):
         self.assertEqual(rec.reverse_arguments["old_name"], "main")
         self.assertEqual(rec.reverse_arguments["new_name"], "sub_401000")
 
-
     def test_mutation_emits_event(self):
         """Mutating tool should emit MUTATION_RECORDED event."""
-        provider = MockProvider([
-            _tool_call_response("rename_function", {
-                "old_name": "sub_401000",
-                "new_name": "main",
-            }),
-            _text_response("Done."),
-        ])
+        provider = MockProvider(
+            [
+                _tool_call_response(
+                    "rename_function",
+                    {
+                        "old_name": "sub_401000",
+                        "new_name": "main",
+                    },
+                ),
+                _text_response("Done."),
+            ]
+        )
 
         registry = ToolRegistry()
-        registry.register(ToolDefinition(
-            name="rename_function",
-            description="Rename a function",
-            parameters=[
-                ParameterSchema(name="old_name", type="string"),
-                ParameterSchema(name="new_name", type="string"),
-            ],
-            mutating=True,
-            handler=lambda old_name="", new_name="": f"Renamed {old_name} to {new_name}",
-        ))
+        registry.register(
+            ToolDefinition(
+                name="rename_function",
+                description="Rename a function",
+                parameters=[
+                    ParameterSchema(name="old_name", type="string"),
+                    ParameterSchema(name="new_name", type="string"),
+                ],
+                mutating=True,
+                handler=lambda old_name="", new_name="": f"Renamed {old_name} to {new_name}",
+            )
+        )
 
         loop = AgentLoop(
             provider=provider,
@@ -329,13 +368,18 @@ class TestSpawnSubagentPseudoTool(unittest.TestCase):
         # The subagent will get its own MockProvider, but we're testing the
         # pseudo-tool handler which creates a SubagentRunner.
         # For this test we just verify the tool is recognized and handled.
-        provider = MockProvider([
-            _tool_call_response("spawn_subagent", {
-                "task": "Analyze the main function",
-                "max_turns": 5,
-            }),
-            _text_response("The subagent found the main function."),
-        ])
+        provider = MockProvider(
+            [
+                _tool_call_response(
+                    "spawn_subagent",
+                    {
+                        "task": "Analyze the main function",
+                        "max_turns": 5,
+                    },
+                ),
+                _text_response("The subagent found the main function."),
+            ]
+        )
 
         loop = AgentLoop(
             provider=provider,

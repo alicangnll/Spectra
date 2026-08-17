@@ -14,6 +14,7 @@ from ..core.errors import (
     ProviderError,
     RateLimitError,
 )
+from ..core.logging import log_debug
 from ..core.types import (
     Message,
     ModelInfo,
@@ -29,11 +30,11 @@ from .base import LLMProvider
 class OpenAIProvider(LLMProvider):
     """Adapter for the OpenAI Chat Completions API."""
 
-    def __init__(self, api_key: str = "", api_base: str = "", model: str = "gpt-4o", **kwargs):
+    def __init__(self, api_key: str = "", api_base: str = "", model: str = "gpt-4o", **kwargs: Any) -> None:
         api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
         super().__init__(api_key=api_key, api_base=api_base, model=model)
 
-    def _get_client(self):
+    def _get_client(self) -> Any:
         if self._client is None:
             try:
                 openai = importlib.import_module("openai")
@@ -103,10 +104,20 @@ class OpenAIProvider(LLMProvider):
     @staticmethod
     def _builtin_models() -> list[ModelInfo]:
         return [
+            ModelInfo("gpt-5", "GPT-5", "openai", 400000, 128000, True, True),
+            ModelInfo("gpt-5-mini", "GPT-5 Mini", "openai", 400000, 128000, True, True),
+            ModelInfo("gpt-4.1", "GPT-4.1", "openai", 1000000, 32768, True, True),
             ModelInfo("gpt-4o", "GPT-4o", "openai", 128000, 16384, True, True),
             ModelInfo("gpt-4o-mini", "GPT-4o Mini", "openai", 128000, 16384, True, True),
             ModelInfo("o3-mini", "o3-mini", "openai", 200000, 100000, True, False),
         ]
+
+    @staticmethod
+    def _is_reasoning_model(model: str) -> bool:
+        """True for OpenAI reasoning models that reject ``temperature`` /
+        ``max_tokens`` and require ``max_completion_tokens`` instead."""
+        m = model.lower()
+        return m.startswith(("o1", "o3", "o4", "gpt-5"))
 
     def _format_messages(self, messages: list[Message]) -> list[dict[str, Any]]:
         formatted = []
@@ -143,7 +154,7 @@ class OpenAIProvider(LLMProvider):
                     )
         return formatted
 
-    def _normalize_response(self, response) -> Message:
+    def _normalize_response(self, response: Any) -> Message:
         choice = response.choices[0]
         rm = choice.message
 
@@ -187,7 +198,17 @@ class OpenAIProvider(LLMProvider):
         if isinstance(e, openai.AuthenticationError):
             raise AuthenticationError(provider="openai") from e
         if isinstance(e, openai.RateLimitError):
-            raise RateLimitError(provider="openai") from e
+            # Extract retry-after from the response headers so the agent
+            # loop's backoff honors the server's requested delay.
+            retry_after = 5.0
+            try:
+                resp = getattr(e, "response", None)
+                retry_hdr = (getattr(resp, "headers", None) or {}).get("retry-after", "")
+                if retry_hdr:
+                    retry_after = float(retry_hdr)
+            except (AttributeError, TypeError, ValueError) as parse_err:
+                log_debug(f"Could not parse retry-after header: {parse_err}")
+            raise RateLimitError(provider="openai", retry_after=retry_after) from e
         if isinstance(e, openai.BadRequestError):
             msg = str(e)
             if "context" in msg.lower() or "token" in msg.lower():
@@ -211,9 +232,14 @@ class OpenAIProvider(LLMProvider):
         kwargs: dict[str, Any] = {
             "model": self.model,
             "messages": msgs,
-            "max_tokens": max_tokens,
-            "temperature": temperature,
         }
+        # Reasoning models (o-series, gpt-5) reject `temperature` and the
+        # legacy `max_tokens` argument — use `max_completion_tokens`.
+        if self._is_reasoning_model(self.model):
+            kwargs["max_completion_tokens"] = max_tokens
+        else:
+            kwargs["max_tokens"] = max_tokens
+            kwargs["temperature"] = temperature
         if tools:
             kwargs["tools"] = tools
         return kwargs

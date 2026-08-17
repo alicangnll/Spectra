@@ -33,12 +33,7 @@ class JadxAnalyzer:
 
         for name in possible_names:
             try:
-                result = subprocess.run(
-                    ["which", name],
-                    capture_output=True,
-                    text=True,
-                    timeout=5
-                )
+                result = subprocess.run(["which", name], capture_output=True, text=True, timeout=5)
                 if result.returncode == 0 and result.stdout.strip():
                     return result.stdout.strip()
             except (subprocess.TimeoutExpired, FileNotFoundError):
@@ -57,20 +52,12 @@ class JadxAnalyzer:
             if os.path.exists(path):
                 return path
 
-        raise RuntimeError(
-            "JADX not found. Install from https://github.com/skylot/jadx "
-            "or set jadx_path explicitly."
-        )
+        raise RuntimeError("JADX not found. Install from https://github.com/skylot/jadx or set jadx_path explicitly.")
 
     def _validate_jadx(self) -> None:
         """Validate that JADX is working."""
         try:
-            result = subprocess.run(
-                [self._jadx_path, "--version"],
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
+            result = subprocess.run([self._jadx_path, "--version"], capture_output=True, text=True, timeout=10)
             if result.returncode == 0:
                 version = result.stdout.strip() or result.stderr.strip()
                 log_info(f"JADX found: {version}")
@@ -80,11 +67,7 @@ class JadxAnalyzer:
             log_error(f"Failed to validate JADX: {e}")
 
     def decompile_apk(
-        self,
-        apk_path: str,
-        output_dir: str,
-        export_resources: bool = True,
-        decompile_debug: bool = False
+        self, apk_path: str, output_dir: str, export_resources: bool = True, decompile_debug: bool = False
     ) -> str:
         """Decompile APK to Java source code.
 
@@ -101,11 +84,7 @@ class JadxAnalyzer:
             raise FileNotFoundError(f"APK not found: {apk_path}")
 
         # Build JADX command
-        cmd = [
-            self._jadx_path,
-            "-d", output_dir,
-            "--show-bad-code"
-        ]
+        cmd = [self._jadx_path, "-d", output_dir, "--show-bad-code"]
 
         if export_resources:
             cmd.append("-e")
@@ -123,7 +102,7 @@ class JadxAnalyzer:
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=300  # 5 minutes timeout
+                timeout=300,  # 5 minutes timeout
             )
 
             if result.returncode != 0:
@@ -141,9 +120,9 @@ class JadxAnalyzer:
             log_info(f"APK decompiled to: {decompiled_dir}")
             return str(decompiled_dir)
 
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as exc:
             log_error("JADX decompilation timed out")
-            raise RuntimeError("JADX decompilation timed out")
+            raise RuntimeError("JADX decompilation timed out") from exc
         except Exception as e:
             log_error(f"JADX decompilation error: {e}")
             raise
@@ -181,7 +160,7 @@ class JadxAnalyzer:
             "receivers": [],
             "providers": [],
             "total_classes": 0,
-            "total_methods": 0
+            "total_methods": 0,
         }
 
         # Find all Java files
@@ -200,7 +179,7 @@ class JadxAnalyzer:
 
             # Read file content to analyze class type
             try:
-                with open(java_file, 'r', encoding='utf-8', errors='ignore') as f:
+                with open(java_file, encoding="utf-8", errors="ignore") as f:
                     content = f.read()
 
                     # Count methods
@@ -238,7 +217,7 @@ class JadxAnalyzer:
         import re
 
         # Find class declaration
-        match = re.search(r'public\s+class\s+(\w+)', content)
+        match = re.search(r"public\s+class\s+(\w+)", content)
         if match:
             class_name = match.group(1)
             if package:
@@ -273,16 +252,27 @@ class JadxAnalyzer:
     def _parse_manifest(self, manifest_path: Path) -> dict[str, Any]:
         """Parse AndroidManifest.xml and extract key information."""
         try:
-            with open(manifest_path, 'r', encoding='utf-8', errors='ignore') as f:
+            with open(manifest_path, encoding="utf-8", errors="ignore") as f:
                 content = f.read()
 
             import re
+
             result = {
-                "package": re.search(r'package="([^"]+)"', content).group(1) if re.search(r'package="([^"]+)"', content) else "",
-                "version_code": re.search(r'versionCode="([^"]+)"', content).group(1) if re.search(r'versionCode="([^"]+)"', content) else "",
-                "version_name": re.search(r'versionName="([^"]+)"', content).group(1) if re.search(r'versionName="([^"]+)"', content) else "",
-                "min_sdk": re.search(r'minSdkVersion="([^"]+)"', content).group(1) if re.search(r'minSdkVersion="([^"]+)"', content) else "",
-                "target_sdk": re.search(r'targetSdkVersion="([^"]+)"', content).group(1) if re.search(r'targetSdkVersion="([^"]+)"', content) else "",
+                "package": re.search(r'package="([^"]+)"', content).group(1)
+                if re.search(r'package="([^"]+)"', content)
+                else "",
+                "version_code": re.search(r'versionCode="([^"]+)"', content).group(1)
+                if re.search(r'versionCode="([^"]+)"', content)
+                else "",
+                "version_name": re.search(r'versionName="([^"]+)"', content).group(1)
+                if re.search(r'versionName="([^"]+)"', content)
+                else "",
+                "min_sdk": re.search(r'minSdkVersion="([^"]+)"', content).group(1)
+                if re.search(r'minSdkVersion="([^"]+)"', content)
+                else "",
+                "target_sdk": re.search(r'targetSdkVersion="([^"]+)"', content).group(1)
+                if re.search(r'targetSdkVersion="([^"]+)"', content)
+                else "",
                 "permissions": re.findall(r'uses-permission\s+android:name="([^"]+)"', content),
                 "activities": re.findall(r'activity\s+android:name="([^"]+)"', content),
                 "services": re.findall(r'service\s+android:name="([^"]+)"', content),
@@ -297,10 +287,7 @@ class JadxAnalyzer:
             return {"error": str(e)}
 
     def search_string_in_sources(
-        self,
-        decompiled_dir: str,
-        search_string: str,
-        case_sensitive: bool = False
+        self, decompiled_dir: str, search_string: str, case_sensitive: bool = False
     ) -> list[dict[str, Any]]:
         """Search for string in decompiled Java sources.
 
@@ -322,18 +309,20 @@ class JadxAnalyzer:
 
         for java_file in java_files:
             try:
-                with open(java_file, 'r', encoding='utf-8', errors='ignore') as f:
+                with open(java_file, encoding="utf-8", errors="ignore") as f:
                     for line_num, line in enumerate(f, 1):
                         search_line = line if case_sensitive else line.lower()
                         search_term = search_string if case_sensitive else search_string.lower()
 
                         if search_term in search_line:
-                            matches.append({
-                                "file": str(java_file.relative_to(sources_dir)),
-                                "line": line_num,
-                                "content": line.strip(),
-                                "package": self._get_package_from_file(java_file, sources_dir)
-                            })
+                            matches.append(
+                                {
+                                    "file": str(java_file.relative_to(sources_dir)),
+                                    "line": line_num,
+                                    "content": line.strip(),
+                                    "package": self._get_package_from_file(java_file, sources_dir),
+                                }
+                            )
             except Exception as e:
                 log_debug(f"Failed to search in {java_file}: {e}")
 
@@ -400,17 +389,20 @@ class JadxAnalyzer:
             return {"error": f"Class file not found: {class_file}"}
 
         try:
-            with open(class_file, 'r', encoding='utf-8', errors='ignore') as f:
+            with open(class_file, encoding="utf-8", errors="ignore") as f:
                 content = f.read()
 
             import re
+
             result = {
-                "imports": re.findall(r'import\s+([\w.]+);', content),
-                "methods": re.findall(r'(public|private|protected)?\s*(static)?\s*\w+\s+(\w+)\s*\(', content),
-                "fields": re.findall(r'(public|private|protected)?\s*(static)?\s*\w+\s+\w+\s*;', content),
-                "extends": re.search(r'class\s+\w+\s+extends\s+(\w+)', content).group(1) if re.search(r'class\s+\w+\s+extends\s+(\w+)', content) else "",
-                "implements": re.findall(r'implements\s+([\w\s,]+)', content),
-                "class_name": class_name
+                "imports": re.findall(r"import\s+([\w.]+);", content),
+                "methods": re.findall(r"(public|private|protected)?\s*(static)?\s*\w+\s+(\w+)\s*\(", content),
+                "fields": re.findall(r"(public|private|protected)?\s*(static)?\s*\w+\s+\w+\s*;", content),
+                "extends": re.search(r"class\s+\w+\s+extends\s+(\w+)", content).group(1)
+                if re.search(r"class\s+\w+\s+extends\s+(\w+)", content)
+                else "",
+                "implements": re.findall(r"implements\s+([\w\s,]+)", content),
+                "class_name": class_name,
             }
 
             return result
@@ -429,10 +421,10 @@ class JadxAnalyzer:
         analysis = {
             "package_structure": self.get_package_structure(decompiled_dir),
             "manifest": self.find_android_manifest(decompiled_dir),
-            "native_libraries": self.find_native_libraries(decompiled_dir)
+            "native_libraries": self.find_native_libraries(decompiled_dir),
         }
 
-        with open(output_file, 'w', encoding='utf-8') as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             json.dump(analysis, f, indent=2)
 
         log_info(f"Analysis exported to: {output_file}")
@@ -447,7 +439,7 @@ def create_jadx_tools(analyzer: JadxAnalyzer) -> list[dict[str, Any]]:
     Returns:
         List of tool definitions compatible with Spectra tool registry.
     """
-    from ..tools.base import ToolDefinition, ParameterSchema
+    from ..tools.base import ParameterSchema, ToolDefinition
 
     tools = [
         ToolDefinition(
@@ -455,29 +447,22 @@ def create_jadx_tools(analyzer: JadxAnalyzer) -> list[dict[str, Any]]:
             description="Decompile Android APK to Java source code using JADX",
             parameters=[
                 ParameterSchema(
-                    name="apk_path",
-                    type="string",
-                    description="Path to the APK file to decompile",
-                    required=True
+                    name="apk_path", type="string", description="Path to the APK file to decompile", required=True
                 ),
                 ParameterSchema(
-                    name="output_dir",
-                    type="string",
-                    description="Directory to save decompiled sources",
-                    required=True
+                    name="output_dir", type="string", description="Directory to save decompiled sources", required=True
                 ),
                 ParameterSchema(
                     name="export_resources",
                     type="boolean",
                     description="Export AndroidManifest.xml and resources",
                     required=False,
-                    default=True
-                )
+                    default=True,
+                ),
             ],
             category="jadx",
-            handler=lambda **kwargs: analyzer.decompile_apk(**kwargs)
+            handler=lambda **kwargs: analyzer.decompile_apk(**kwargs),
         ),
-
         ToolDefinition(
             name="jadx_analyze_structure",
             description="Analyze package structure of decompiled APK",
@@ -486,13 +471,12 @@ def create_jadx_tools(analyzer: JadxAnalyzer) -> list[dict[str, Any]]:
                     name="decompiled_dir",
                     type="string",
                     description="Path to decompiled sources directory",
-                    required=True
+                    required=True,
                 )
             ],
             category="jadx",
-            handler=lambda **kwargs: analyzer.get_package_structure(**kwargs)
+            handler=lambda **kwargs: analyzer.get_package_structure(**kwargs),
         ),
-
         ToolDefinition(
             name="jadx_find_manifest",
             description="Find and parse AndroidManifest.xml",
@@ -501,13 +485,12 @@ def create_jadx_tools(analyzer: JadxAnalyzer) -> list[dict[str, Any]]:
                     name="decompiled_dir",
                     type="string",
                     description="Path to decompiled sources directory",
-                    required=True
+                    required=True,
                 )
             ],
             category="jadx",
-            handler=lambda **kwargs: analyzer.find_android_manifest(**kwargs)
+            handler=lambda **kwargs: analyzer.find_android_manifest(**kwargs),
         ),
-
         ToolDefinition(
             name="jadx_search_string",
             description="Search for string in decompiled Java sources",
@@ -516,26 +499,20 @@ def create_jadx_tools(analyzer: JadxAnalyzer) -> list[dict[str, Any]]:
                     name="decompiled_dir",
                     type="string",
                     description="Path to decompiled sources directory",
-                    required=True
+                    required=True,
                 ),
-                ParameterSchema(
-                    name="search_string",
-                    type="string",
-                    description="String to search for",
-                    required=True
-                ),
+                ParameterSchema(name="search_string", type="string", description="String to search for", required=True),
                 ParameterSchema(
                     name="case_sensitive",
                     type="boolean",
                     description="Perform case-sensitive search",
                     required=False,
-                    default=False
-                )
+                    default=False,
+                ),
             ],
             category="jadx",
-            handler=lambda **kwargs: analyzer.search_string_in_sources(**kwargs)
+            handler=lambda **kwargs: analyzer.search_string_in_sources(**kwargs),
         ),
-
         ToolDefinition(
             name="jadx_analyze_class",
             description="Analyze dependencies and structure of a specific class",
@@ -544,19 +521,18 @@ def create_jadx_tools(analyzer: JadxAnalyzer) -> list[dict[str, Any]]:
                     name="decompiled_dir",
                     type="string",
                     description="Path to decompiled sources directory",
-                    required=True
+                    required=True,
                 ),
                 ParameterSchema(
                     name="class_name",
                     type="string",
                     description="Fully qualified class name (e.g., com.example.app.MainActivity)",
-                    required=True
-                )
+                    required=True,
+                ),
             ],
             category="jadx",
-            handler=lambda **kwargs: analyzer.get_class_dependencies(**kwargs)
+            handler=lambda **kwargs: analyzer.get_class_dependencies(**kwargs),
         ),
-
         ToolDefinition(
             name="jadx_find_native_libs",
             description="Find native libraries (.so files) in decompiled APK",
@@ -565,13 +541,12 @@ def create_jadx_tools(analyzer: JadxAnalyzer) -> list[dict[str, Any]]:
                     name="decompiled_dir",
                     type="string",
                     description="Path to decompiled sources directory",
-                    required=True
+                    required=True,
                 )
             ],
             category="jadx",
-            handler=lambda **kwargs: analyzer.find_native_libraries(**kwargs)
+            handler=lambda **kwargs: analyzer.find_native_libraries(**kwargs),
         ),
-
         ToolDefinition(
             name="jadx_export_analysis",
             description="Export complete APK analysis to JSON file",
@@ -580,18 +555,15 @@ def create_jadx_tools(analyzer: JadxAnalyzer) -> list[dict[str, Any]]:
                     name="decompiled_dir",
                     type="string",
                     description="Path to decompiled sources directory",
-                    required=True
+                    required=True,
                 ),
                 ParameterSchema(
-                    name="output_file",
-                    type="string",
-                    description="Path to output JSON file",
-                    required=True
-                )
+                    name="output_file", type="string", description="Path to output JSON file", required=True
+                ),
             ],
             category="jadx",
-            handler=lambda **kwargs: analyzer.export_to_json(**kwargs)
-        )
+            handler=lambda **kwargs: analyzer.export_to_json(**kwargs),
+        ),
     ]
 
     return tools

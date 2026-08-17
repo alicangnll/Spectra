@@ -11,15 +11,14 @@ Provides tools for:
 
 from __future__ import annotations
 
-import json
 import os
 import re
 import subprocess
 import tempfile
 from typing import Any
 
+from ..core.logging import log_debug, log_info
 from ..core.tool_infrastructure import ExternalTool
-from ..core.logging import log_debug, log_error, log_info
 from ..tools.base import ParameterSchema, ToolDefinition
 
 
@@ -95,7 +94,7 @@ def _run_r2_command(binary: str, commands: list[str], analyze: bool = False) -> 
     script = "\n".join(script_commands)
 
     try:
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.r2', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".r2", delete=False) as f:
             f.write(script)
             script_path = f.name
 
@@ -123,13 +122,14 @@ def _run_r2_command(binary: str, commands: list[str], analyze: bool = False) -> 
     finally:
         try:
             os.unlink(script_path)
-        except:
+        except Exception:
             pass
 
 
 # ============================================================================
 # Tool Functions
 # ============================================================================
+
 
 def radare2_open(binary: str) -> str:
     """Open binary in Radare2 and show basic info.
@@ -373,10 +373,10 @@ def radare2_write_bytes(binary: str, address: str, bytes: str) -> str:
     # Note: This requires opening with -w flag
     r2_path = _ensure_radare2()
 
-    script = "\n".join(commands + ["q"])
+    script = "\n".join([*commands, "q"])
 
     try:
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.r2', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".r2", delete=False) as f:
             f.write(script)
             script_path = f.name
 
@@ -396,13 +396,14 @@ def radare2_write_bytes(binary: str, address: str, bytes: str) -> str:
     finally:
         try:
             os.unlink(script_path)
-        except:
+        except Exception:
             pass
 
 
 # ============================================================================
 # Tool Definitions
 # ============================================================================
+
 
 def create_radare2_tools() -> list[ToolDefinition]:
     """Create Radare2 tool definitions.
@@ -420,7 +421,6 @@ def create_radare2_tools() -> list[ToolDefinition]:
             ],
             handler=lambda binary, **kwargs: radare2_open(binary),
         ),
-
         ToolDefinition(
             name="radare2_disassemble",
             description="Disassemble code at address",
@@ -428,11 +428,12 @@ def create_radare2_tools() -> list[ToolDefinition]:
             parameters=[
                 ParameterSchema(name="binary", type="string", description="Binary path", required=True),
                 ParameterSchema(name="address", type="string", description="Address (hex or 'main')", required=True),
-                ParameterSchema(name="num_lines", type="integer", description="Number of lines", required=False, default=10),
+                ParameterSchema(
+                    name="num_lines", type="integer", description="Number of lines", required=False, default=10
+                ),
             ],
             handler=lambda binary, address, num_lines=10, **kwargs: radare2_disassemble(binary, address, num_lines),
         ),
-
         ToolDefinition(
             name="radare2_analyze_functions",
             description="Analyze all functions in binary",
@@ -442,18 +443,18 @@ def create_radare2_tools() -> list[ToolDefinition]:
             ],
             handler=lambda binary, **kwargs: radare2_analyze_functions(binary),
         ),
-
         ToolDefinition(
             name="radare2_get_strings",
             description="Extract strings from binary",
             category="disassembler",
             parameters=[
                 ParameterSchema(name="binary", type="string", description="Binary path", required=True),
-                ParameterSchema(name="min_length", type="integer", description="Minimum string length", required=False, default=4),
+                ParameterSchema(
+                    name="min_length", type="integer", description="Minimum string length", required=False, default=4
+                ),
             ],
             handler=lambda binary, min_length=4, **kwargs: radare2_get_strings(binary, min_length),
         ),
-
         ToolDefinition(
             name="radare2_xrefs",
             description="Get cross-references for address",
@@ -464,7 +465,6 @@ def create_radare2_tools() -> list[ToolDefinition]:
             ],
             handler=lambda binary, address, **kwargs: radare2_xrefs(binary, address),
         ),
-
         ToolDefinition(
             name="radare2_imports",
             description="Get imported functions",
@@ -474,7 +474,6 @@ def create_radare2_tools() -> list[ToolDefinition]:
             ],
             handler=lambda binary, **kwargs: radare2_imports(binary),
         ),
-
         ToolDefinition(
             name="radare2_exports",
             description="Get exported functions",
@@ -484,7 +483,6 @@ def create_radare2_tools() -> list[ToolDefinition]:
             ],
             handler=lambda binary, **kwargs: radare2_exports(binary),
         ),
-
         ToolDefinition(
             name="radare2_sections",
             description="Get binary sections",
@@ -494,7 +492,6 @@ def create_radare2_tools() -> list[ToolDefinition]:
             ],
             handler=lambda binary, **kwargs: radare2_sections(binary),
         ),
-
         ToolDefinition(
             name="radare2_entropy",
             description="Calculate entropy of sections",
@@ -504,7 +501,6 @@ def create_radare2_tools() -> list[ToolDefinition]:
             ],
             handler=lambda binary, **kwargs: radare2_entropy(binary),
         ),
-
         ToolDefinition(
             name="radare2_search",
             description="Search for pattern in binary",
@@ -512,11 +508,17 @@ def create_radare2_tools() -> list[ToolDefinition]:
             parameters=[
                 ParameterSchema(name="binary", type="string", description="Binary path", required=True),
                 ParameterSchema(name="pattern", type="string", description="Search pattern", required=True),
-                ParameterSchema(name="type", type="string", description="Pattern type", required=False, default="hex", enum=["hex", "string", "asm"]),
+                ParameterSchema(
+                    name="type",
+                    type="string",
+                    description="Pattern type",
+                    required=False,
+                    default="hex",
+                    enum=["hex", "string", "asm"],
+                ),
             ],
             handler=lambda binary, pattern, type="hex", **kwargs: radare2_search(binary, pattern, type),
         ),
-
         ToolDefinition(
             name="radare2_function_info",
             description="Get function information and disassembly",
@@ -527,7 +529,6 @@ def create_radare2_tools() -> list[ToolDefinition]:
             ],
             handler=lambda binary, function, **kwargs: radare2_function_info(binary, function),
         ),
-
         ToolDefinition(
             name="radare2_hexdump",
             description="Hex dump at address",
@@ -535,11 +536,12 @@ def create_radare2_tools() -> list[ToolDefinition]:
             parameters=[
                 ParameterSchema(name="binary", type="string", description="Binary path", required=True),
                 ParameterSchema(name="address", type="string", description="Address", required=True),
-                ParameterSchema(name="size", type="integer", description="Number of bytes", required=False, default=256),
+                ParameterSchema(
+                    name="size", type="integer", description="Number of bytes", required=False, default=256
+                ),
             ],
             handler=lambda binary, address, size=256, **kwargs: radare2_hexdump(binary, address, size),
         ),
-
         ToolDefinition(
             name="radare2_write_bytes",
             description="Write bytes to binary (requires write mode)",

@@ -23,10 +23,9 @@ Requirements:
 
 Author: Ali Can Gönüllü
 License: MIT
-Version: 1.2.5
+Version: see update.json (single source of truth)
 """
 
-__version__ = "1.2.5"
 __author__ = "Ali Can Gönüllü"
 
 import argparse
@@ -34,15 +33,23 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 # Add Spectra to path
 spectra_path = Path(__file__).parent
 sys.path.insert(0, str(spectra_path))
 
+# Version comes from update.json via spectra.constants; fall back to a
+# literal only when the package is unavailable (standalone script use).
+try:
+    from spectra.constants import PLUGIN_VERSION as __version__
+except ImportError:
+    __version__ = "1.3.9"  # standalone fallback
+
 # Try to import Spectra components
 try:
     from spectra.jadx import JadxAnalyzer
+
     SPECTRA_AVAILABLE = True
 except ImportError:
     SPECTRA_AVAILABLE = False
@@ -54,6 +61,7 @@ ENV_IDA = "ida"
 ENV_BINARY_NINJA = "binary_ninja"
 ENV_JADX = "jadx"
 
+
 def detect_environment() -> str:
     """Detect current execution environment."""
 
@@ -64,6 +72,7 @@ def detect_environment() -> str:
     # Check if running inside IDA Pro
     try:
         import idaapi
+
         if "get_path" in dir(idaapi):
             return ENV_IDA
     except ImportError:
@@ -72,6 +81,7 @@ def detect_environment() -> str:
     # Check if running inside Binary Ninja
     try:
         import binaryninja
+
         if "BinaryView" in dir(binaryninja):
             return ENV_BINARY_NINJA
     except ImportError:
@@ -79,6 +89,7 @@ def detect_environment() -> str:
 
     # Default to standalone
     return ENV_STANDALONE
+
 
 CURRENT_ENV = detect_environment()
 
@@ -92,7 +103,7 @@ class JadxPluginWrapper:
         self.config = self._load_config()
         self.analyzer = None
 
-    def _load_config(self) -> Dict[str, Any]:
+    def _load_config(self) -> dict[str, Any]:
         """Load plugin configuration."""
         default_config = {
             "auto_analyze": True,
@@ -105,13 +116,13 @@ class JadxPluginWrapper:
                 "network_security": True,
                 "native_libraries": True,
                 "debuggable_check": True,
-                "backup_check": True
-            }
+                "backup_check": True,
+            },
         }
 
         if self.config_file.exists():
             try:
-                with open(self.config_file, 'r', encoding='utf-8') as f:
+                with open(self.config_file, encoding="utf-8") as f:
                     user_config = json.load(f)
                     default_config.update(user_config)
             except Exception as e:
@@ -119,7 +130,7 @@ class JadxPluginWrapper:
 
         return default_config
 
-    def get_plugin_info(self) -> Dict[str, Any]:
+    def get_plugin_info(self) -> dict[str, Any]:
         """Return plugin metadata for JADX."""
         return {
             "name": "Spectra",
@@ -134,10 +145,10 @@ class JadxPluginWrapper:
                 "native_library_detection",
                 "interactive_mode",
                 "ida_integration",
-                "binary_ninja_integration"
+                "binary_ninja_integration",
             ],
             "environment": CURRENT_ENV,
-            "spectra_available": SPECTRA_AVAILABLE
+            "spectra_available": SPECTRA_AVAILABLE,
         }
 
     def initialize(self) -> bool:
@@ -153,7 +164,7 @@ class JadxPluginWrapper:
             print(f"Plugin initialization error: {e}")
             return False
 
-    def analyze_apk(self, apk_path: str, output_dir: str = None) -> Dict[str, Any]:
+    def analyze_apk(self, apk_path: str, output_dir: str | None = None) -> dict[str, Any]:
         """Analyze APK with full security assessment."""
         if not self.analyzer:
             return {"error": "Plugin not initialized"}
@@ -174,7 +185,7 @@ class JadxPluginWrapper:
                 "manifest": self.analyzer.find_android_manifest(decompiled_dir),
                 "native_libs": self.analyzer.find_native_libraries(decompiled_dir),
                 "security_assessment": self._run_security_checks(decompiled_dir),
-                "environment": CURRENT_ENV
+                "environment": CURRENT_ENV,
             }
 
             return results
@@ -182,7 +193,7 @@ class JadxPluginWrapper:
         except Exception as e:
             return {"error": str(e)}
 
-    def _run_security_checks(self, decompiled_dir: str) -> Dict[str, Any]:
+    def _run_security_checks(self, decompiled_dir: str) -> dict[str, Any]:
         """Run comprehensive security checks."""
         assessment = {
             "permissions": [],
@@ -192,7 +203,7 @@ class JadxPluginWrapper:
             "debuggable": False,
             "backup_enabled": False,
             "exported_components": [],
-            "risk_score": 0
+            "risk_score": 0,
         }
 
         try:
@@ -215,7 +226,7 @@ class JadxPluginWrapper:
                 "android.permission.CALL_PHONE",
                 "android.permission.ACCESS_COARSE_LOCATION",
                 "android.permission.READ_CONTACTS",
-                "android.permission.WRITE_EXTERNAL_STORAGE"
+                "android.permission.WRITE_EXTERNAL_STORAGE",
             ]
 
             permissions = manifest.get("permissions", [])
@@ -251,11 +262,12 @@ class JadxPluginWrapper:
 # CLI Interface (unchanged for backward compatibility)
 # ============================================================================
 
+
 def print_section(title: str) -> None:
     """Print formatted section header."""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"  {title}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
 
 def print_json(data: dict, pretty: bool = True) -> None:
@@ -285,17 +297,17 @@ def cmd_analyze(args) -> int:
             return 1
 
         print(f"Decompiled to: {results['decompiled_dir']}")
-        print(f"\nPackage Structure:")
-        print_json(results['structure'])
+        print("\nPackage Structure:")
+        print_json(results["structure"])
 
-        print(f"\nAndroidManifest:")
-        print_json(results['manifest'])
+        print("\nAndroidManifest:")
+        print_json(results["manifest"])
 
-        print(f"\nSecurity Assessment:")
-        print_json(results['security_assessment'])
+        print("\nSecurity Assessment:")
+        print_json(results["security_assessment"])
 
         if args.export:
-            plugin.analyzer.export_to_json(results['decompiled_dir'], args.export)
+            plugin.analyzer.export_to_json(results["decompiled_dir"], args.export)
             print(f"\nAnalysis exported to: {args.export}")
 
         return 0
@@ -393,17 +405,17 @@ def cmd_class(args) -> int:
             return 1
 
         print(f"Class: {analysis['class_name']}")
-        if analysis.get('extends'):
+        if analysis.get("extends"):
             print(f"Extends: {analysis['extends']}")
-        if analysis.get('implements'):
+        if analysis.get("implements"):
             print(f"Implements: {', '.join(analysis['implements'])}")
 
         print(f"\nImports ({len(analysis['imports'])}):")
-        for imp in analysis['imports'][:20]:
+        for imp in analysis["imports"][:20]:
             print(f"  - {imp}")
 
         print(f"\nMethods ({len(analysis['methods'])}):")
-        for method in analysis['methods'][:20]:
+        for method in analysis["methods"][:20]:
             print(f"  - {method}")
 
         return 0
@@ -437,7 +449,7 @@ def cmd_interactive(args) -> int:
             "decompiled_dir": decompiled_dir,
             "structure": structure,
             "manifest": manifest,
-            "environment": CURRENT_ENV
+            "environment": CURRENT_ENV,
         }
 
         print(f"APK: {Path(args.apk).name}")
@@ -462,7 +474,7 @@ def cmd_interactive(args) -> int:
                 if not user_input:
                     continue
 
-                if user_input.lower() in ['quit', 'exit', 'q']:
+                if user_input.lower() in ["quit", "exit", "q"]:
                     print("Goodbye!")
                     break
 
@@ -490,38 +502,38 @@ def process_basic_question(question: str, context: dict, plugin: JadxPluginWrapp
     question_lower = question.lower()
 
     # Entry points
-    if 'entry point' in question_lower or 'main activity' in question_lower:
-        manifest = context['manifest']
-        if manifest.get('activities'):
-            main_activity = manifest['activities'][0]
+    if "entry point" in question_lower or "main activity" in question_lower:
+        manifest = context["manifest"]
+        if manifest.get("activities"):
+            main_activity = manifest["activities"][0]
             return f"Main entry point: {main_activity}. This is the first activity launched when the app starts."
 
     # Permissions
-    if 'permission' in question_lower:
-        manifest = context['manifest']
-        perms = manifest.get('permissions', [])
+    if "permission" in question_lower:
+        manifest = context["manifest"]
+        perms = manifest.get("permissions", [])
         return f"App requests {len(perms)} permissions. Key permissions: {', '.join(perms[:5])}"
 
     # Native libraries
-    if 'native' in question_lower or r'\.so' in question_lower or 'so file' in question_lower:
-        native_libs = plugin.analyzer.find_native_libraries(context['decompiled_dir'])
+    if "native" in question_lower or r"\.so" in question_lower or "so file" in question_lower:
+        native_libs = plugin.analyzer.find_native_libraries(context["decompiled_dir"])
         if native_libs:
             return f"Found {len(native_libs)} native libraries: {', '.join(native_libs)}"
         else:
             return "No native libraries found in this APK."
 
     # Security
-    if 'security' in question_lower or 'vulnerab' in question_lower:
-        assessment = plugin._run_security_checks(context['decompiled_dir'])
-        risk = assessment.get('risk_score', 0)
+    if "security" in question_lower or "vulnerab" in question_lower:
+        assessment = plugin._run_security_checks(context["decompiled_dir"])
+        risk = assessment.get("risk_score", 0)
         if risk > 50:
             return f"High risk score: {risk}/100. Issues: debuggable={assessment['debuggable']}, backup={assessment['backup_enabled']}"
         else:
             return f"Risk score: {risk}/100. App appears to have basic security measures."
 
     # Network
-    if 'network' in question_lower or 'http' in question_lower or 'api' in question_lower:
-        matches = plugin.analyzer.search_string_in_sources(context['decompiled_dir'], 'http')
+    if "network" in question_lower or "http" in question_lower or "api" in question_lower:
+        matches = plugin.analyzer.search_string_in_sources(context["decompiled_dir"], "http")
         if matches:
             return f"Found {len(matches)} HTTP/HTTPS endpoints in the code."
         else:
@@ -573,7 +585,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Spectra JADX Plugin - Hybrid Android APK Analysis",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
+        epilog=f"""
 Examples:
   %(prog)s analyze app.apk -o ./decompiled
   %(prog)s search app.apk "API_KEY"
@@ -581,8 +593,8 @@ Examples:
   %(prog)s class app.apk com.example.MainActivity
   %(prog)s interactive app.apk
 
-Environment: {}
-        """.format(CURRENT_ENV.upper())
+Environment: {CURRENT_ENV.upper()}
+        """,
     )
 
     parser.add_argument("--jadx", default="jadx", help="JADX executable path")
@@ -625,8 +637,8 @@ Environment: {}
     interactive_parser.add_argument("apk", help="APK file path")
     interactive_parser.add_argument("-o", "--output", help="Output directory")
 
-    # Plugin info command
-    info_parser = subparsers.add_parser("plugin-info", help="Show plugin information")
+    # Plugin info command (result unused — registration is the side effect)
+    subparsers.add_parser("plugin-info", help="Show plugin information")
 
     args = parser.parse_args()
 
@@ -641,7 +653,7 @@ Environment: {}
         "structure": cmd_structure,
         "class": cmd_class,
         "interactive": cmd_interactive,
-        "plugin-info": cmd_plugin_info
+        "plugin-info": cmd_plugin_info,
     }
 
     handler = command_handlers.get(args.command)

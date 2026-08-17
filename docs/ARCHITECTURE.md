@@ -66,9 +66,7 @@ for param in defn.parameters:
     if param.required and param.name not in arguments:
         missing.append(param.name)
 if missing:
-    raise ToolValidationError(
-        f"Tool {name} missing required parameters: {', '.join(missing)}"
-    )
+    raise ToolValidationError(f"Tool {name} missing required parameters: {', '.join(missing)}")
 ```
 
 This prevents cryptic TypeError messages and provides clear feedback to the LLM about which parameters are missing.

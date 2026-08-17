@@ -16,14 +16,13 @@ import subprocess
 import tempfile
 from typing import Any
 
-from ..core.tool_infrastructure import ToolSafety
-from ..core.logging import log_debug, log_error, log_info
+from ..core.logging import log_info
 from ..tools.base import ParameterSchema, ToolDefinition
-
 
 # ============================================================================
 # Tool Functions
 # ============================================================================
+
 
 def fuzz_create_template(target: str, input_format: str, output_file: str) -> str:
     """Create fuzzing template for target.
@@ -63,7 +62,10 @@ def fuzz_create_template(target: str, input_format: str, output_file: str) -> st
             "description": "XML input fuzzing template",
             "format": "xml",
             "mutations": ["tag_mutation", "attribute_mutation", "injection"],
-            "magic_values": ["<?xml version='1.0'?><root/>", "<!DOCTYPE foo [<!ENTITY xxe SYSTEM 'file:///etc/passwd'>]>"],
+            "magic_values": [
+                "<?xml version='1.0'?><root/>",
+                "<!DOCTYPE foo [<!ENTITY xxe SYSTEM 'file:///etc/passwd'>]>",
+            ],
         },
         "http": {
             "description": "HTTP request fuzzing template",
@@ -79,7 +81,7 @@ def fuzz_create_template(target: str, input_format: str, output_file: str) -> st
 
     try:
         os.makedirs(os.path.dirname(output_file) if os.path.dirname(output_file) else ".", exist_ok=True)
-        with open(output_file, 'w') as f:
+        with open(output_file, "w") as f:
             json.dump(template, f, indent=2)
 
         return f"Template created: {output_file}\n\n{json.dumps(template, indent=2)}"
@@ -104,7 +106,7 @@ def fuzz_run_template(template_file: str, iterations: int = 100, output_dir: str
 
     # Load template
     try:
-        with open(template_file, 'r') as f:
+        with open(template_file) as f:
             template = json.load(f)
     except Exception as e:
         return f"Error loading template: {e}"
@@ -148,7 +150,7 @@ def fuzz_run_template(template_file: str, iterations: int = 100, output_dir: str
         if output_dir:
             output_file = os.path.join(output_dir, f"input_{generated:06d}")
             try:
-                mode = 'wb' if template.get("format") == "binary" else 'w'
+                mode = "wb" if template.get("format") == "binary" else "w"
                 with open(output_file, mode) as f:
                     if template.get("format") == "binary":
                         f.write(bytes.fromhex(fuzzed_input))
@@ -186,7 +188,7 @@ def fuzz_analyze_crash(crash_input: str, target: str, args: str = "") -> str:
         return f"Error: Target not found: {target}"
 
     output = [
-        f"=== Crash Analysis ===",
+        "=== Crash Analysis ===",
         f"Target: {target}",
         f"Input: {crash_input[:100]}...",
         "",
@@ -194,16 +196,16 @@ def fuzz_analyze_crash(crash_input: str, target: str, args: str = "") -> str:
 
     # Try to run with input
     try:
-        cmd = [target] + args.split() if args else [target]
+        cmd = [target, *args.split()] if args else [target]
 
         # Write input to temp file
-        with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
             f.write(crash_input)
             temp_file = f.name
 
         # Try to run with input
         result = subprocess.run(
-            cmd + [temp_file] if not any("@@" in a for a in args.split()) else cmd,
+            [*cmd, temp_file] if not any("@@" in a for a in args.split()) else cmd,
             capture_output=True,
             text=True,
             timeout=10,
@@ -227,7 +229,7 @@ def fuzz_analyze_crash(crash_input: str, target: str, args: str = "") -> str:
     finally:
         try:
             os.unlink(temp_file)
-        except:
+        except Exception:
             pass
 
     return "\n".join(output)
@@ -246,12 +248,12 @@ def fuzz_mutation_strategies(input_data: str, count: int = 10) -> str:
     output = [f"=== Mutation Strategies for: {input_data[:50]}... ===", ""]
 
     strategies = {
-        "bit_flip": lambda d: ''.join(chr(ord(c) ^ (1 << (i % 8))) if len(d) > i else c for i, c in enumerate(d)),
-        "byte_flip": lambda d: ''.join(chr(ord(c) ^ 0xFF) if random.random() < 0.1 else c for c in d),
-        "random_byte": lambda d: ''.join(chr(random.randint(0, 255)) if random.random() < 0.1 else c for c in d),
-        "delete": lambda d: ''.join(c for i, c in enumerate(d) if random.random() < 0.9),
-        "duplicate": lambda d: ''.join(c * 2 if random.random() < 0.1 else c for c in d),
-        "null_insert": lambda d: d[:len(d)//2] + '\x00' + d[len(d)//2:],
+        "bit_flip": lambda d: "".join(chr(ord(c) ^ (1 << (i % 8))) if len(d) > i else c for i, c in enumerate(d)),
+        "byte_flip": lambda d: "".join(chr(ord(c) ^ 0xFF) if random.random() < 0.1 else c for c in d),
+        "random_byte": lambda d: "".join(chr(random.randint(0, 255)) if random.random() < 0.1 else c for c in d),
+        "delete": lambda d: "".join(c for i, c in enumerate(d) if random.random() < 0.9),
+        "duplicate": lambda d: "".join(c * 2 if random.random() < 0.1 else c for c in d),
+        "null_insert": lambda d: d[: len(d) // 2] + "\x00" + d[len(d) // 2 :],
         "format_string": lambda d: d.replace("%s", "{{placeholder}}"),
     }
 
@@ -333,6 +335,7 @@ def fuzz_dictionary_format(format: str, keywords: list) -> str:
 # Tool Definitions
 # ============================================================================
 
+
 def create_fuzzing_framework_tools() -> list[ToolDefinition]:
     """Create fuzzing framework tool definitions.
 
@@ -346,24 +349,46 @@ def create_fuzzing_framework_tools() -> list[ToolDefinition]:
             category="fuzzing",
             parameters=[
                 ParameterSchema(name="target", type="string", description="Target binary path", required=True),
-                ParameterSchema(name="input_format", type="string", description="Input format (text|binary|json|xml|http)", required=True, enum=["text", "binary", "json", "xml", "http"]),
-                ParameterSchema(name="output_file", type="string", description="Output template file path", required=True),
+                ParameterSchema(
+                    name="input_format",
+                    type="string",
+                    description="Input format (text|binary|json|xml|http)",
+                    required=True,
+                    enum=["text", "binary", "json", "xml", "http"],
+                ),
+                ParameterSchema(
+                    name="output_file", type="string", description="Output template file path", required=True
+                ),
             ],
-            handler=lambda target, input_format, output_file, **kwargs: fuzz_create_template(target, input_format, output_file),
+            handler=lambda target, input_format, output_file, **kwargs: fuzz_create_template(
+                target, input_format, output_file
+            ),
         ),
-
         ToolDefinition(
             name="fuzz_run_template",
             description="Run fuzzing with template",
             category="fuzzing",
             parameters=[
                 ParameterSchema(name="template_file", type="string", description="Template file path", required=True),
-                ParameterSchema(name="iterations", type="integer", description="Number of fuzzing iterations", required=False, default=100),
-                ParameterSchema(name="output_dir", type="string", description="Optional output directory", required=False, default=""),
+                ParameterSchema(
+                    name="iterations",
+                    type="integer",
+                    description="Number of fuzzing iterations",
+                    required=False,
+                    default=100,
+                ),
+                ParameterSchema(
+                    name="output_dir",
+                    type="string",
+                    description="Optional output directory",
+                    required=False,
+                    default="",
+                ),
             ],
-            handler=lambda template_file, iterations=100, output_dir="", **kwargs: fuzz_run_template(template_file, iterations, output_dir),
+            handler=lambda template_file, iterations=100, output_dir="", **kwargs: fuzz_run_template(
+                template_file, iterations, output_dir
+            ),
         ),
-
         ToolDefinition(
             name="fuzz_analyze_crash",
             description="Analyze crash with target",
@@ -375,18 +400,18 @@ def create_fuzzing_framework_tools() -> list[ToolDefinition]:
             ],
             handler=lambda crash_input, target, args="", **kwargs: fuzz_analyze_crash(crash_input, target, args),
         ),
-
         ToolDefinition(
             name="fuzz_mutation_strategies",
             description="Generate mutations using various strategies",
             category="fuzzing",
             parameters=[
                 ParameterSchema(name="input_data", type="string", description="Original input data", required=True),
-                ParameterSchema(name="count", type="integer", description="Number of mutations", required=False, default=10),
+                ParameterSchema(
+                    name="count", type="integer", description="Number of mutations", required=False, default=10
+                ),
             ],
             handler=lambda input_data, count=10, **kwargs: fuzz_mutation_strategies(input_data, count),
         ),
-
         ToolDefinition(
             name="fuzz_coverage_guided",
             description="Set up coverage-guided fuzzing",
@@ -397,13 +422,18 @@ def create_fuzzing_framework_tools() -> list[ToolDefinition]:
             ],
             handler=lambda target, corpus_dir, **kwargs: fuzz_coverage_guided(target, corpus_dir),
         ),
-
         ToolDefinition(
             name="fuzz_dictionary_format",
             description="Create dictionary file for fuzzers",
             category="fuzzing",
             parameters=[
-                ParameterSchema(name="format", type="string", description="Dictionary format", required=True, enum=["afl", "libfuzzer", "honggfuzz"]),
+                ParameterSchema(
+                    name="format",
+                    type="string",
+                    description="Dictionary format",
+                    required=True,
+                    enum=["afl", "libfuzzer", "honggfuzz"],
+                ),
                 ParameterSchema(name="keywords", type="string", description="Comma-separated keywords", required=True),
             ],
             handler=lambda format, keywords, **kwargs: fuzz_dictionary_format(format, keywords.split(",")),

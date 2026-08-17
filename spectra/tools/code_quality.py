@@ -7,14 +7,14 @@ and technical debt indicators.
 from __future__ import annotations
 
 import re
-from collections import Counter
 from typing import Any
 
 # Try to import IDA API
 try:
     import idaapi
-    import idc
     import idautils
+    import idc
+
     IDA_AVAILABLE = True
 except ImportError:
     IDA_AVAILABLE = False
@@ -24,7 +24,8 @@ from .ida_helpers import get_disasm_text
 
 # Try to import Binary Ninja API
 try:
-    import binaryninja
+    import binaryninja  # noqa: F401 — availability probe
+
     BINJA_AVAILABLE = True
 except ImportError:
     BINJA_AVAILABLE = False
@@ -182,7 +183,7 @@ def _analyze_function_ida(func_ea: int) -> dict[str, Any]:
     # Count instructions
     instr_count = 0
     basic_blocks = 0
-    nesting_level = 0
+    _nesting_level = 0
 
     try:
         flow = idaapi.FlowChart(idaapi.get_func(func_ea))
@@ -195,7 +196,7 @@ def _analyze_function_ida(func_ea: int) -> dict[str, Any]:
         # Fallback to manual counting
         func = idaapi.get_func(func_ea)
         func_end = func.end_ea if func else func_ea
-        for instr_ea in idautils.Heads(func_ea, func_end):
+        for _instr_ea in idautils.Heads(func_ea, func_end):
             instr_count += 1
 
     # Calculate complexity
@@ -205,6 +206,7 @@ def _analyze_function_ida(func_ea: int) -> dict[str, Any]:
     func_text = ""
     try:
         import ida_hexrays
+
         if ida_hexrays.init_hexrays_plugin():
             cfunc = ida_hexrays.decompile(func_ea)
             if cfunc:
@@ -240,11 +242,13 @@ def _analyze_function_ida(func_ea: int) -> dict[str, Any]:
     for vuln_type, vuln_info in SECURITY_ANTI_PATTERNS.items():
         for pattern in vuln_info["patterns"]:
             if re.search(pattern, func_text, re.IGNORECASE):
-                security_issues.append({
-                    "type": vuln_type,
-                    "severity": vuln_info["severity"],
-                    "pattern": pattern,
-                })
+                security_issues.append(
+                    {
+                        "type": vuln_type,
+                        "severity": vuln_info["severity"],
+                        "pattern": pattern,
+                    }
+                )
                 break
 
     return {
@@ -365,7 +369,7 @@ def format_code_quality_report(results: dict[str, Any]) -> str:
 
     # Security Score
     sec_score = results["security_score"]
-    report_lines.append(f"\n### Security Score\n")
+    report_lines.append("\n### Security Score\n")
     grade_color = {
         "A": "🟢",
         "B": "🟡",
@@ -384,7 +388,7 @@ def format_code_quality_report(results: dict[str, Any]) -> str:
 
     # Most Complex Functions
     if results["most_complex"]:
-        report_lines.append(f"\n### Most Complex Functions\n")
+        report_lines.append("\n### Most Complex Functions\n")
         for func in results["most_complex"][:10]:
             complexity_icon = {
                 "very_high": "🔴",
@@ -402,7 +406,7 @@ def format_code_quality_report(results: dict[str, Any]) -> str:
 
     # Largest Functions
     if results["largest"]:
-        report_lines.append(f"\n### Largest Functions\n")
+        report_lines.append("\n### Largest Functions\n")
         for func in results["largest"][:10]:
             size_icon = {
                 "very_large": "🔴",
@@ -418,7 +422,7 @@ def format_code_quality_report(results: dict[str, Any]) -> str:
 
     # Security Issues
     if results["security_issues"]:
-        report_lines.append(f"\n### Security Issues Detail\n")
+        report_lines.append("\n### Security Issues Detail\n")
 
         by_severity = {}
         for issue in results["security_issues"]:
@@ -431,12 +435,10 @@ def format_code_quality_report(results: dict[str, Any]) -> str:
             if severity in by_severity:
                 report_lines.append(f"\n#### {severity.upper()}\n")
                 for issue in by_severity[severity][:10]:
-                    report_lines.append(
-                        f"- **{issue['type']}** - Pattern: `{issue['pattern']}`\n"
-                    )
+                    report_lines.append(f"- **{issue['type']}** - Pattern: `{issue['pattern']}`\n")
 
     # Recommendations
-    report_lines.append(f"\n### Recommendations\n")
+    report_lines.append("\n### Recommendations\n")
 
     if results["high_complexity_count"] > results["function_count"] * 0.2:
         report_lines.append("- **High Complexity:** Consider refactoring complex functions\n")

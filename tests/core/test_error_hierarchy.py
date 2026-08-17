@@ -14,10 +14,10 @@ from unittest.mock import MagicMock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from tests.mocks.ida_mock import install_ida_mocks
+
 install_ida_mocks()
 
 from spectra.core.errors import (
-    SpectraError,
     AgentError,
     AuthenticationError,
     CancellationError,
@@ -30,6 +30,7 @@ from spectra.core.errors import (
     RateLimitError,
     SessionError,
     SkillError,
+    SpectraError,
     ToolError,
     ToolNotFoundError,
     ToolValidationError,
@@ -48,10 +49,22 @@ class TestErrorHierarchy(unittest.TestCase):
 
     def test_all_errors_inherit_spectra_error(self):
         for cls in (
-            ConfigError, ProviderError, AuthenticationError, RateLimitError,
-            ContextLengthError, ToolError, ToolNotFoundError, ToolValidationError,
-            AgentError, CancellationError, SessionError, UIError, SkillError,
-            MCPError, MCPConnectionError, MCPTimeoutError,
+            ConfigError,
+            ProviderError,
+            AuthenticationError,
+            RateLimitError,
+            ContextLengthError,
+            ToolError,
+            ToolNotFoundError,
+            ToolValidationError,
+            AgentError,
+            CancellationError,
+            SessionError,
+            UIError,
+            SkillError,
+            MCPError,
+            MCPConnectionError,
+            MCPTimeoutError,
         ):
             self.assertTrue(
                 issubclass(cls, SpectraError),
@@ -124,27 +137,27 @@ class TestProviderErrorConsistency(unittest.TestCase):
         resp.request = MagicMock()
         return resp
 
-    @unittest.skipUnless(
-        importlib.util.find_spec("anthropic"), "anthropic SDK not installed"
-    )
+    @unittest.skipUnless(importlib.util.find_spec("anthropic"), "anthropic SDK not installed")
     def test_anthropic_sdk_auth_error(self):
         """Anthropic maps anthropic.AuthenticationError → AuthenticationError."""
         import anthropic
+
         _reload_anthropic_provider_module()
         from spectra.providers.anthropic_provider import AnthropicProvider
+
         p = AnthropicProvider(api_key="test", model="test")
         resp = self._mock_httpx_response(401)
         err = anthropic.AuthenticationError("auth failed", response=resp, body=None)
         with self.assertRaises(AuthenticationError):
             p._handle_api_error(err)
 
-    @unittest.skipUnless(
-        importlib.util.find_spec("openai"), "openai SDK not installed"
-    )
+    @unittest.skipUnless(importlib.util.find_spec("openai"), "openai SDK not installed")
     def test_openai_sdk_auth_error(self):
         """OpenAI maps openai.AuthenticationError → AuthenticationError."""
         import openai
+
         from spectra.providers.openai_provider import OpenAIProvider
+
         p = OpenAIProvider(api_key="test", model="test")
         resp = self._mock_httpx_response(401)
         err = openai.AuthenticationError("auth failed", response=resp, body=None)
@@ -154,6 +167,7 @@ class TestProviderErrorConsistency(unittest.TestCase):
     def test_gemini_string_auth_error(self):
         """Gemini maps 'API key' in message → AuthenticationError."""
         from spectra.providers.gemini_provider import GeminiProvider
+
         p = GeminiProvider(api_key="test", model="test")
         with self.assertRaises(AuthenticationError):
             p._handle_api_error(RuntimeError("Invalid API key provided"))
@@ -161,6 +175,7 @@ class TestProviderErrorConsistency(unittest.TestCase):
     def test_gemini_string_rate_limit(self):
         """Gemini maps 'Rate' in message → RateLimitError."""
         from spectra.providers.gemini_provider import GeminiProvider
+
         p = GeminiProvider(api_key="test", model="test")
         with self.assertRaises(RateLimitError):
             p._handle_api_error(RuntimeError("Rate limit exceeded, 429"))
@@ -169,8 +184,9 @@ class TestProviderErrorConsistency(unittest.TestCase):
         """All providers map unknown errors → ProviderError."""
         _reload_anthropic_provider_module()
         from spectra.providers.anthropic_provider import AnthropicProvider
-        from spectra.providers.openai_provider import OpenAIProvider
         from spectra.providers.gemini_provider import GeminiProvider
+        from spectra.providers.openai_provider import OpenAIProvider
+
         for cls, kwargs in (
             (AnthropicProvider, {"api_key": "t", "model": "t"}),
             (OpenAIProvider, {"api_key": "t", "model": "t"}),
@@ -187,18 +203,21 @@ class TestProviderHandleApiErrorReturnType(unittest.TestCase):
     def test_anthropic_never_returns(self):
         _reload_anthropic_provider_module()
         from spectra.providers.anthropic_provider import AnthropicProvider
+
         p = AnthropicProvider(api_key="test", model="test")
         with self.assertRaises(ProviderError):
             p._handle_api_error(ValueError("test"))
 
     def test_openai_never_returns(self):
         from spectra.providers.openai_provider import OpenAIProvider
+
         p = OpenAIProvider(api_key="test", model="test")
         with self.assertRaises(ProviderError):
             p._handle_api_error(ValueError("test"))
 
     def test_gemini_never_returns(self):
         from spectra.providers.gemini_provider import GeminiProvider
+
         p = GeminiProvider(api_key="test", model="test")
         with self.assertRaises(ProviderError):
             p._handle_api_error(ValueError("test"))

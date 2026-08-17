@@ -15,28 +15,28 @@ import cmd
 import os
 import signal
 import sys
-import tty
-import termios
 from pathlib import Path
-from typing import Optional
-from select import select
 
 try:
     import readline
+
     HAS_READLINE = True
 except ImportError:
     HAS_READLINE = False
 
+from ..agent.turn import TurnEventType
+from ..core.logging import log_debug
 from .command_parser import (
-    Command,
+    CONFIG_COMMANDS,
+    SESSION_COMMANDS,
+    SKILL_COMMANDS,
+    SYSTEM_COMMANDS,
     CommandType,
     get_help_text,
     parse_command,
-    SYSTEM_COMMANDS,
-    SESSION_COMMANDS,
-    SKILL_COMMANDS,
-    CONFIG_COMMANDS,
 )
+from .shell_controller import CLISessionController
+from .shell_ui import Colors, ShellUI
 
 # Extract command names (without arguments) for autocomplete
 SESSION_CMD_NAMES = [cmd.split()[0] for cmd, _ in SESSION_COMMANDS]
@@ -46,10 +46,6 @@ SKILL_CMD_NAMES = [cmd.split()[0] for cmd, _ in SKILL_COMMANDS]
 
 # All system/session/config commands (without arguments)
 ALL_SLASH_COMMANDS = sorted(set(SESSION_CMD_NAMES + CONFIG_CMD_NAMES + SYSTEM_CMD_NAMES + SKILL_CMD_NAMES))
-from .shell_controller import CLISessionController
-from .shell_ui import ShellUI, Colors
-from ..agent.turn import TurnEventType
-from ..core.logging import log_debug
 
 
 class ShellREPL(cmd.Cmd):
@@ -102,7 +98,7 @@ class ShellREPL(cmd.Cmd):
                 pass
 
             # Set up readline completion
-            readline.set_completer_delims(' \t\n')  # Only space, tab, newline as delimiters
+            readline.set_completer_delims(" \t\n")  # Only space, tab, newline as delimiters
             readline.set_completer(self.complete)
             readline.parse_and_bind("tab: complete")
 
@@ -115,7 +111,6 @@ class ShellREPL(cmd.Cmd):
         Uses non-blocking I/O with aggressive timeout to prevent hangs.
         """
         try:
-            import select
             import fcntl
 
             # Get current flags
@@ -132,7 +127,7 @@ class ShellREPL(cmd.Cmd):
                         data = sys.stdin.read(1024)
                         if not data:
                             break  # EOF
-                    except (BlockingIOError, IOError):
+                    except (OSError, BlockingIOError):
                         break  # No more data available
             finally:
                 # Restore original flags
@@ -154,7 +149,6 @@ class ShellREPL(cmd.Cmd):
         Returns:
             User input or default value
         """
-        import signal
         import threading
 
         # Use thread-based timeout for better cross-platform compatibility
@@ -189,6 +183,7 @@ class ShellREPL(cmd.Cmd):
 
     def _setup_signal_handlers(self):
         """Set up signal handlers for graceful interruption."""
+
         def handle_interrupt(signum, frame):
             """Handle Ctrl+C - stop agent and terminate any running shell commands."""
             # Cancel agent if running
@@ -196,14 +191,15 @@ class ShellREPL(cmd.Cmd):
                 try:
                     self._agent_runner.cancel()
                     self._agent_runner = None
-                except:
+                except Exception:
                     pass
 
             # Kill any running shell command subprocesses
             try:
                 from ..cli.tools.shell_tools import kill_all_subprocesses
+
                 kill_all_subprocesses()
-            except:
+            except Exception:
                 pass
 
             # Print message and show prompt
@@ -251,7 +247,7 @@ class ShellREPL(cmd.Cmd):
             if not self.in_multiline:
                 self.in_multiline = True
                 self.multiline_buffer = [line]
-                print(f"\033[90m[Paste mode detected. Press Enter on empty line to submit]\033[0m")
+                print("\033[90m[Paste mode detected. Press Enter on empty line to submit]\033[0m")
                 raise cmd.Continue
             else:
                 self.multiline_buffer.append(line)
@@ -273,16 +269,42 @@ class ShellREPL(cmd.Cmd):
 
         # Check for error log patterns (more comprehensive)
         error_indicators = [
-            "error:", "warning:", "note:", "undefined reference",
-            "undeclared", "undeclared here", "first use in this function",
-            "in file included from", "from:", "at:", "line",
-            "__check_", "__param_", "/usr/src/linux",
-            "make[", "makefile:", ".o]", "error 1", "error 2",
-            "entering directory", "leaving directory",
-            "\\.c:", "\\.o:", "\\.so:", "\\.a:",  # File extensions
-            "in function", "at top level", "from", "included by",
-            "__builtin_", "expected", "before", "after",
-            "each undeclared", "reported only once", "note: in expansion of"
+            "error:",
+            "warning:",
+            "note:",
+            "undefined reference",
+            "undeclared",
+            "undeclared here",
+            "first use in this function",
+            "in file included from",
+            "from:",
+            "at:",
+            "line",
+            "__check_",
+            "__param_",
+            "/usr/src/linux",
+            "make[",
+            "makefile:",
+            ".o]",
+            "error 1",
+            "error 2",
+            "entering directory",
+            "leaving directory",
+            "\\.c:",
+            "\\.o:",
+            "\\.so:",
+            "\\.a:",  # File extensions
+            "in function",
+            "at top level",
+            "from",
+            "included by",
+            "__builtin_",
+            "expected",
+            "before",
+            "after",
+            "each undeclared",
+            "reported only once",
+            "note: in expansion of",
         ]
 
         line_lower = line.lower()
@@ -455,9 +477,7 @@ class ShellREPL(cmd.Cmd):
             endidx = readline.get_endidx()
 
             # Generate context-appropriate completions
-            self.completion_matches = self._generate_completions(
-                text, line, begidx, endidx
-            )
+            self.completion_matches = self._generate_completions(text, line, begidx, endidx)
 
             # If there are multiple matches, show categorized display
             if len(self.completion_matches) > 1 and line.strip().startswith("/"):
@@ -524,9 +544,7 @@ class ShellREPL(cmd.Cmd):
         # Use our generation logic
         return self._generate_completions(text, text, 0, len(text))
 
-    def _generate_completions(
-        self, text: str, line: str, begidx: int, endidx: int
-    ) -> list[str]:
+    def _generate_completions(self, text: str, line: str, begidx: int, endidx: int) -> list[str]:
         """Generate completions based on context.
 
         Args:
@@ -554,7 +572,7 @@ class ShellREPL(cmd.Cmd):
             if len(words) == 1 or (len(words) == 2 and not text):
                 # Suggest session IDs
                 sessions = self.controller.list_sessions()
-                return [s['id'] for s in sessions]
+                return [s["id"] for s in sessions]
 
         # Shell command: !command - suggest common shell commands
         if line.startswith("!"):
@@ -566,9 +584,7 @@ class ShellREPL(cmd.Cmd):
 
         return []
 
-    def _complete_slash_command(
-        self, text: str, line: str, words: list[str]
-    ) -> list[str]:
+    def _complete_slash_command(self, text: str, line: str, words: list[str]) -> list[str]:
         """Complete slash commands and their arguments.
 
         Args:
@@ -581,7 +597,6 @@ class ShellREPL(cmd.Cmd):
         """
         # Check if we're completing the first word (the command itself)
         if len(words) == 1 or (len(words) == 2 and not text):
-
             # System/Session/Config commands from command_parser
             built_in_cmds = ALL_SLASH_COMMANDS
 
@@ -616,11 +631,29 @@ class ShellREPL(cmd.Cmd):
         """
         # Common shell commands
         common_cmds = [
-            "ls", "cd", "pwd", "cat", "grep", "find",
-            "mkdir", "rm", "cp", "mv", "chmod",
-            "ps", "kill", "top", "htop",
-            "git", "npm", "pip", "python",
-            "curl", "wget", "ssh", "scp",
+            "ls",
+            "cd",
+            "pwd",
+            "cat",
+            "grep",
+            "find",
+            "mkdir",
+            "rm",
+            "cp",
+            "mv",
+            "chmod",
+            "ps",
+            "kill",
+            "top",
+            "htop",
+            "git",
+            "npm",
+            "pip",
+            "python",
+            "curl",
+            "wget",
+            "ssh",
+            "scp",
         ]
 
         # Complete by subcommand
@@ -693,11 +726,12 @@ class ShellREPL(cmd.Cmd):
         """Handle /save command."""
         if not name:
             import datetime
+
             name = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
 
         try:
             session_id = self.controller.session.id
-            path = self.controller.save_session(name)
+            _path = self.controller.save_session(name)
             self.ui.print_success(f"Session saved: {name} (ID: {session_id[:8]})")
             self.ui.print_info(f"Use '/load {name}' or '/load {session_id[:8]}' to reload")
             return False
@@ -770,7 +804,9 @@ class ShellREPL(cmd.Cmd):
         print("         /delete <id> or /delete <description>")
         print()
         for s in sessions:
-            print(f"  {self.ui._color(s['id'][:8], Colors.CYAN)}: {self.ui._color(s['description'], Colors.YELLOW)} ({s['message_count']} messages)")
+            print(
+                f"  {self.ui._color(s['id'][:8], Colors.CYAN)}: {self.ui._color(s['description'], Colors.YELLOW)} ({s['message_count']} messages)"
+            )
         print()
 
         return False
@@ -790,7 +826,7 @@ class ShellREPL(cmd.Cmd):
         for s in sessions:
             sid = s.get("id", "")
             desc = s.get("description", "")
-            if session_id.lower() in desc.lower() or session_id == sid[:len(session_id)]:
+            if session_id.lower() in desc.lower() or session_id == sid[: len(session_id)]:
                 target_desc = desc
                 target_id = sid
                 break
@@ -800,8 +836,8 @@ class ShellREPL(cmd.Cmd):
 
             # Confirm deletion
             try:
-                response = input(f"Are you sure? (y/N): ").strip().lower()
-                if response not in ['y', 'yes']:
+                response = input("Are you sure? (y/N): ").strip().lower()
+                if response not in ["y", "yes"]:
                     self.ui.print_info("Deletion cancelled")
                     return False
             except (EOFError, KeyboardInterrupt):
@@ -831,9 +867,9 @@ class ShellREPL(cmd.Cmd):
         print()
         print(self.ui._bold("Available Skills:"))
         for skill in skills:
-            slug = skill['slug']
-            name = skill['name']
-            desc = skill['description']
+            slug = skill["slug"]
+            _name = skill["name"]
+            desc = skill["description"]
 
             # Show full description
             print(f"  {self.ui._color(f'/{slug}', Colors.CYAN)}: {desc}")
@@ -941,7 +977,7 @@ class ShellREPL(cmd.Cmd):
         try:
             # Poll events until agent finishes completely (sentinel None received)
             pending_approvals = []  # Queue for approval requests waiting to be shown
-            showing_approval = False   # Track if we're currently showing an approval prompt
+            showing_approval = False  # Track if we're currently showing an approval prompt
             output_buffer = []  # Buffer output during shell approval
 
             while True:
@@ -949,6 +985,7 @@ class ShellREPL(cmd.Cmd):
                 if event:
                     # Check if we're in shell command approval - buffer output
                     from .tools.shell_tools import is_in_shell_approval
+
                     in_shell_approval = is_in_shell_approval()
 
                     # Always show subagent events (never buffer them)
@@ -981,18 +1018,18 @@ class ShellREPL(cmd.Cmd):
                     # Subagent event tracking - MUST BE BEFORE ui._handle_event to avoid duplicates
                     if event.type == TurnEventType.SUBAGENT_SPAWNED:
                         # Extract detailed subagent information from metadata
-                        agent_id = event.metadata.get('agent_id', event.text or 'unknown')
-                        agent_name = event.text or 'Unnamed Agent'
-                        agent_type = event.metadata.get('agent_type', 'general')
-                        task = event.metadata.get('task', 'Unknown task')
+                        agent_id = event.metadata.get("agent_id", event.text or "unknown")
+                        agent_name = event.text or "Unnamed Agent"
+                        agent_type = event.metadata.get("agent_type", "general")
+                        task = event.metadata.get("task", "Unknown task")
 
                         # Store in active subagents tracking
                         self._active_subagents[agent_id] = {
-                            'name': agent_name,
-                            'type': agent_type,
-                            'task': task,
-                            'start_time': __import__('time').time(),
-                            'turn_count': 0,
+                            "name": agent_name,
+                            "type": agent_type,
+                            "task": task,
+                            "start_time": __import__("time").time(),
+                            "turn_count": 0,
                         }
 
                         # Display detailed spawn information for EVERY subagent
@@ -1014,19 +1051,23 @@ class ShellREPL(cmd.Cmd):
 
                     elif event.type == TurnEventType.SUBAGENT_PROGRESS:
                         # Extract progress information
-                        agent_id = event.metadata.get('agent_id', 'unknown')
-                        turn_count = event.metadata.get('turn_count', 0)
-                        progress_text = event.text or ''
+                        agent_id = event.metadata.get("agent_id", "unknown")
+                        turn_count = event.metadata.get("turn_count", 0)
+                        progress_text = event.text or ""
 
                         # Update turn count in tracking
                         if agent_id in self._active_subagents:
-                            self._active_subagents[agent_id]['turn_count'] = turn_count
+                            self._active_subagents[agent_id]["turn_count"] = turn_count
 
                             # Show periodic progress updates
                             if turn_count > 0 and turn_count % 5 == 0:
                                 subagent = self._active_subagents[agent_id]
-                                elapsed = __import__('time').time() - subagent['start_time']
-                                print(self.ui._color(f"  [{agent_id[:8]}] Progress: {turn_count} turns ({elapsed:.1f}s)", Colors.DIM))
+                                elapsed = __import__("time").time() - subagent["start_time"]
+                                print(
+                                    self.ui._color(
+                                        f"  [{agent_id[:8]}] Progress: {turn_count} turns ({elapsed:.1f}s)", Colors.DIM
+                                    )
+                                )
 
                         # Show progress text if provided
                         if progress_text:
@@ -1037,11 +1078,11 @@ class ShellREPL(cmd.Cmd):
 
                     elif event.type == TurnEventType.SUBAGENT_COMPLETED:
                         # Extract completion details
-                        agent_id = event.metadata.get('agent_id', 'unknown')
-                        agent_name = event.metadata.get('name', event.text or 'Unknown')
-                        summary = event.text or 'Completed'
-                        turn_count = event.metadata.get('turn_count', 0)
-                        elapsed = event.metadata.get('elapsed', 0.0)
+                        agent_id = event.metadata.get("agent_id", "unknown")
+                        agent_name = event.metadata.get("name", event.text or "Unknown")
+                        summary = event.text or "Completed"
+                        turn_count = event.metadata.get("turn_count", 0)
+                        elapsed = event.metadata.get("elapsed", 0.0)
 
                         # Remove from active tracking
                         if agent_id in self._active_subagents:
@@ -1062,9 +1103,9 @@ class ShellREPL(cmd.Cmd):
 
                     elif event.type == TurnEventType.SUBAGENT_FAILED:
                         # Extract failure details
-                        agent_id = event.metadata.get('agent_id', 'unknown')
-                        agent_name = event.metadata.get('name', 'Unknown Agent')
-                        error = event.error or 'Unknown error'
+                        agent_id = event.metadata.get("agent_id", "unknown")
+                        agent_name = event.metadata.get("name", "Unknown Agent")
+                        error = event.error or "Unknown error"
 
                         # Remove from active tracking
                         if agent_id in self._active_subagents:
@@ -1086,19 +1127,23 @@ class ShellREPL(cmd.Cmd):
 
                     if event.type == TurnEventType.SUBAGENT_PROGRESS:
                         # Extract progress information
-                        agent_id = event.metadata.get('agent_id', 'unknown')
-                        turn_count = event.metadata.get('turn_count', 0)
-                        progress_text = event.text or ''
+                        agent_id = event.metadata.get("agent_id", "unknown")
+                        turn_count = event.metadata.get("turn_count", 0)
+                        progress_text = event.text or ""
 
                         # Update turn count in tracking
                         if agent_id in self._active_subagents:
-                            self._active_subagents[agent_id]['turn_count'] = turn_count
+                            self._active_subagents[agent_id]["turn_count"] = turn_count
 
                             # Show periodic progress updates
                             if turn_count > 0 and turn_count % 5 == 0:
                                 subagent = self._active_subagents[agent_id]
-                                elapsed = __import__('time').time() - subagent['start_time']
-                                print(self.ui._color(f"  [{agent_id[:8]}] Progress: {turn_count} turns ({elapsed:.1f}s)", Colors.DIM))
+                                elapsed = __import__("time").time() - subagent["start_time"]
+                                print(
+                                    self.ui._color(
+                                        f"  [{agent_id[:8]}] Progress: {turn_count} turns ({elapsed:.1f}s)", Colors.DIM
+                                    )
+                                )
 
                         # Show progress text if provided
                         if progress_text:
@@ -1106,11 +1151,11 @@ class ShellREPL(cmd.Cmd):
 
                     elif event.type == TurnEventType.SUBAGENT_COMPLETED:
                         # Extract completion details
-                        agent_id = event.metadata.get('agent_id', 'unknown')
-                        agent_name = event.metadata.get('name', event.text or 'Unknown')
-                        summary = event.text or 'Completed'
-                        turn_count = event.metadata.get('turn_count', 0)
-                        elapsed = event.metadata.get('elapsed', 0.0)
+                        agent_id = event.metadata.get("agent_id", "unknown")
+                        agent_name = event.metadata.get("name", event.text or "Unknown")
+                        summary = event.text or "Completed"
+                        turn_count = event.metadata.get("turn_count", 0)
+                        elapsed = event.metadata.get("elapsed", 0.0)
 
                         # Remove from active tracking
                         if agent_id in self._active_subagents:
@@ -1128,9 +1173,9 @@ class ShellREPL(cmd.Cmd):
 
                     elif event.type == TurnEventType.SUBAGENT_FAILED:
                         # Extract failure details
-                        agent_id = event.metadata.get('agent_id', 'unknown')
-                        agent_name = event.metadata.get('name', 'Unknown Agent')
-                        error = event.error or 'Unknown error'
+                        agent_id = event.metadata.get("agent_id", "unknown")
+                        agent_name = event.metadata.get("name", "Unknown Agent")
+                        error = event.error or "Unknown error"
 
                         # Remove from active tracking
                         if agent_id in self._active_subagents:
@@ -1149,7 +1194,11 @@ class ShellREPL(cmd.Cmd):
                         if showing_approval:
                             pending_approvals.append(event)
                             print()  # Add spacing
-                            print(self.ui._color(f"[Queued: {len(pending_approvals)} more approval(s) waiting...]", Colors.DIM))
+                            print(
+                                self.ui._color(
+                                    f"[Queued: {len(pending_approvals)} more approval(s) waiting...]", Colors.DIM
+                                )
+                            )
                             continue  # Don't show prompt yet, process next event
 
                         # Parse tool info
@@ -1166,12 +1215,13 @@ class ShellREPL(cmd.Cmd):
                         # Show arguments
                         try:
                             import json
+
                             args = json.loads(tool_args) if tool_args else {}
                             if args:
                                 print(f"  {self.ui._color('Arguments:', Colors.CYAN)}")
                                 for key, value in args.items():
                                     print(f"    {key}: {value}")
-                        except:
+                        except Exception:
                             pass
 
                         # Mark as showing approval and get user decision
@@ -1185,7 +1235,7 @@ class ShellREPL(cmd.Cmd):
                             user_input = self._safe_input(
                                 self.ui._color("Approve? (y/n/a=always): ", Colors.YELLOW),
                                 default="n",
-                                timeout=60.0  # 60 second timeout
+                                timeout=60.0,  # 60 second timeout
                             ).lower()
                             if user_input:
                                 decision = user_input[0]  # Take first character
@@ -1207,7 +1257,12 @@ class ShellREPL(cmd.Cmd):
                         # If there are queued approvals, show a message
                         if pending_approvals:
                             print()
-                            print(self.ui._color(f"ℹ️  {len(pending_approvals)} more approval(s) in queue - will be shown next", Colors.CYAN))
+                            print(
+                                self.ui._color(
+                                    f"ℹ️  {len(pending_approvals)} more approval(s) in queue - will be shown next",
+                                    Colors.CYAN,
+                                )
+                            )
 
                     # Check for user question
                     if event.type == TurnEventType.USER_QUESTION:
@@ -1234,7 +1289,7 @@ class ShellREPL(cmd.Cmd):
                             user_input = self._safe_input(
                                 self.ui._color("Your choice: ", Colors.YELLOW),
                                 default="",
-                                timeout=60.0  # 60 second timeout
+                                timeout=60.0,  # 60 second timeout
                             )
 
                             if not user_input:
@@ -1288,7 +1343,6 @@ class ShellREPL(cmd.Cmd):
     def _handle_edit_config(self) -> bool:
         """Handle /config_edit command - open config in text editor."""
         import subprocess
-        import tempfile
 
         # Get config path from controller
         config_path = self.controller.config.config_path
@@ -1321,6 +1375,7 @@ class ShellREPL(cmd.Cmd):
             # Reload config after editing
             print("\nReloading configuration...")
             from ..core.config import SpectraConfig
+
             self.controller.config = SpectraConfig.load()
 
             print("Configuration reloaded successfully.")
@@ -1357,8 +1412,12 @@ class ShellREPL(cmd.Cmd):
         print(f"  Provider: {self.ui._color(config['provider'], Colors.CYAN)}")
         print(f"  Model:    {self.ui._color(config['model'], Colors.CYAN)}")
         print(f"  API Base: {config['api_base']}")
-        print(f"  API Key:  {self.ui._color(config['api_key_preview'], Colors.GREEN if config['has_api_key'] else Colors.YELLOW)}")
-        print(f"  Shell Auto-Approve Limit: {self.ui._color(str(getattr(self.controller.config, 'shell_auto_approve_limit', 10)), Colors.CYAN)}")
+        print(
+            f"  API Key:  {self.ui._color(config['api_key_preview'], Colors.GREEN if config['has_api_key'] else Colors.YELLOW)}"
+        )
+        print(
+            f"  Shell Auto-Approve Limit: {self.ui._color(str(getattr(self.controller.config, 'shell_auto_approve_limit', 10)), Colors.CYAN)}"
+        )
         print()
 
         return False
@@ -1367,7 +1426,7 @@ class ShellREPL(cmd.Cmd):
         """Handle /autoapprove_limit command."""
         if not value:
             # Show current limit
-            current_limit = getattr(self.controller.config, 'shell_auto_approve_limit', 10)
+            current_limit = getattr(self.controller.config, "shell_auto_approve_limit", 10)
             print()
             print(self.ui._bold("Shell Auto-Approve Limit:"))
             print(f"  Current: {self.ui._color(str(current_limit), Colors.CYAN)}")
@@ -1422,9 +1481,9 @@ class ShellREPL(cmd.Cmd):
                 return False
 
             for i, model in enumerate(models, 1):
-                model_id = model['id']
-                model_name_display = model['name']
-                current = " (current)" if model_id == config['model'] else ""
+                model_id = model["id"]
+                model_name_display = model["name"]
+                current = " (current)" if model_id == config["model"] else ""
                 print(f"  {i}. {self.ui._color(model_id, Colors.CYAN)}: {model_name_display}{current}")
 
             print()
@@ -1471,4 +1530,3 @@ class ShellREPL(cmd.Cmd):
             self.ui.print_success("API key updated")
 
         return False
-

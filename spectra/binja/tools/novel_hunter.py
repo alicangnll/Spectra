@@ -10,11 +10,11 @@ from typing import Annotated
 
 from ...tools.base import tool
 from ...tools.novel_hunter import (
+    NovelVulnerabilityHunterCore,
+    VulnerabilityFinding,
     analyze_novel_vulnerabilities,
     check_novelty_indicators,
     generate_exploit_template,
-    NovelVulnerabilityHunterCore,
-    VulnerabilityFinding,
 )
 
 
@@ -159,7 +159,9 @@ def check_function_novelty(
 
 @tool(category="exploit", description="Generate exploit for vulnerability at current address")
 def generate_exploit_for_address(
-    vuln_type: Annotated[str, "Type of vulnerability (stack_overflow, heap_overflow, use_after_free, command_injection, etc.)"],
+    vuln_type: Annotated[
+        str, "Type of vulnerability (stack_overflow, heap_overflow, use_after_free, command_injection, etc.)"
+    ],
     address: Annotated[int, "Address of the vulnerability"] = 0,
     description: Annotated[str, "Description of the vulnerability"] = "",
 ) -> str:
@@ -204,7 +206,11 @@ def generate_exploit_for_address(
     location = f"0x{address:X} ({func_name})" if address else "current location"
 
     if not description:
-        description = f"Vulnerability in function {func_name} at address 0x{address:X}" if address else "Vulnerability at current location"
+        description = (
+            f"Vulnerability in function {func_name} at address 0x{address:X}"
+            if address
+            else "Vulnerability at current location"
+        )
 
     # Use the shared exploit generator
     return generate_exploit_template(
@@ -237,9 +243,21 @@ def find_custom_allocators() -> str:
         return "Error: No binary loaded"
 
     allocator_patterns = [
-        "alloc", "malloc", "calloc", "realloc", "free",
-        "pool", "arena", "region", "bump", "cache",
-        "mem_", "memory", "buffer", "heap", "stack"
+        "alloc",
+        "malloc",
+        "calloc",
+        "realloc",
+        "free",
+        "pool",
+        "arena",
+        "region",
+        "bump",
+        "cache",
+        "mem_",
+        "memory",
+        "buffer",
+        "heap",
+        "stack",
     ]
 
     findings = []
@@ -250,12 +268,14 @@ def find_custom_allocators() -> str:
 
         # Check if function name suggests allocator
         if any(pattern in func_name.lower() for pattern in allocator_patterns):
-            findings.append({
-                "address": f"0x{func.start:X}",
-                "name": func_name,
-                "size": func.end - func.start,
-                "type": "allocator_candidate"
-            })
+            findings.append(
+                {
+                    "address": f"0x{func.start:X}",
+                    "name": func_name,
+                    "size": func.end - func.start,
+                    "type": "allocator_candidate",
+                }
+            )
 
     if not findings:
         return "No custom allocator candidates found. The binary likely uses standard library allocators."
@@ -274,7 +294,9 @@ def find_custom_allocators() -> str:
     if len(findings) > 50:
         report += f"| ... | ... and {len(findings) - 50} more | ... |\n"
 
-    report += "\n**Recommendation:** Use `analyze_decompiled_novel_vulns` on each candidate to identify vulnerabilities."
+    report += (
+        "\n**Recommendation:** Use `analyze_decompiled_novel_vulns` on each candidate to identify vulnerabilities."
+    )
 
     return report
 
@@ -327,10 +349,7 @@ def deep_novel_analysis(
         return f"Error: Could not decompile function at 0x{address:X}"
 
     # Use the shared analyzer
-    analysis_result = analyze_novel_vulnerabilities(
-        code=pseudocode,
-        focus_area="deep analysis"
-    )
+    analysis_result = analyze_novel_vulnerabilities(code=pseudocode, focus_area="deep analysis")
 
     # Add control flow information
     flow_info = f"\n## Control Flow Analysis\n\n**Basic Blocks:** {len(func.basic_blocks)}\n"

@@ -10,13 +10,7 @@ Provides sophisticated binary analysis capabilities:
 
 from __future__ import annotations
 
-import re
-from dataclasses import dataclass, field
-from typing import Any, List, Set, Dict
-from collections.abc import Callable
-
 from .base import tool
-
 
 # ============================================================================
 # Dangerous Functions (Taint Sinks)
@@ -26,7 +20,6 @@ DANGEROUS_FUNCTIONS = {
     # String operations (classic overflow prone)
     "strcpy": "Copies without bounds check - overflow if src > dst",
     "strcat": "Concatenates without bounds - overflow",
-    "sprintf": "Format string without bounds - overflow",
     "vsprintf": "Format string without bounds - overflow",
     "gets": "Reads without bounds - definite overflow",
     "strncpy": "Can overflow if no null terminator",
@@ -35,17 +28,14 @@ DANGEROUS_FUNCTIONS = {
     "sscanf": "Can overflow with %s",
     "fscanf": "Can overflow with %s",
     "realpath": "Can overflow buffer",
-
     # Memory operations
     "memcpy": "Overflow if size > dest",
     "memmove": "Overflow if size > dest",
     "memset": "Overflow if size > dest",
     "bcopy": "Overflow if size > dest",
-    "wcscpy": "Wide char version of strcpy",
     "wcscat": "Wide char version of strcat",
     "wcscpy": "Wide char overflow",
     "mbscpy": "Multi-byte overflow",
-
     # Format string vulnerabilities
     "printf": "Format string if format controlled",
     "fprintf": "Format string vulnerability",
@@ -54,7 +44,6 @@ DANGEROUS_FUNCTIONS = {
     "syslog": "Format string vulnerability",
     "setproctitle": "Format string vulnerability",
     "dprintf": "Format string vulnerability",
-
     # Command injection
     "system": "Command injection if argument controlled",
     "popen": "Command injection",
@@ -64,7 +53,6 @@ DANGEROUS_FUNCTIONS = {
     "execv": "Command injection",
     "execvp": "Command injection",
     "execve": "Command injection",
-
     # File operations
     "fopen": "Path traversal if filename controlled",
     "open": "Path traversal",
@@ -72,7 +60,6 @@ DANGEROUS_FUNCTIONS = {
     "access": "TOCTOU vulnerability",
     "stat": "Path traversal",
     "lstat": "Path traversal",
-
     # Use-after-free prone
     "free": "Use-after-free if pointer used after",
     "kfree": "Kernel use-after-free",
@@ -95,25 +82,21 @@ TAINT_SOURCES = {
     "getc": "Reads character",
     "gets": "Reads line (DANGEROUS)",
     "getline": "Reads line dynamically",
-
     # Environment
     "getenv": "Environment variable",
     "secure_getenv": "Environment variable (safe check)",
-
     # Network
     "socket": "Socket descriptor (potential)",
     "accept": "New connection (potential)",
     "select": "File descriptor check",
     "poll": "File descriptor check",
     "epoll_wait": "Event notification",
-
     # File/Path
     "fopen": "User-controlled path",
     "open": "User-controlled path",
     "opendir": "User-controlled path",
     "stat": "User-controlled path",
     "access": "User-controlled path",
-
     # Arguments
     "argv": "Command line arguments",
     "argc": "Argument count",
@@ -123,6 +106,7 @@ TAINT_SOURCES = {
 # ============================================================================
 # Taint Analysis
 # ============================================================================
+
 
 @tool(category="security", description="Track data flow from user input to dangerous functions")
 def taint_analysis(
@@ -144,7 +128,7 @@ def taint_analysis(
     Returns:
         Detailed taint analysis report with vulnerable paths.
     """
-    report = """## Taint Analysis Results
+    report = f"""## Taint Analysis Results
 
 **Entry Point:** {entry_point}
 **Max Depth:** {max_depth} function calls
@@ -348,7 +332,7 @@ This analysis is manual guidance. For automated analysis, use:
 - angr (symbolic execution)
 - Triton (dynamic taint analysis)
 - BAP (binary analysis platform)
-""".format(entry_point=entry_point, max_depth=max_depth)
+"""
 
     return report
 
@@ -356,6 +340,7 @@ This analysis is manual guidance. For automated analysis, use:
 # ============================================================================
 # XREF Vulnerability Scanner
 # ============================================================================
+
 
 @tool(category="security", description="Find dangerous function calls via cross-references")
 def xref_vuln_scan(
@@ -390,9 +375,9 @@ def xref_vuln_scan(
     for func in functions:
         desc = DANGEROUS_FUNCTIONS.get(func, "Unknown function")
         risk = _get_risk_level(func)
-        report += f"| `{func}` | TODO | {risk} | {desc} |\\n"
+        report += f"| `{func}` | TODO | {risk} | {desc} |\n"
 
-    report += f"""
+    report += """
 
 ### Analysis Methodology
 
@@ -415,12 +400,12 @@ dangerous = ['strcpy', 'sprintf', 'gets', 'system', 'printf']
 for func_name in dangerous:
     addr = ida_name.get_name_ea_simple(func_name)
     if addr != ida_ida.BADADDR:
-        print(f"=== {{func_name}} @ 0x{{addr:x}} ===")
+        print(f"=== {func_name} @ 0x{addr:x} ===")
 
         for xref in ida_xref.XrefsTo(addr):
             if xref.type == ida_xref.fl_CN:  # Call
                 caller_func = ida_name.get_name(xref.frm)
-                print(f"  Called from: {{caller_func}} @ 0x{{xref.from:x}}")
+                print(f"  Called from: {caller_func} @ 0x{xref.from:x}")
 ```
 
 ### Call Site Examples
@@ -428,48 +413,48 @@ for func_name in dangerous:
 #### strcpy Pattern
 ```c
 // DANGEROUS: No bounds check
-void handler(char *user_input) {{
+void handler(char *user_input) {
     char buffer[64];
     strcpy(buffer, user_input);  // XREF → exploitable
-}}
+}
 
 // SAFE: Bounds checked
-void safe_handler(char *user_input) {{
+void safe_handler(char *user_input) {
     char buffer[64];
     strncpy(buffer, user_input, sizeof(buffer) - 1);
     buffer[sizeof(buffer) - 1] = '\\0';
-}}
+}
 ```
 
 #### sprintf Pattern
 ```c
 // DANGEROUS: Buffer overflow
-void log_message(char *msg) {{
+void log_message(char *msg) {
     char buffer[256];
     sprintf(buffer, "Message: %s", msg);  // XREF → exploitable
-}}
+}
 
 // SAFE: Use snprintf
-void safe_log(char *msg) {{
+void safe_log(char *msg) {
     char buffer[256];
     snprintf(buffer, sizeof(buffer), "Message: %s", msg);
-}}
+}
 ```
 
 #### system Pattern
 ```c
 // DANGEROUS: Command injection
-void execute_command(char *cmd) {{
+void execute_command(char *cmd) {
     system(cmd);  // XREF → exploitable
-}}
+}
 
 // SAFE: Whitelist commands
-int safe_execute(char *cmd) {{
-    const char *allowed[] = {{"ls", "date"}};
+int safe_execute(char *cmd) {
+    const char *allowed[] = {"ls", "date"};
     if (!is_allowed(cmd, allowed))
         return -1;
     return system(cmd);
-}}
+}
 ```
 
 ### Exploitability Assessment
@@ -572,6 +557,7 @@ def _get_risk_level(func_name: str) -> str:
 # ============================================================================
 # Buffer Size Analyzer
 # ============================================================================
+
 
 @tool(category="security", description="Extract buffer sizes from struct/type information")
 def buffer_size_analysis(
@@ -789,6 +775,7 @@ strncpy_s(buffer, sizeof(buffer), input, _TRUNCATE);
 # ============================================================================
 # Call Graph Attack Surface
 # ============================================================================
+
 
 @tool(category="security", description="Map attack surface via call graph analysis")
 def call_graph_attack_surface(
@@ -1052,6 +1039,7 @@ def find_attack_surface(binary):
 # ============================================================================
 # Type-based Overflow Detection
 # ============================================================================
+
 
 @tool(category="security", description="Detect type mismatches that cause overflows")
 def type_overflow_detection(

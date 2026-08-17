@@ -8,6 +8,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from tests.mocks.ida_mock import install_ida_mocks
+
 install_ida_mocks()
 
 from spectra.tools.script_guard import _check_ast, run_guarded_script
@@ -85,10 +86,12 @@ class TestRunGuardedScript(unittest.TestCase):
 
     def test_namespace_provided_to_exec(self):
         ns_calls = []
+
         def ns_factory():
             d = {"captured": ns_calls}
             ns_calls.append("called")
             return d
+
         result = run_guarded_script("captured.append('exec')", ns_factory)
         assert "exec" in ns_calls
         assert result == "(no output)"
@@ -107,9 +110,11 @@ class TestRunGuardedScript(unittest.TestCase):
 
     def test_namespace_factory_called_fresh_each_time(self):
         calls = []
+
         def factory():
             calls.append(1)
             return {}
+
         run_guarded_script("x = 1", factory)
         run_guarded_script("y = 2", factory)
         assert len(calls) == 2

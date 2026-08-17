@@ -8,23 +8,24 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from tests.qt_stubs import ensure_pyside6_stubs
+
 ensure_pyside6_stubs()
 
 sys.modules.setdefault("binaryninja", types.ModuleType("binaryninja"))
 
-from spectra.ui.context_bar import _function_name_at, ContextBar  # noqa: E402
-
+from spectra.ui.context_bar import ContextBar, _function_name_at
 
 # ---------------------------------------------------------------------------
 # Helper: create a ContextBar without calling __init__
 # ---------------------------------------------------------------------------
 
+
 def _make_bar() -> ContextBar:
     bar = object.__new__(ContextBar)
     bar._stopped = False
-    # Mock label pairs
-    bar._address_label = (MagicMock(), MagicMock())
-    bar._function_label = (MagicMock(), MagicMock())
+    # Mock the redesigned jump buttons + remaining label pairs
+    bar._address_btn = MagicMock()
+    bar._function_btn = MagicMock()
     bar._model_label = (MagicMock(), MagicMock())
     bar._tokens_label = (MagicMock(), MagicMock())
     bar._timer = MagicMock()
@@ -34,6 +35,7 @@ def _make_bar() -> ContextBar:
 # ---------------------------------------------------------------------------
 # set_tokens
 # ---------------------------------------------------------------------------
+
 
 class TestSetTokens(unittest.TestCase):
     def test_small_count_shown_as_int(self):
@@ -75,31 +77,33 @@ class TestSetTokens(unittest.TestCase):
 # set_function
 # ---------------------------------------------------------------------------
 
+
 class TestSetFunction(unittest.TestCase):
     def test_short_name_passed_through(self):
         bar = _make_bar()
         bar.set_function("my_func")
-        bar._function_label[1].setText.assert_called_once_with("my_func")
+        bar._function_btn.setText.assert_called_once_with("Func: my_func")
 
     def test_long_name_truncated(self):
         bar = _make_bar()
         long_name = "a" * 35
         bar.set_function(long_name)
-        call_arg = bar._function_label[1].setText.call_args[0][0]
+        call_arg = bar._function_btn.setText.call_args[0][0]
         self.assertTrue(call_arg.endswith("..."))
-        self.assertLessEqual(len(call_arg), 30)
+        # "Func: " prefix + 22 chars + "..."
+        self.assertEqual(call_arg, "Func: " + "a" * 22 + "...")
 
-    def test_exactly_29_chars_not_truncated(self):
+    def test_exactly_24_chars_not_truncated(self):
         bar = _make_bar()
-        name = "b" * 29
+        name = "b" * 24
         bar.set_function(name)
-        bar._function_label[1].setText.assert_called_once_with(name)
+        bar._function_btn.setText.assert_called_once_with(f"Func: {name}")
 
-    def test_exactly_30_chars_truncated(self):
+    def test_exactly_25_chars_truncated(self):
         bar = _make_bar()
-        name = "c" * 30
+        name = "c" * 25
         bar.set_function(name)
-        call_arg = bar._function_label[1].setText.call_args[0][0]
+        call_arg = bar._function_btn.setText.call_args[0][0]
         self.assertTrue(call_arg.endswith("..."))
 
 
@@ -107,11 +111,12 @@ class TestSetFunction(unittest.TestCase):
 # set_address / set_model
 # ---------------------------------------------------------------------------
 
+
 class TestSetAddress(unittest.TestCase):
     def test_set_address_updates_label(self):
         bar = _make_bar()
         bar.set_address("0x1000")
-        bar._address_label[1].setText.assert_called_once_with("0x1000")
+        bar._address_btn.setText.assert_called_once_with("Addr: 0x1000")
 
 
 class TestSetModel(unittest.TestCase):
@@ -125,17 +130,22 @@ class TestSetModel(unittest.TestCase):
 # _function_name_at — standalone host
 # ---------------------------------------------------------------------------
 
+
 class TestFunctionNameAt(unittest.TestCase):
     def test_returns_none_in_standalone_mode(self):
-        with patch("spectra.ui.context_bar.is_ida", return_value=False), \
-             patch("spectra.ui.context_bar.is_binary_ninja", return_value=False):
+        with (
+            patch("spectra.ui.context_bar.is_ida", return_value=False),
+            patch("spectra.ui.context_bar.is_binary_ninja", return_value=False),
+        ):
             result = _function_name_at(0x1000)
             self.assertIsNone(result)
 
     def test_returns_none_when_binary_ninja_no_bv(self):
-        with patch("spectra.ui.context_bar.is_ida", return_value=False), \
-             patch("spectra.ui.context_bar.is_binary_ninja", return_value=True), \
-             patch("spectra.ui.context_bar.get_binary_ninja_view", return_value=None):
+        with (
+            patch("spectra.ui.context_bar.is_ida", return_value=False),
+            patch("spectra.ui.context_bar.is_binary_ninja", return_value=True),
+            patch("spectra.ui.context_bar.get_binary_ninja_view", return_value=None),
+        ):
             result = _function_name_at(0x1000)
             self.assertIsNone(result)
 
@@ -144,9 +154,11 @@ class TestFunctionNameAt(unittest.TestCase):
         mock_func = MagicMock()
         mock_func.name = "target_fn"
         mock_bv.get_function_at.return_value = mock_func
-        with patch("spectra.ui.context_bar.is_ida", return_value=False), \
-             patch("spectra.ui.context_bar.is_binary_ninja", return_value=True), \
-             patch("spectra.ui.context_bar.get_binary_ninja_view", return_value=mock_bv):
+        with (
+            patch("spectra.ui.context_bar.is_ida", return_value=False),
+            patch("spectra.ui.context_bar.is_binary_ninja", return_value=True),
+            patch("spectra.ui.context_bar.get_binary_ninja_view", return_value=mock_bv),
+        ):
             result = _function_name_at(0x1000)
             self.assertEqual(result, "target_fn")
 
@@ -154,9 +166,11 @@ class TestFunctionNameAt(unittest.TestCase):
         mock_bv = MagicMock()
         mock_bv.get_function_at.return_value = None
         mock_bv.get_functions_containing.return_value = []
-        with patch("spectra.ui.context_bar.is_ida", return_value=False), \
-             patch("spectra.ui.context_bar.is_binary_ninja", return_value=True), \
-             patch("spectra.ui.context_bar.get_binary_ninja_view", return_value=mock_bv):
+        with (
+            patch("spectra.ui.context_bar.is_ida", return_value=False),
+            patch("spectra.ui.context_bar.is_binary_ninja", return_value=True),
+            patch("spectra.ui.context_bar.get_binary_ninja_view", return_value=mock_bv),
+        ):
             result = _function_name_at(0x1000)
             self.assertIsNone(result)
 
@@ -164,6 +178,7 @@ class TestFunctionNameAt(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # stop
 # ---------------------------------------------------------------------------
+
 
 class TestContextBarStop(unittest.TestCase):
     def test_stop_sets_stopped_flag(self):

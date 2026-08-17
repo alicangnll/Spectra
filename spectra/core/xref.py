@@ -144,7 +144,7 @@ class XRefGraph:
             # Explore callees
             for callee in self.get_callees(current):
                 if callee not in path:  # Avoid cycles
-                    queue.append((callee, path + [callee]))
+                    queue.append((callee, [*path, callee]))
 
         return paths
 

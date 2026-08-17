@@ -10,21 +10,22 @@ import json
 import unittest
 
 from tests.qt_stubs import ensure_pyside6_stubs
+
 ensure_pyside6_stubs()
 
-from spectra.ui.tool_widgets import (  # noqa: E402
-    _strip_mcp_prefix,
-    _tool_color,
+from spectra.ui.tool_widgets import (
+    _DEFAULT_TOOL_COLOR,
     _format_tool_group_label,
     _format_tool_summary,
+    _strip_mcp_prefix,
+    _tool_color,
     _truncate_preview,
-    _DEFAULT_TOOL_COLOR,
 )
-
 
 # ---------------------------------------------------------------------------
 # _strip_mcp_prefix
 # ---------------------------------------------------------------------------
+
 
 class TestStripMcpPrefix(unittest.TestCase):
     def test_plain_name_unchanged(self):
@@ -49,6 +50,7 @@ class TestStripMcpPrefix(unittest.TestCase):
 # _tool_color
 # ---------------------------------------------------------------------------
 
+
 class TestToolColor(unittest.TestCase):
     def test_known_analysis_tool(self):
         color = _tool_color("decompile_function")
@@ -70,6 +72,7 @@ class TestToolColor(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # _format_tool_group_label
 # ---------------------------------------------------------------------------
+
 
 class TestFormatToolGroupLabel(unittest.TestCase):
     def test_empty_list(self):
@@ -101,6 +104,7 @@ class TestFormatToolGroupLabel(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # _format_tool_summary
 # ---------------------------------------------------------------------------
+
 
 class TestFormatToolSummary(unittest.TestCase):
     def test_decompile_with_address(self):
@@ -169,6 +173,7 @@ class TestFormatToolSummary(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # _truncate_preview
 # ---------------------------------------------------------------------------
+
 
 class TestTruncatePreview(unittest.TestCase):
     def test_short_text_unchanged(self):

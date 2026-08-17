@@ -7,7 +7,6 @@ import json
 import os
 import queue
 import re
-import sys
 import threading
 import time
 import traceback
@@ -382,6 +381,10 @@ class AgentLoop:
         )
         self._always_allow_scripts: bool = parent_loop._always_allow_scripts if parent_loop else False
         self.plan_mode = False
+        # Hard turn cap for the normal loop. Subagents lower this to
+        # config.subagent_turn_limit (see SubagentRunner.run_task) so the
+        # limit is enforced, not merely suggested in the prompt.
+        self.max_turns: int = 1000
 
         # Context window manager — compacts history when approaching limits
         ctx_window = getattr(config.provider, "context_window", 0) or 128000
@@ -1009,9 +1012,7 @@ class AgentLoop:
                 if tool_def and tool_def.parameters:
                     # tool_def.parameters is a list of ParameterSchema objects
                     param_descriptions = {
-                        param.name: param.description
-                        for param in tool_def.parameters
-                        if param.description
+                        param.name: param.description for param in tool_def.parameters if param.description
                     }
 
                 tool_calls.append(ToolCall(id=tc_id, name=tc_name, arguments=args))
@@ -1099,104 +1100,111 @@ class AgentLoop:
                 return False, ""
 
             # Detect platform
-            is_windows = '\\' in command or 'C:' in command.lower() or 'D:' in command.lower()
-            is_linux_unix = '/' in command and not is_windows
+            is_windows = "\\" in command or "C:" in command.lower() or "D:" in command.lower()
+            is_linux_unix = "/" in command and not is_windows
 
             # Dangerous command patterns (cross-platform)
             dangerous_patterns = [
                 # File deletion
-                (r'\brm\s', "File deletion (rm)"),
-                (r'\bunlink\s', "File deletion (unlink)"),
-                (r'\brmdir\s', "Directory removal (rmdir)"),
-                (r'\bdelete\s', "File deletion"),
-                (r'\bdel\s', "File deletion (del)"),
-                (r'\berase\s', "File deletion (erase)"),
-
+                (r"\brm\s", "File deletion (rm)"),
+                (r"\bunlink\s", "File deletion (unlink)"),
+                (r"\brmdir\s", "Directory removal (rmdir)"),
+                (r"\bdelete\s", "File deletion"),
+                (r"\bdel\s", "File deletion (del)"),
+                (r"\berase\s", "File deletion (erase)"),
                 # Destructive operations
-                (r'\bdd\s', "Disk write (dd)"),
-                (r'\bmkfs\.', "Filesystem creation (mkfs)"),
-                (r'\bformat\s', "Disk formatting"),
-                (r'\bfdisk\s', "Partition modification"),
-                (r'\bshred\s', "Secure file deletion"),
-                (r'\bsdelete\s', "Secure file deletion"),
-
+                (r"\bdd\s", "Disk write (dd)"),
+                (r"\bmkfs\.", "Filesystem creation (mkfs)"),
+                (r"\bformat\s", "Disk formatting"),
+                (r"\bfdisk\s", "Partition modification"),
+                (r"\bshred\s", "Secure file deletion"),
+                (r"\bsdelete\s", "Secure file deletion"),
                 # Privilege escalation
-                (r'\bsudo\s', "Privilege escalation (sudo)"),
-                (r'\bsu\s', "User switching (su)"),
-                (r'\bdoas\s', "Privilege escalation (doas)"),
-                (r'\brunas\s', "Privilege escalation (runas)"),
-                (r'\bgsudo\s', "Privilege escalation (gsudo)"),
-
+                (r"\bsudo\s", "Privilege escalation (sudo)"),
+                (r"\bsu\s", "User switching (su)"),
+                (r"\bdoas\s", "Privilege escalation (doas)"),
+                (r"\brunas\s", "Privilege escalation (runas)"),
+                (r"\bgsudo\s", "Privilege escalation (gsudo)"),
                 # System configuration
-                (r'\bchmod\s.*777', "Making files world-writable"),
-                (r'\bchmod\s.*7777', "Making files world-executable"),
-                (r'\bchown\s', "Changing file ownership"),
-                (r'\buseradd\s', "User account creation"),
-                (r'\busermod\s', "User modification"),
-                (r'\buserdel\s', "User deletion"),
-                (r'\bgroupadd\s', "Group creation"),
-                (r'\bpasswd\s', "Password change"),
-                (r'\bcrontab\s.*-e', "Cron modification"),
-
+                (r"\bchmod\s.*777", "Making files world-writable"),
+                (r"\bchmod\s.*7777", "Making files world-executable"),
+                (r"\bchown\s", "Changing file ownership"),
+                (r"\buseradd\s", "User account creation"),
+                (r"\busermod\s", "User modification"),
+                (r"\buserdel\s", "User deletion"),
+                (r"\bgroupadd\s", "Group creation"),
+                (r"\bpasswd\s", "Password change"),
+                (r"\bcrontab\s.*-e", "Cron modification"),
                 # Windows system config
-                (r'\breg\s+(delete|add)', "Registry modification"),
-                (r'\bregedit\s', "Registry editor"),
-                (r'\bgpedit\s', "Group Policy editor"),
-                (r'\bnet\s+(user|group)\s.*(delete|add)', "User/group modification"),
-                (r'\bicacls\s', "Permission modification"),
-                (r'\battrib\s.*-s', "System attribute modification"),
-
+                (r"\breg\s+(delete|add)", "Registry modification"),
+                (r"\bregedit\s", "Registry editor"),
+                (r"\bgpedit\s", "Group Policy editor"),
+                (r"\bnet\s+(user|group)\s.*(delete|add)", "User/group modification"),
+                (r"\bicacls\s", "Permission modification"),
+                (r"\battrib\s.*-s", "System attribute modification"),
                 # Package management
-                (r'\bapt-get\s+(remove|purge)', "Package removal"),
-                (r'\byum\s+(remove|erase)', "Package removal"),
-                (r'\bdnf\s+(remove|erase)', "Package removal"),
-                (r'\bpacman\s.*-(R|U)', "Package removal"),
-                (r'\bbrew\s+(uninstall|remove)', "Package removal"),
-                (r'\bwinget\s+(uninstall|remove)', "Package removal"),
-                (r'\bchoco\s+(uninstall|remove)', "Package removal"),
-                (r'\bscoop\s+(uninstall|remove)', "Package removal"),
-
+                (r"\bapt-get\s+(remove|purge)", "Package removal"),
+                (r"\byum\s+(remove|erase)", "Package removal"),
+                (r"\bdnf\s+(remove|erase)", "Package removal"),
+                (r"\bpacman\s.*-(R|U)", "Package removal"),
+                (r"\bbrew\s+(uninstall|remove)", "Package removal"),
+                (r"\bwinget\s+(uninstall|remove)", "Package removal"),
+                (r"\bchoco\s+(uninstall|remove)", "Package removal"),
+                (r"\bscoop\s+(uninstall|remove)", "Package removal"),
                 # System control
-                (r'\breboot\s', "System reboot"),
-                (r'\bshutdown\s', "System shutdown"),
-                (r'\bpoweroff\s', "System poweroff"),
-                (r'\bsystemctl\s+(stop|disable|restart)', "Service control"),
-                (r'\bservice\s.*stop', "Service stop"),
-                (r'\bnet\s+stop\s', "Service stop"),
-
+                (r"\breboot\s", "System reboot"),
+                (r"\bshutdown\s", "System shutdown"),
+                (r"\bpoweroff\s", "System poweroff"),
+                (r"\bsystemctl\s+(stop|disable|restart)", "Service control"),
+                (r"\bservice\s.*stop", "Service stop"),
+                (r"\bnet\s+stop\s", "Service stop"),
                 # Process control
-                (r'\bkill\s.*-9', "Force kill process"),
-                (r'\bkillall\s', "Kill all processes"),
-                (r'\bpkill\s', "Process kill"),
-                (r'\btaskkill\s', "Process kill (Windows)"),
-
+                (r"\bkill\s.*-9", "Force kill process"),
+                (r"\bkillall\s", "Kill all processes"),
+                (r"\bpkill\s", "Process kill"),
+                (r"\btaskkill\s", "Process kill (Windows)"),
                 # Network operations
-                (r'\biptables\s', "Firewall modification"),
-                (r'\bfirewall-cmd\s', "Firewall modification"),
-                (r'\bnetsh\s', "Network configuration"),
-                (r'\barp\s.*-d', "ARP cache manipulation"),
-
+                (r"\biptables\s", "Firewall modification"),
+                (r"\bfirewall-cmd\s", "Firewall modification"),
+                (r"\bnetsh\s", "Network configuration"),
+                (r"\barp\s.*-d", "ARP cache manipulation"),
                 # Dangerous flags
-                (r'\b--force\b', "Force operation"),
-                (r'\b-f\b.*rm', "Force deletion"),
-                (r'\b-rf\b', "Recursive force deletion"),
-                (r'\b-R\b', "Recursive operation"),
+                (r"\b--force\b", "Force operation"),
+                (r"\b-f\b.*rm", "Force deletion"),
+                (r"\b-rf\b", "Recursive force deletion"),
+                (r"\b-R\b", "Recursive operation"),
             ]
 
             for pattern, reason in dangerous_patterns:
                 if re.search(pattern, command, re.IGNORECASE):
                     # Check for system paths (Linux/macOS)
-                    if is_linux_unix and any(sys_path in command.lower() for sys_path in [
-                        '/etc', '/boot', '/sys', '/dev', '/proc', '/root',
-                        '/usr/bin', '/usr/sbin', '/bin', '/sbin', '/lib',
-                        '/var/log', '/etc/cron.', '/etc/systemd/', '/etc/init.d/'
-                    ]):
+                    if is_linux_unix and any(
+                        sys_path in command.lower()
+                        for sys_path in [
+                            "/etc",
+                            "/boot",
+                            "/sys",
+                            "/dev",
+                            "/proc",
+                            "/root",
+                            "/usr/bin",
+                            "/usr/sbin",
+                            "/bin",
+                            "/sbin",
+                            "/lib",
+                            "/var/log",
+                            "/etc/cron.",
+                            "/etc/systemd/",
+                            "/etc/init.d/",
+                        ]
+                    ):
                         return True, f"{reason} in system directory"
 
                     # Check for system paths (Windows)
-                    if is_windows and any(sys_path in command.lower() for sys_path in [
-                        'c:\\windows', 'c:\\program files', 'hkey_local_machine'
-                    ]):
+                    if is_windows and any(
+                        sys_path in command.lower()
+                        for sys_path in ["c:\\windows", "c:\\program files", "hkey_local_machine"]
+                    ):
                         return True, f"{reason} in Windows system directory"
 
                     return True, reason
@@ -1210,16 +1218,24 @@ class AgentLoop:
 
             # Linux/macOS sensitive paths
             linux_macos_sensitive = [
-                "/etc/", "/boot/", "/sys/", "/dev/", "/proc/",
-                "/root/", "/usr/bin/", "/usr/sbin/", "/bin/", "/sbin/",
-                "/lib/", "/var/log/", "/etc/cron.", "/etc/systemd/"
+                "/etc/",
+                "/boot/",
+                "/sys/",
+                "/dev/",
+                "/proc/",
+                "/root/",
+                "/usr/bin/",
+                "/usr/sbin/",
+                "/bin/",
+                "/sbin/",
+                "/lib/",
+                "/var/log/",
+                "/etc/cron.",
+                "/etc/systemd/",
             ]
 
             # Windows sensitive paths
-            windows_sensitive = [
-                "C:\\Windows\\", "C:\\Program Files\\",
-                "C:\\ProgramData\\", "HKEY_LOCAL_MACHINE"
-            ]
+            windows_sensitive = ["C:\\Windows\\", "C:\\Program Files\\", "C:\\ProgramData\\", "HKEY_LOCAL_MACHINE"]
 
             for sys_path in linux_macos_sensitive:
                 if path.startswith(sys_path):
@@ -1227,7 +1243,7 @@ class AgentLoop:
 
             for sys_path in windows_sensitive:
                 if sys_path.lower() in path.lower():
-                    return True, f"File modification in Windows system directory"
+                    return True, "File modification in Windows system directory"
 
             return False, ""
 
@@ -1242,23 +1258,21 @@ class AgentLoop:
         Returns True if approved, False if denied.
         Handles 'allow_all' to skip future approval prompts for this session.
         """
-        print(f"[LOOP DEBUG] _wait_for_approval START: {tc.name}", file=sys.stderr, flush=True)
+        log_debug(f"_wait_for_approval: {tc.name}")
 
         # Skip prompt if user previously chose "Always Allow"
         if self._always_allow_scripts:
-            print(f"[LOOP DEBUG] Skipping - always allow scripts", file=sys.stderr, flush=True)
+            log_debug("Approval skipped — always-allow is active for this session")
             return True
 
         args_str = json.dumps(tc.arguments, indent=2)
         description = self._describe_tool_call(tc.name, tc.arguments)
-        print(f"[LOOP DEBUG] Emitting TOOL_APPROVAL_REQUEST event...", file=sys.stderr, flush=True)
         yield TurnEvent.tool_approval_request(tc.id, tc.name, args_str, description)
 
-        print(f"[LOOP DEBUG] Event yielded, waiting for queue...", file=sys.stderr, flush=True)
-        print(f"[LOOP DEBUG] Queue size: {self._tool_approval_queue.qsize()}", file=sys.stderr, flush=True)
+        log_debug(f"Approval request emitted for {tc.name}, waiting for decision")
 
         decision = self._wait_for_queue(self._tool_approval_queue).lower()
-        print(f"[LOOP DEBUG] Got decision: {decision}", file=sys.stderr, flush=True)
+        log_debug(f"Approval decision for {tc.name}: {decision}")
 
         if decision == "allow_all":
             self._always_allow_scripts = True
@@ -1439,6 +1453,7 @@ class AgentLoop:
             is_err = True
         else:
             import uuid
+
             agent_id = uuid.uuid4().hex[:8]
 
             try:
@@ -1525,10 +1540,9 @@ class AgentLoop:
         # Check for dangerous commands BEFORE executing
         is_dangerous, danger_reason = self._is_dangerous_command(tc.name, tc.arguments)
         if is_dangerous:
-            print(f"[LOOP DEBUG] Dangerous command detected: {tc.name} - {danger_reason}", file=sys.stderr, flush=True)
-            print(f"[LOOP DEBUG] Calling _wait_for_approval...", file=sys.stderr, flush=True)
+            log_debug(f"Dangerous command detected: {tc.name} - {danger_reason}")
             approved = yield from self._wait_for_approval(tc)
-            print(f"[LOOP DEBUG] Approved: {approved}", file=sys.stderr, flush=True)
+            log_debug(f"Dangerous command {tc.name} approved: {approved}")
             if not approved:
                 content = f"Dangerous operation denied by user: {danger_reason}"
                 tr = ToolResult(tool_call_id=tc.id, name=tc.name, content=content, is_error=True)
@@ -1770,16 +1784,36 @@ class AgentLoop:
                     # Check if the current task actually requires exploration mode
                     # Skip for non-code-analysis tasks like file creation, scripts, etc.
                     _non_exploration_keywords = [
-                        "docker", "script", "create file", "write file", "generate",
-                        "komut dosyası", "script yaz", "dosya oluştur", "docker-compose",
-                        "yaz bir", "oluştur", "generate a", "create a", "write a"
+                        "docker",
+                        "script",
+                        "create file",
+                        "write file",
+                        "generate",
+                        "komut dosyası",
+                        "script yaz",
+                        "dosya oluştur",
+                        "docker-compose",
+                        "yaz bir",
+                        "oluştur",
+                        "generate a",
+                        "create a",
+                        "write a",
                     ]
                     _is_exploration_task = True
                     user_lower = user_message.lower()
                     for keyword in _non_exploration_keywords:
                         if keyword in user_lower:
                             # Check if it's asking to analyze vs create
-                            _analysis_keywords = ["analyze", "analyse", "analiz et", "bul", "find", "zafiyet", "vulnerability", "security"]
+                            _analysis_keywords = [
+                                "analyze",
+                                "analyse",
+                                "analiz et",
+                                "bul",
+                                "find",
+                                "zafiyet",
+                                "vulnerability",
+                                "security",
+                            ]
                             if not any(akw in user_lower for akw in _analysis_keywords):
                                 _is_exploration_task = False
                                 break
@@ -1791,7 +1825,7 @@ class AgentLoop:
                     else:
                         # Clear the persisted exploration mode for this non-exploration task
                         self.session.metadata.pop("active_mode", None)
-                        log_info(f"Clearing persisted exploration mode for non-code-analysis task")
+                        log_info("Clearing persisted exploration mode for non-code-analysis task")
 
             self.session.add_message(Message(role=Role.USER, content=user_message))
             system_prompt = minify_text(self._build_system_prompt())

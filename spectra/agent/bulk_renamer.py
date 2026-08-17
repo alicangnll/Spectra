@@ -634,6 +634,7 @@ class BulkRenamerEngine:
         completed_count = 0
         rename_pattern = re.compile(r"RENAME:\s*0x([0-9a-fA-F]+)\s+(\S+)")
         mgr = self._subagent_manager
+        lock = threading.Lock()  # guards completed_count across worker threads
 
         def _analyze_one(job: RenameJob) -> None:
             nonlocal completed_count

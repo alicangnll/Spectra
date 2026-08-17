@@ -1,8 +1,6 @@
 # Spectra Docker Compose Configuration
 # AI-Powered Reverse Engineering Agent
 
-version: '3.8'
-
 services:
   spectra-cli:
     build:
@@ -23,12 +21,13 @@ services:
 
     # Mount volumes for persistence
     volumes:
-      # Main data directory
+      # Main data directory (sessions live under /spectra/data/sessions
+      # and are persisted by this volume — a nested session volume would
+      # shadow it)
       - spectra-data:/spectra/data
-      # Session history
-      - spectra-sessions:/spectra/data/sessions
-      # Custom skills (if any)
-      - ./spectra/skills/builtins:/spectra/skills/builtins:ro
+      # Built-in skills: the package lives at /spectra/spectra/ in the
+      # image (WORKDIR /spectra + COPY spectra/ ./spectra/)
+      - ./spectra/skills/builtins:/spectra/spectra/skills/builtins:ro
       # Analysis targets (read-only)
       - ${TARGET_DIR:-./targets}:/targets:ro
 
@@ -54,30 +53,8 @@ services:
     # Command (can be overridden)
     command: ["--help"]
 
-  # Optional: Spectra with GPU support (for local models)
-  spectra-gpu:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: spectra:latest
-    container_name: spectra-gpu
-
-    # GPU support (requires nvidia-docker)
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
-
-    profiles:
-      - gpu
-
 volumes:
   spectra-data:
-    driver: local
-  spectra-sessions:
     driver: local
 
 networks:

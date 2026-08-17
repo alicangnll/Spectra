@@ -71,6 +71,7 @@ class SpectraPlugmod(idaapi.plugmod_t):
         # disconnectNotify -> PyErr_Occurred on a dead interpreter -> crash.
         try:
             from PySide6.QtWidgets import QApplication
+
             QApplication.processEvents()
         except Exception:
             pass
@@ -109,15 +110,15 @@ class SpectraPlugmod(idaapi.plugmod_t):
         except Exception as e:
             import sys
             import traceback
+
             tb_str = traceback.format_exc()
             idaapi.msg(f"[Spectra] Failed to open panel: {e}\n{tb_str}\n")
             try:
-                importlib.import_module("spectra.core.logging").log_error(
-                    f"Failed to open panel: {e}\n{tb_str}"
-                )
+                importlib.import_module("spectra.core.logging").log_error(f"Failed to open panel: {e}\n{tb_str}")
             except Exception:
                 try:
                     import os
+
                     log_path = os.path.join(os.path.expanduser("~"), ".idapro", "spectra", "spectra_debug.log")
                     with open(log_path, "a") as f:
                         f.write(f"[Spectra CRASH] {e}\n{tb_str}\n")
@@ -139,12 +140,13 @@ class SpectraPlugin(idaapi.plugin_t):
         idaapi.msg(f"[Spectra] Plugin loaded (v{_ver})\n")
 
         # Add Windows Python site-packages to IDA's Python path
-        import sys
         import os
+        import sys
 
         if sys.platform == "win32":
             import glob
-            username = os.environ.get('USERNAME', 'user')
+
+            username = os.environ.get("USERNAME", "user")
 
             # First, try to add the lib subdirectory next to the spectra package
             # This contains x64-compatible packages for ARM64 systems
@@ -186,6 +188,7 @@ class SpectraPlugin(idaapi.plugin_t):
         if sys.platform != "win32":
             try:
                 import site as _site
+
                 major = sys.version_info.major
                 minor = sys.version_info.minor
                 home = os.path.expanduser("~")
@@ -250,9 +253,9 @@ class SpectraPlugin(idaapi.plugin_t):
             pass  # Need to install
 
         try:
-            import sys
             import os
             import subprocess
+            import sys
 
             python_exe = None
             ida_dir = os.path.dirname(os.path.dirname(idaapi.__file__))
@@ -265,9 +268,7 @@ class SpectraPlugin(idaapi.plugin_t):
                 if "python" in exe_name or (sys.platform == "win32" and exe_name.endswith(".exe")):
                     # Verify it can run pip
                     test_result = subprocess.run(
-                        [sys.executable, "-m", "pip", "--version"],
-                        capture_output=True,
-                        timeout=10
+                        [sys.executable, "-m", "pip", "--version"], capture_output=True, timeout=10
                     )
                     if test_result.returncode == 0:
                         python_exe = sys.executable
@@ -302,7 +303,7 @@ class SpectraPlugin(idaapi.plugin_t):
                 if sys.platform == "win32":
                     # Windows system Python
                     py_version = f"{sys.version_info.major}.{sys.version_info.minor}"
-                    username = os.environ.get('USERNAME', 'user')
+                    username = os.environ.get("USERNAME", "user")
                     for pattern in [
                         f"C:\\Program Files\\Python{py_version}\\python.exe",
                         f"C:\\Program Files\\Python{sys.version_info.major}{sys.version_info.minor}\\python.exe",
@@ -329,8 +330,9 @@ class SpectraPlugin(idaapi.plugin_t):
                     # Also try to parse version from sys.path entries like
                     # "/home/kali/ida-pro-9.1/python" or "python314"
                     import re
+
                     for p in sys.path:
-                        m = re.search(r'python(\d)(\d+)', os.path.basename(p))
+                        m = re.search(r"python(\d)(\d+)", os.path.basename(p))
                         if m:
                             extra = f"python{m.group(1)}.{m.group(2)}"
                             if extra not in versioned_names:
@@ -370,7 +372,7 @@ class SpectraPlugin(idaapi.plugin_t):
                     [python_exe, "-m", "pip", "install", "--user", "anthropic>=0.39.0", "--quiet"],
                     capture_output=True,
                     text=True,
-                    timeout=300
+                    timeout=300,
                 )
 
                 # If user install fails, try regular install (for non-externally-managed systems)
@@ -379,7 +381,7 @@ class SpectraPlugin(idaapi.plugin_t):
                         [python_exe, "-m", "pip", "install", "anthropic>=0.39.0", "--quiet"],
                         capture_output=True,
                         text=True,
-                        timeout=300
+                        timeout=300,
                     )
 
                 if result.returncode == 0:
@@ -387,6 +389,7 @@ class SpectraPlugin(idaapi.plugin_t):
                     # Add user site-packages to sys.path if not already there
                     try:
                         import site
+
                         user_site = site.getusersitepackages()
                         if user_site not in sys.path:
                             sys.path.insert(0, user_site)
@@ -415,8 +418,10 @@ def _log(msg: str) -> None:
     try:
         importlib.import_module("spectra.core.logging").log_trace(msg)
     except Exception as e:
-        import sys; sys.stderr.write(f"[Spectra] log_trace unavailable during bootstrap: {e}\n")
+        import sys
+
+        sys.stderr.write(f"[Spectra] log_trace unavailable during bootstrap: {e}\n")
 
 
-def PLUGIN_ENTRY():  # noqa: N802
+def PLUGIN_ENTRY():
     return SpectraPlugin()

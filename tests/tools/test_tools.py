@@ -2,18 +2,19 @@
 
 from __future__ import annotations
 
-import sys
 import os
+import sys
 import unittest
 
 # Install mocks before importing Spectra modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from tests.mocks.ida_mock import install_ida_mocks
+
 install_ida_mocks()
 
+from spectra.core.errors import ToolNotFoundError
 from spectra.tools.base import tool
 from spectra.tools.registry import ToolRegistry
-from spectra.core.errors import ToolNotFoundError
 
 
 class TestToolDecorator(unittest.TestCase):
@@ -66,6 +67,7 @@ class TestToolDecorator(unittest.TestCase):
             raise ValueError("boom")
 
         from spectra.core.errors import ToolError
+
         with self.assertRaises(ToolError):
             failing_tool()
 
@@ -111,11 +113,13 @@ class TestBuiltinTools(unittest.TestCase):
 
     def test_navigation_tools(self):
         from spectra.ida.tools.navigation import get_cursor_position
+
         result = get_cursor_position()
         self.assertTrue(result.startswith("0x"))
 
     def test_database_tools_loadable(self):
         from spectra.ida.tools import database
+
         self.assertTrue(hasattr(database, "get_binary_info"))
 
 

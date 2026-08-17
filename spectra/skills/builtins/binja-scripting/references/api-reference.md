@@ -176,32 +176,34 @@ def visitor(name, instr, type_name, parent):
     if isinstance(instr, Call):
         print(f"Found call: {instr}")
     return True  # continue visiting
+
+
 func.hlil.visit(visitor)
 ```
 
 **Level navigation:**
 ```python
-llil_inst.hlil        # LLIL → HLIL
-hlil_inst.mlils       # HLIL → contributing MLIL instructions
-hlil_inst.llils       # HLIL → contributing LLIL instructions
+llil_inst.hlil  # LLIL → HLIL
+hlil_inst.mlils  # HLIL → contributing MLIL instructions
+hlil_inst.llils  # HLIL → contributing LLIL instructions
 ```
 
 ### Type System — Complete Reference
 
 **Immutable creation:**
 ```python
-Type.int(4)                             # int32
-Type.int(8, False)                      # uint64
-Type.char()                             # char
-Type.bool()                             # bool
-Type.float(4)                           # float
-Type.float(8)                           # double
-Type.void()                             # void
-Type.pointer(bv.arch, inner_type)       # pointer
-Type.array(element_type, count)         # array
-Type.function(ret_type, [(name, type)]) # function type
+Type.int(4)  # int32
+Type.int(8, False)  # uint64
+Type.char()  # char
+Type.bool()  # bool
+Type.float(4)  # float
+Type.float(8)  # double
+Type.void()  # void
+Type.pointer(bv.arch, inner_type)  # pointer
+Type.array(element_type, count)  # array
+Type.function(ret_type, [(name, type)])  # function type
 Type.structure(members=[(type, name)])  # struct (one-shot)
-Type.enumeration(members=[(name, val)]) # enum (one-shot)
+Type.enumeration(members=[(name, val)])  # enum (one-shot)
 Type.named_type_from_registered_type(bv, "Name")  # reference to defined type
 ```
 
@@ -299,10 +301,10 @@ if get_form_input(fields, "Config"):
 
 ```python
 db = bv.file.database
-db.write_global("key", "value")       # store string
-val = db.read_global("key")           # retrieve string
-db.write_global_data("key", buf)      # store binary
-buf = db.read_global_data("key")      # retrieve binary
+db.write_global("key", "value")  # store string
+val = db.read_global("key")  # retrieve string
+db.write_global_data("key", buf)  # store binary
+buf = db.read_global_data("key")  # retrieve binary
 
 for snap in db.snapshots:
     print(f"{snap.id}: {snap.name}")
@@ -361,11 +363,14 @@ writer.write(data)
 ```python
 from binaryninja import BinaryDataNotification
 
+
 class MyNotifier(BinaryDataNotification):
     def function_added(self, view, func):
         print(f"New function: {func.name}")
+
     def symbol_updated(self, view, sym):
         print(f"Symbol changed: {sym.name}")
+
 
 notifier = MyNotifier()
 bv.register_notification(notifier)
@@ -405,9 +410,9 @@ tags = func.get_address_tags_at(addr)
 il_func.replace_expr(old_expr, new_expr)
 
 # Create replacement expressions
-il_func.const(size, value)           # constant value
-il_func.nop()                        # NOP expression
-il_func.goto(label)                  # unconditional goto
+il_func.const(size, value)  # constant value
+il_func.nop()  # NOP expression
+il_func.goto(label)  # unconditional goto
 il_func.if_expr(cond, true_label, false_label)  # conditional
 ```
 
@@ -421,8 +426,8 @@ il_func.copy_to(block)
 
 **Finalization (required after any modification):**
 ```python
-il_func.finalize()               # finalize IL changes
-il_func.generate_ssa_form()      # regenerate SSA
+il_func.finalize()  # finalize IL changes
+il_func.generate_ssa_form()  # regenerate SSA
 ```
 
 **Workflow and Activity API:**
@@ -447,8 +452,8 @@ workflow.register()
 ```python
 def my_transform(analysis_context):
     func = analysis_context.function
-    llil = analysis_context.llil       # LowLevelILFunction
-    mlil = analysis_context.mlil       # MediumLevelILFunction (if available)
+    llil = analysis_context.llil  # LowLevelILFunction
+    mlil = analysis_context.mlil  # MediumLevelILFunction (if available)
     # Modify IL, then:
     llil.finalize()
     llil.generate_ssa_form()

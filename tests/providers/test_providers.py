@@ -2,17 +2,18 @@
 
 from __future__ import annotations
 
-import sys
 import os
+import sys
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from tests.mocks.ida_mock import install_ida_mocks
+
 install_ida_mocks()
 
-from spectra.core.types import Message, Role, ToolCall, ToolResult, TokenUsage, StreamChunk
-from spectra.providers.registry import ProviderRegistry
 from spectra.core.errors import ProviderError
+from spectra.core.types import Message, Role, StreamChunk, TokenUsage, ToolCall, ToolResult
+from spectra.providers.registry import ProviderRegistry
 
 
 class TestMessageTypes(unittest.TestCase):

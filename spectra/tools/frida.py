@@ -9,14 +9,13 @@ Provides tools for:
 
 from __future__ import annotations
 
-import json
 import os
 import subprocess
 import tempfile
 from typing import Any
 
-from ..core.tool_infrastructure import ExternalTool, ToolSafety
-from ..core.logging import log_debug, log_error, log_info
+from ..core.logging import log_debug, log_info
+from ..core.tool_infrastructure import ExternalTool
 from ..tools.base import ParameterSchema, ToolDefinition
 
 
@@ -37,6 +36,7 @@ class FridaTool(ExternalTool):
     def _extract_version(self, output: str) -> str:
         """Extract Frida version."""
         import re
+
         match = re.search(r"Frida\s+(\d+\.\d+\.\d+)", output)
         return match.group(1) if match else ""
 
@@ -78,6 +78,7 @@ def _validate_device(device: str) -> bool:
 
     # Check if it looks like an IP address
     import re
+
     if re.match(r"^(\d{1,3}\.){3}\d{1,3}(:\d+)?$", device):
         return True
 
@@ -87,6 +88,7 @@ def _validate_device(device: str) -> bool:
 # ============================================================================
 # Tool Functions
 # ============================================================================
+
 
 def frida_list_devices() -> str:
     """List available Frida devices.
@@ -166,7 +168,7 @@ def frida_attach(target: str | int, script: str, device: str = "local") -> str:
 
     # Save script to temp file
     try:
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".js", delete=False) as f:
             f.write(script)
             script_path = f.name
     except Exception as e:
@@ -195,7 +197,7 @@ def frida_attach(target: str | int, script: str, device: str = "local") -> str:
         # Clean up temp file
         try:
             os.unlink(script_path)
-        except:
+        except Exception:
             pass
 
 
@@ -218,22 +220,14 @@ def frida_spawn(target: str, args: str, script: str, device: str = "local") -> s
 
     # Save script to temp file
     try:
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".js", delete=False) as f:
             f.write(script)
             script_path = f.name
     except Exception as e:
         return f"Error creating script file: {e}"
 
     try:
-        cmd = [
-            frida_path,
-            "-d", device,
-            "spawn",
-            target,
-            "--",
-            *args.split(),
-            "-l", script_path
-        ]
+        cmd = [frida_path, "-d", device, "spawn", target, "--", *args.split(), "-l", script_path]
 
         result = subprocess.run(
             cmd,
@@ -254,7 +248,7 @@ def frida_spawn(target: str, args: str, script: str, device: str = "local") -> s
     finally:
         try:
             os.unlink(script_path)
-        except:
+        except Exception:
             pass
 
 
@@ -296,6 +290,7 @@ def frida_kill(target: str | int, device: str = "local") -> str:
 # Tool Definitions
 # ============================================================================
 
+
 def create_frida_tools() -> list[ToolDefinition]:
     """Create Frida tool definitions.
 
@@ -308,53 +303,81 @@ def create_frida_tools() -> list[ToolDefinition]:
             description="List available Frida devices (local, USB, remote)",
             category="dynamic_analysis",
             parameters=[
-                ParameterSchema(name="device", type="string", description="Device identifier filter (optional)", required=False),
+                ParameterSchema(
+                    name="device", type="string", description="Device identifier filter (optional)", required=False
+                ),
             ],
             handler=lambda **kwargs: frida_list_devices(),
         ),
-
         ToolDefinition(
             name="frida_list_processes",
             description="List processes on Frida device",
             category="dynamic_analysis",
             parameters=[
-                ParameterSchema(name="device", type="string", description="Device identifier (default: local)", required=False, default="local"),
+                ParameterSchema(
+                    name="device",
+                    type="string",
+                    description="Device identifier (default: local)",
+                    required=False,
+                    default="local",
+                ),
             ],
             handler=lambda device="local", **kwargs: frida_list_processes(device),
         ),
-
         ToolDefinition(
             name="frida_attach",
             description="Attach Frida to running process with JavaScript instrumentation",
             category="dynamic_analysis",
             parameters=[
                 ParameterSchema(name="target", type="string", description="Process name or PID", required=True),
-                ParameterSchema(name="script", type="string", description="JavaScript instrumentation script", required=True),
-                ParameterSchema(name="device", type="string", description="Device identifier (default: local)", required=False, default="local"),
+                ParameterSchema(
+                    name="script", type="string", description="JavaScript instrumentation script", required=True
+                ),
+                ParameterSchema(
+                    name="device",
+                    type="string",
+                    description="Device identifier (default: local)",
+                    required=False,
+                    default="local",
+                ),
             ],
             handler=lambda target, script, device="local", **kwargs: frida_attach(target, script, device),
         ),
-
         ToolDefinition(
             name="frida_spawn",
             description="Spawn process with Frida instrumentation",
             category="dynamic_analysis",
             parameters=[
                 ParameterSchema(name="target", type="string", description="Target binary path", required=True),
-                ParameterSchema(name="args", type="string", description="Command-line arguments", required=False, default=""),
-                ParameterSchema(name="script", type="string", description="JavaScript instrumentation script", required=True),
-                ParameterSchema(name="device", type="string", description="Device identifier (default: local)", required=False, default="local"),
+                ParameterSchema(
+                    name="args", type="string", description="Command-line arguments", required=False, default=""
+                ),
+                ParameterSchema(
+                    name="script", type="string", description="JavaScript instrumentation script", required=True
+                ),
+                ParameterSchema(
+                    name="device",
+                    type="string",
+                    description="Device identifier (default: local)",
+                    required=False,
+                    default="local",
+                ),
             ],
             handler=lambda target, script, args="", device="local", **kwargs: frida_spawn(target, args, script, device),
         ),
-
         ToolDefinition(
             name="frida_kill",
             description="Kill process attached/spawned by Frida",
             category="dynamic_analysis",
             parameters=[
                 ParameterSchema(name="target", type="string", description="Process name or PID", required=True),
-                ParameterSchema(name="device", type="string", description="Device identifier (default: local)", required=False, default="local"),
+                ParameterSchema(
+                    name="device",
+                    type="string",
+                    description="Device identifier (default: local)",
+                    required=False,
+                    default="local",
+                ),
             ],
             handler=lambda target, device="local", **kwargs: frida_kill(target, device),
         ),

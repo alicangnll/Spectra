@@ -168,12 +168,14 @@ python3 -c "import anthropic; print(anthropic.__version__)"
 IDA Pro'yu yeniden başlatın ve Python konsolunu açın:
 ```python
 import anthropic
+
 print(anthropic.__version__)  # kurulu versiyonu yazdırmalı
 ```
 
 Hâlâ başarısız olursa IDA'nın Python'unun hangi site-packages dizinini kullandığını kontrol edin:
 ```python
 import sys
+
 for p in sys.path:
     print(p)
 ```

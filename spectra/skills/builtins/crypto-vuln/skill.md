@@ -71,6 +71,7 @@ grep -r "rsa.*pkcs1" codebase/
 ```python
 # MD5 collisions
 import hashlib
+
 # MD5 is broken - collisions trivial
 h = hashlib.md5()
 # Avoid for: signatures, checksums, HMAC (HMAC-MD5 OK but discouraged)
@@ -179,6 +180,7 @@ def constant_time_compare(a, b):
         result |= x ^ y
     return result == 0
 
+
 # BAD: Uses early exit
 def insecure_compare(a, b):
     # Leaks comparison time
@@ -186,6 +188,7 @@ def insecure_compare(a, b):
         if x != y:
             return False
     return True
+
 
 # Detection:
 # - Loop with early return in comparison
@@ -256,6 +259,7 @@ def decrypt_cbc(ciphertext, key, iv):
     if plaintext[-padding:] != bytes([padding] * padding):
         raise ValueError("Invalid padding")
     return plaintext
+
 
 # Attack: Decrypt byte-by-byte by manipulating padding
 # VCBM (Vaudenay's CBC Padding Oracle) attack

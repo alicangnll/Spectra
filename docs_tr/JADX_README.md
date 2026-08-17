@@ -391,16 +391,12 @@ from spectra.jadx import JadxAnalyzer
 
 analyzer = JadxAnalyzer()
 
+
 # Özel güvenlik kontrolü
 def check_malware_indicators(apk_path: str) -> dict:
     decompiled_dir = analyzer.decompile_apk(apk_path, "/tmp/temp_analysis")
 
-    indicators = {
-        "suspicious_permissions": [],
-        "hardcoded_secrets": [],
-        "native_code": False,
-        "obfuscation": False
-    }
+    indicators = {"suspicious_permissions": [], "hardcoded_secrets": [], "native_code": False, "obfuscation": False}
 
     # İzinleri kontrol et
     manifest = analyzer.find_android_manifest(decompiled_dir)

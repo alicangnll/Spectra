@@ -443,7 +443,7 @@ class SpectraPanelCore(QWidget):
 
     def _connect_mutation_panel_signals(self) -> None:
         """Connect mutation panel signals after all initialization is complete."""
-        if self._mutation_panel is not None and hasattr(self, '_on_undo_requested'):
+        if self._mutation_panel is not None and hasattr(self, "_on_undo_requested"):
             try:
                 try:
                     self._mutation_panel.undo_requested.disconnect(self._on_undo_requested)
@@ -500,7 +500,9 @@ class SpectraPanelCore(QWidget):
         """Build the bottom input area with toolbar and send button."""
         self._input_container = QWidget()
         self._input_container.setObjectName("input_container")
-        self._input_container.setStyleSheet("QWidget#input_container { background-color: #1a1a1c; border-top: 1px solid #28282b; }")
+        self._input_container.setStyleSheet(
+            "QWidget#input_container { background-color: #1a1a1c; border-top: 1px solid #28282b; }"
+        )
         v_layout = QVBoxLayout(self._input_container)
         v_layout.setContentsMargins(6, 4, 6, 6)
         v_layout.setSpacing(4)
@@ -699,9 +701,9 @@ class SpectraPanelCore(QWidget):
             # Disconnect chat view signals before deletion to prevent
             # dangling slot references during Qt widget destruction
             try:
-                if hasattr(chat_view, '_tool_approval_callback') and hasattr(self, '_on_tool_approval'):
+                if hasattr(chat_view, "_tool_approval_callback") and hasattr(self, "_on_tool_approval"):
                     chat_view.set_tool_approval_callback(None)
-                if hasattr(chat_view, '_user_answer_callback') and hasattr(self, '_on_user_answer_submitted'):
+                if hasattr(chat_view, "_user_answer_callback") and hasattr(self, "_on_user_answer_submitted"):
                     chat_view.set_user_answer_callback(None)
             except (RuntimeError, TypeError) as e:
                 log_debug(f"Chat view disconnect failed: {e}")
@@ -826,7 +828,7 @@ class SpectraPanelCore(QWidget):
         if index < 0 or self._is_shutdown:
             return
         # Guard against early calls during initialization
-        if not hasattr(self, '_input_area') or not hasattr(self, '_send_btn'):
+        if not hasattr(self, "_input_area") or not hasattr(self, "_send_btn"):
             return
         tab_id = self._tab_id_at_index(index)
         if tab_id is None:
@@ -909,26 +911,24 @@ class SpectraPanelCore(QWidget):
             self._context_bar.set_agent_active(is_running)
 
         # Update send/queue button (if it exists)
-        if hasattr(self, '_send_btn'):
+        if hasattr(self, "_send_btn"):
             self._send_btn.setVisible(True)
             self._send_btn.setEnabled(not self._awaiting_button_approval)
             self._send_btn.setText("⏎ Queue" if is_running else "⏎ Send")
 
         # Update cancel button visibility (if it exists)
-        if hasattr(self, '_cancel_btn'):
+        if hasattr(self, "_cancel_btn"):
             self._cancel_btn.setVisible(is_running)
 
         # Update input placeholder text (if input area exists)
-        if hasattr(self, '_input_area'):
+        if hasattr(self, "_input_area"):
             if self._awaiting_button_approval:
                 self._input_area.set_enabled(False)
                 self._input_area.setPlaceholderText("Use the Approve/Reject buttons above to continue.")
             else:
                 self._input_area.set_enabled(True)
                 if is_running:
-                    self._input_area.setPlaceholderText(
-                        "Type a message to queue for the running agent..."
-                    )
+                    self._input_area.setPlaceholderText("Type a message to queue for the running agent...")
                 else:
                     self._input_area.setPlaceholderText("Ask about this binary... (/ for skills, /modify to patch)")
 
@@ -956,14 +956,14 @@ class SpectraPanelCore(QWidget):
             # to prevent dangling slot references during Qt cleanup
             mutation_panel = getattr(self, "_mutation_panel", None)
             if mutation_panel is not None:
-                if hasattr(self, '_on_undo_requested'):
+                if hasattr(self, "_on_undo_requested"):
                     try:
                         mutation_panel.undo_requested.disconnect(self._on_undo_requested)
                         log_debug("Disconnected mutation panel undo_requested signal")
                     except (RuntimeError, TypeError) as e:
                         log_debug(f"Mutation panel disconnect failed (already destroyed?): {e}")
                 # Call shutdown on mutation panel to clean up lambda connections
-                if hasattr(mutation_panel, 'shutdown'):
+                if hasattr(mutation_panel, "shutdown"):
                     try:
                         mutation_panel.shutdown()
                         log_debug("Shutdown mutation panel")
@@ -973,35 +973,35 @@ class SpectraPanelCore(QWidget):
             # Disconnect tools panel signals
             if tools_panel is not None:
                 try:
-                    if hasattr(tools_panel, '_agents_widget'):
+                    if hasattr(tools_panel, "_agents_widget"):
                         aw = tools_panel._agents_widget
-                        if hasattr(aw, 'cancel_requested') and hasattr(self, '_on_cancel_agent'):
+                        if hasattr(aw, "cancel_requested") and hasattr(self, "_on_cancel_agent"):
                             aw.cancel_requested.disconnect(self._on_cancel_agent)
-                        if hasattr(aw, 'inject_summary_requested') and hasattr(self, '_on_inject_summary'):
+                        if hasattr(aw, "inject_summary_requested") and hasattr(self, "_on_inject_summary"):
                             aw.inject_summary_requested.disconnect(self._on_inject_summary)
-                    if hasattr(tools_panel, '_renamer_widget'):
+                    if hasattr(tools_panel, "_renamer_widget"):
                         rw = tools_panel._renamer_widget
-                        if hasattr(rw, 'start_requested') and hasattr(self, '_on_renamer_start'):
+                        if hasattr(rw, "start_requested") and hasattr(self, "_on_renamer_start"):
                             rw.start_requested.disconnect(self._on_renamer_start)
-                        if hasattr(rw, 'pause_requested') and hasattr(self, '_on_renamer_pause'):
+                        if hasattr(rw, "pause_requested") and hasattr(self, "_on_renamer_pause"):
                             rw.pause_requested.disconnect(self._on_renamer_pause)
-                        if hasattr(rw, 'cancel_requested') and hasattr(self, '_on_renamer_cancel'):
+                        if hasattr(rw, "cancel_requested") and hasattr(self, "_on_renamer_cancel"):
                             rw.cancel_requested.disconnect(self._on_renamer_cancel)
-                        if hasattr(rw, 'undo_requested') and hasattr(self, '_on_renamer_undo'):
+                        if hasattr(rw, "undo_requested") and hasattr(self, "_on_renamer_undo"):
                             rw.undo_requested.disconnect(self._on_renamer_undo)
-                        if hasattr(rw, 'seek_requested'):
+                        if hasattr(rw, "seek_requested"):
                             rw.seek_requested.disconnect()
                 except (RuntimeError, TypeError) as e:
                     log_debug(f"Tools panel disconnect failed: {e}")
 
             # Disconnect function pagination button signals to prevent dangling lambda refs
-            if hasattr(self, '_functions_prev_btn'):
+            if hasattr(self, "_functions_prev_btn"):
                 try:
                     self._functions_prev_btn.clicked.disconnect()
                     log_debug("Disconnected functions_prev_btn.clicked signal")
                 except (RuntimeError, TypeError) as e:
                     log_debug(f"Functions prev_btn disconnect failed: {e}")
-            if hasattr(self, '_functions_next_btn'):
+            if hasattr(self, "_functions_next_btn"):
                 try:
                     self._functions_next_btn.clicked.disconnect()
                     log_debug("Disconnected functions_next_btn.clicked signal")
@@ -1047,7 +1047,7 @@ class SpectraPanelCore(QWidget):
         while self._tab_widget.count():
             w = self._tab_widget.widget(0)
             # Disconnect signals before removing to prevent dangling references
-            if w and hasattr(w, '_tool_approval_callback'):
+            if w and hasattr(w, "_tool_approval_callback"):
                 try:
                     w.set_tool_approval_callback(None)
                     w.set_user_answer_callback(None)
@@ -1067,11 +1067,13 @@ class SpectraPanelCore(QWidget):
         current_tab_id = self._ctrl.active_tab_id
         self._tab_agent_running[current_tab_id] = running
 
-        log_info(f"[DEBUG] _set_running called: running={running}, tab={current_tab_id}, has_cancel_btn={hasattr(self, '_cancel_btn')}")
+        log_info(
+            f"[DEBUG] _set_running called: running={running}, tab={current_tab_id}, has_cancel_btn={hasattr(self, '_cancel_btn')}"
+        )
 
         # Keep input enabled so users can queue follow-up messages while
         # running — UNLESS we're waiting for a button-only approval.
-        if hasattr(self, '_input_area'):
+        if hasattr(self, "_input_area"):
             if self._awaiting_button_approval:
                 self._input_area.set_enabled(False)
                 self._input_area.setPlaceholderText("Use the Approve/Reject buttons above to continue.")
@@ -1085,11 +1087,11 @@ class SpectraPanelCore(QWidget):
                     self._input_area.setPlaceholderText("Ask about this binary... (/ for skills, /modify to patch)")
 
         # Update buttons (if they exist)
-        if hasattr(self, '_send_btn'):
+        if hasattr(self, "_send_btn"):
             self._send_btn.setVisible(True)
             self._send_btn.setEnabled(not self._awaiting_button_approval)
             self._send_btn.setText("Queue" if running else "Send")
-        if hasattr(self, '_cancel_btn'):
+        if hasattr(self, "_cancel_btn"):
             self._cancel_btn.setVisible(running)
             log_info(f"[DEBUG] _cancel_btn visibility set to: {running}, visible={self._cancel_btn.isVisible()}")
 
@@ -1126,13 +1128,13 @@ class SpectraPanelCore(QWidget):
             self._set_running(True)
             return
         # Start new agent - show Stop button immediately
-        log_info(f"[DEBUG] Starting new agent")
+        log_info("[DEBUG] Starting new agent")
         self._set_running(True)
         self._start_agent(text)
 
     def _force_show_cancel_button(self) -> None:
         """Debug method to force show the cancel button."""
-        if hasattr(self, '_cancel_btn'):
+        if hasattr(self, "_cancel_btn"):
             log_info(f"[DEBUG] Force showing cancel button, current visibility: {self._cancel_btn.isVisible()}")
             self._cancel_btn.setVisible(True)
             self._cancel_btn.raise_()  # Bring to front
@@ -1164,14 +1166,14 @@ class SpectraPanelCore(QWidget):
         self._awaiting_button_approval = False
 
         # Re-enable input area immediately
-        if hasattr(self, '_input_area') and self._input_area:
+        if hasattr(self, "_input_area") and self._input_area:
             self._input_area.set_enabled(True)
             self._input_area.setPlaceholderText("Ask about this binary... (/ for skills, /modify to patch)")
             self._input_area.setFocus()
 
         # Update button text back to "Send"
         # Note: Stop button will be hidden when _on_agent_finished is called
-        if hasattr(self, '_send_btn'):
+        if hasattr(self, "_send_btn"):
             self._send_btn.setText("Send")
 
         log_info("Agent cancel requested")
@@ -1200,9 +1202,11 @@ class SpectraPanelCore(QWidget):
     def _on_create_agent(self) -> None:
         """Open the agent creation dialog."""
         try:
-            from .agent_creator_dialog import AgentCreatorDialog
             from pathlib import Path
+
             import spectra.skills
+
+            from .agent_creator_dialog import AgentCreatorDialog
 
             # Get the built-in skills directory directly
             skills_dir = Path(spectra.skills.__file__).parent / "builtins"
@@ -1220,7 +1224,7 @@ class SpectraPanelCore(QWidget):
             QMessageBox.critical(
                 self,
                 "Error",
-                f"Failed to open agent creation dialog:\n{str(e)}",
+                f"Failed to open agent creation dialog:\n{e!s}",
             )
 
     def _show_new_chat_dialog(self, context_pct: int) -> str:
@@ -1264,7 +1268,7 @@ class SpectraPanelCore(QWidget):
         current_tab_id = self._ctrl.active_tab_id
         self._tab_agent_running[current_tab_id] = True
 
-        if hasattr(self, '_set_running'):
+        if hasattr(self, "_set_running"):
             self._set_running(True)
 
         error = self._ctrl.start_agent(user_message)
@@ -1272,7 +1276,7 @@ class SpectraPanelCore(QWidget):
             chat_view.add_error_message(error)
             # Reset per-tab running state on error
             self._tab_agent_running[current_tab_id] = False
-            if hasattr(self, '_set_running'):
+            if hasattr(self, "_set_running"):
                 self._set_running(False)
             return
 
@@ -1325,7 +1329,7 @@ class SpectraPanelCore(QWidget):
             return
 
         # Process any buffered events for this tab first (from previous tab switches)
-        if current_tab_id in self._tab_event_buffers and self._tab_event_buffers[current_tab_id]:
+        if self._tab_event_buffers.get(current_tab_id):
             for buffered_event in self._tab_event_buffers[current_tab_id]:
                 if not self._is_shutdown:
                     chat_view.handle_event(buffered_event)
@@ -1336,15 +1340,15 @@ class SpectraPanelCore(QWidget):
         chat_view.handle_event(event)
 
         # Cache C code from translation results
-        if event.type == TurnEventType.TEXT_DONE and hasattr(self, '_current_translation_addr'):
+        if event.type == TurnEventType.TEXT_DONE and hasattr(self, "_current_translation_addr"):
             c_code = self._extract_c_code_from_response(event.text or "")
             if c_code:
                 self._cache_translation(self._current_translation_addr, c_code)
                 log_info(f"Cached C code translation for {getattr(self, '_current_translation_name', 'unknown')}")
                 # Clear translation state
-                delattr(self, '_current_translation_addr')
-                if hasattr(self, '_current_translation_name'):
-                    delattr(self, '_current_translation_name')
+                delattr(self, "_current_translation_addr")
+                if hasattr(self, "_current_translation_name"):
+                    delattr(self, "_current_translation_name")
 
         if event.usage:
             # Use prompt_tokens from the event directly — session hasn't
@@ -1371,7 +1375,7 @@ class SpectraPanelCore(QWidget):
             ) or (has_options and not allow_text)
             if needs_button:
                 self._awaiting_button_approval = True
-            if hasattr(self, '_set_running'):
+            if hasattr(self, "_set_running"):
                 self._set_running(False)
         if event.type == TurnEventType.MUTATION_RECORDED:
             self._on_mutation_recorded(event)
@@ -1381,7 +1385,7 @@ class SpectraPanelCore(QWidget):
         import re
 
         # Look for ```c ... ``` or ```cpp ... ``` code blocks
-        pattern = r'```(?:c|cpp)\n(.*?)\n```'
+        pattern = r"```(?:c|cpp)\n(.*?)\n```"
         matches = re.findall(pattern, text, re.DOTALL)
 
         if matches:
@@ -1389,13 +1393,13 @@ class SpectraPanelCore(QWidget):
             return matches[0].strip()
 
         # If no C blocks found, look for any code block
-        pattern = r'```\n(.*?)\n```'
+        pattern = r"```\n(.*?)\n```"
         matches = re.findall(pattern, text, re.DOTALL)
 
         if matches:
             # Check if it looks like C code
             code = matches[0].strip()
-            c_indicators = ['void', 'int', 'char', 'struct', 'typedef', '#include', '{', '}']
+            c_indicators = ["void", "int", "char", "struct", "typedef", "#include", "{", "}"]
             if any(indicator in code for indicator in c_indicators):
                 return code
 
@@ -1416,7 +1420,7 @@ class SpectraPanelCore(QWidget):
         chat_view = self._active_chat_view()
         if chat_view is not None:
             chat_view.add_user_message(answer)
-        if hasattr(self, '_set_running'):
+        if hasattr(self, "_set_running"):
             self._set_running(True)
         runner = self._ctrl.get_runner()
         if runner:
@@ -1444,7 +1448,7 @@ class SpectraPanelCore(QWidget):
             chat_view.remove_queued_messages()
 
         # Update UI state to reflect agent is finished
-        if hasattr(self, '_set_running'):
+        if hasattr(self, "_set_running"):
             self._set_running(False)
 
     def _try_restore_session(self) -> None:
@@ -1523,12 +1527,12 @@ class SpectraPanelCore(QWidget):
             if getattr(self, "_tools_initialized", False) and not getattr(self, "_renamer_loaded", False):
                 self._renamer_loaded = True  # Mark as loaded, prevent duplicate loads
                 QTimer.singleShot(0, self._load_renamer_functions)
-            if hasattr(self, '_tools_btn'):
+            if hasattr(self, "_tools_btn"):
                 self._tools_btn.setChecked(True)
         elif index == 2:
             self._ensure_functions_initialized()
         else:
-            if hasattr(self, '_tools_btn'):
+            if hasattr(self, "_tools_btn"):
                 self._tools_btn.setChecked(False)
 
     def _on_toggle_tools(self) -> None:
@@ -1591,10 +1595,12 @@ class SpectraPanelCore(QWidget):
         log_debug("Loading functions for bulk renamer...")
 
         tool_registry = self._ctrl.get_tool_registry()
-        log_debug(f"Tool registry: {type(tool_registry)}, has {len(tool_registry._tools) if hasattr(tool_registry, '_tools') else 'unknown'} tools")
+        log_debug(
+            f"Tool registry: {type(tool_registry)}, has {len(tool_registry._tools) if hasattr(tool_registry, '_tools') else 'unknown'} tools"
+        )
 
         # Debug: list all available tools
-        if hasattr(tool_registry, '_tools'):
+        if hasattr(tool_registry, "_tools"):
             tool_names = list(tool_registry._tools.keys())
             log_debug(f"Available tools: {tool_names[:15]}...")  # Show first 15
 
@@ -1617,7 +1623,7 @@ class SpectraPanelCore(QWidget):
 
         self._renamer_fetch_timer = QTimer(self)
         self._renamer_fetch_timer.setInterval(0)
-        if hasattr(self, '_fetch_renamer_page'):
+        if hasattr(self, "_fetch_renamer_page"):
             self._renamer_fetch_timer.timeout.connect(self._fetch_renamer_page)
             self._renamer_fetch_timer.start()
             log_debug("Renamer fetch timer started")
@@ -1641,6 +1647,7 @@ class SpectraPanelCore(QWidget):
         except Exception as e:
             log_error(f"list_functions failed at offset {offset}: {e}")
             import traceback
+
             log_debug(traceback.format_exc())
             raw = None
 
@@ -1697,6 +1704,7 @@ class SpectraPanelCore(QWidget):
         if getattr(self, "_tools_panel", None) is None:
             # Recreate tools panel if it was destroyed
             from .tools_panel import ToolsPanel
+
             self._tools_panel = ToolsPanel()
             self._tools_panel.hide_header()
         self._tools_initialized = True
@@ -1707,23 +1715,23 @@ class SpectraPanelCore(QWidget):
 
         # Agent tree
         self._agent_tree = AgentTreeWidget()
-        if hasattr(self, '_on_cancel_agent'):
+        if hasattr(self, "_on_cancel_agent"):
             self._agent_tree.cancel_requested.connect(self._on_cancel_agent)
-        if hasattr(self, '_on_inject_summary'):
+        if hasattr(self, "_on_inject_summary"):
             self._agent_tree.inject_summary_requested.connect(self._on_inject_summary)
         self._tools_panel.set_agents_widget(self._agent_tree)
 
         # Bulk renamer
         self._bulk_renamer = BulkRenamerWidget()
-        if hasattr(self, '_on_renamer_start'):
+        if hasattr(self, "_on_renamer_start"):
             self._bulk_renamer.start_requested.connect(self._on_renamer_start)
-        if hasattr(self, '_on_renamer_pause'):
+        if hasattr(self, "_on_renamer_pause"):
             self._bulk_renamer.pause_requested.connect(self._on_renamer_pause)
-        if hasattr(self, '_on_renamer_cancel'):
+        if hasattr(self, "_on_renamer_cancel"):
             self._bulk_renamer.cancel_requested.connect(self._on_renamer_cancel)
-        if hasattr(self, '_on_renamer_undo'):
+        if hasattr(self, "_on_renamer_undo"):
             self._bulk_renamer.undo_requested.connect(self._on_renamer_undo)
-        if hasattr(self, '_on_renamer_seek'):
+        if hasattr(self, "_on_renamer_seek"):
             self._bulk_renamer.seek_requested.connect(lambda addr: self._on_renamer_seek(addr))
         self._tools_panel.set_renamer_widget(self._bulk_renamer)
 
@@ -1738,7 +1746,7 @@ class SpectraPanelCore(QWidget):
         # Start tools polling timer
         self._tools_poll_timer = QTimer(self)
         self._tools_poll_timer.setInterval(100)
-        if hasattr(self, '_poll_tools_events'):
+        if hasattr(self, "_poll_tools_events"):
             self._tools_poll_timer.timeout.connect(self._poll_tools_events)
         self._tools_poll_timer.start()
 
@@ -1854,7 +1862,7 @@ class SpectraPanelCore(QWidget):
             functions_layout.addWidget(translate_btn)
 
             # Replace placeholder with real page
-            current_index = self._mode_stack.indexOf(self._mode_stack.widget(2))
+            _current_index = self._mode_stack.indexOf(self._mode_stack.widget(2))
             self._mode_stack.removeWidget(self._mode_stack.widget(2))
             self._mode_stack.insertWidget(2, self._functions_page)
 
@@ -1872,7 +1880,7 @@ class SpectraPanelCore(QWidget):
         # Load all functions into filtered data
         self._functions_filtered_data = []
         try:
-            from ..core.host import is_ida, is_binary_ninja
+            from ..core.host import is_binary_ninja, is_ida
 
             if is_ida():
                 self._load_ida_functions_data(filter_text)
@@ -1883,6 +1891,7 @@ class SpectraPanelCore(QWidget):
         except Exception as e:
             log_error(f"Error loading functions: {e}")
             import traceback
+
             log_debug(traceback.format_exc())
 
         # Update pagination
@@ -1891,8 +1900,8 @@ class SpectraPanelCore(QWidget):
     def _load_ida_functions_data(self, filter_text: str = "") -> None:
         """Load IDA functions into filtered data list."""
         try:
-            import idautils
             import ida_name
+            import idautils
 
             function_count = 0
             for func_ea in idautils.Functions():
@@ -1912,6 +1921,7 @@ class SpectraPanelCore(QWidget):
         except Exception as e:
             log_error(f"Error loading IDA functions: {e}")
             import traceback
+
             log_debug(traceback.format_exc())
 
     def _load_binary_ninja_functions_data(self, filter_text: str = "") -> None:
@@ -1941,6 +1951,7 @@ class SpectraPanelCore(QWidget):
         except Exception as e:
             log_error(f"Error loading Binary Ninja functions: {e}")
             import traceback
+
             log_debug(traceback.format_exc())
 
     def _update_functions_page(self) -> None:
@@ -1971,7 +1982,9 @@ class SpectraPanelCore(QWidget):
         self._functions_prev_btn.setEnabled(self._functions_page_num > 0)
         self._functions_next_btn.setEnabled(self._functions_page_num < total_pages - 1)
 
-        log_debug(f"Functions page updated: showing {display_count} functions (total: {len(self._functions_filtered_data)}, page {self._functions_page_num + 1}/{total_pages})")
+        log_debug(
+            f"Functions page updated: showing {display_count} functions (total: {len(self._functions_filtered_data)}, page {self._functions_page_num + 1}/{total_pages})"
+        )
 
     def _on_functions_page_changed(self, delta: int) -> None:
         """Handle pagination button click."""
@@ -2050,7 +2063,6 @@ Please make the code as readable and maintainable as possible."""
     def _get_cached_translation(self, func_addr) -> str | None:
         """Retrieve cached translation for a function from IDA database."""
         try:
-            import idaapi
             import idc
 
             # Try to get cached translation from function comment
@@ -2072,7 +2084,6 @@ Please make the code as readable and maintainable as possible."""
     def _cache_translation(self, func_addr, code: str) -> None:
         """Cache translation result in IDA function comment."""
         try:
-            import idaapi
             import idc
 
             # Store in function comment with special marker
@@ -2189,7 +2200,7 @@ First, decompile this function and analyze its logic. Then provide:
 Please make the code as readable and maintainable as possible."""
 
         # Get the panel's input area and trigger submit
-        if hasattr(self._panel_core, '_input_area') and self._panel_core._input_area:
+        if hasattr(self._panel_core, "_input_area") and self._panel_core._input_area:
             from ..core.logging import log_error
 
             try:
@@ -2225,7 +2236,7 @@ Please make the code as readable and maintainable as possible."""
         self._progress_label.setStyleSheet("color: #4ec9b0; font-size: 12px;")
 
         # Add a "Regenerate" button to get a fresh translation
-        if hasattr(self, '_regenerate_btn'):
+        if hasattr(self, "_regenerate_btn"):
             return  # Already added
 
         buttons_layout = self.layout().itemAt(self.layout().count() - 1).layout()
@@ -2282,24 +2293,28 @@ Please make the code as readable and maintainable as possible."""
     def _copy_to_clipboard(self) -> None:
         """Copy result to clipboard."""
         from .qt_compat import QApplication
+
         clipboard = QApplication.clipboard()
         clipboard.setText(self._result_text.toPlainText())
         self._copy_btn.setText("Copied!")
         from ..core.logging import log_info
+
         log_info("Translation copied to clipboard")
 
     def _jump_to_function(self, func_name: str, func_addr) -> None:
         """Jump to function in disassembly view."""
         try:
-            from ..core.host import is_ida, is_binary_ninja
+            from ..core.host import is_binary_ninja, is_ida
 
             if is_ida():
                 import idaapi
+
                 idaapi.jumpto(func_addr)
                 idaapi.open_disasm_window(func_addr)
             elif is_binary_ninja():
                 from ..core import host
-                if host._bn and hasattr(func_addr, 'view'):
+
+                if host._bn and hasattr(func_addr, "view"):
                     func_addr.view.navigate(func_addr.start)
         except Exception as e:
             log_error(f"Failed to jump to function {func_name}: {e}")
@@ -2506,4 +2521,3 @@ Please make the code as readable and maintainable as possible."""
                             rename_event.completed,
                             rename_event.total,
                         )
-

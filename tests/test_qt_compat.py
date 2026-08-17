@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import ast
-from pathlib import Path
 import unittest
+from pathlib import Path
 
 from tests.qt_stubs import ensure_pyside6_stubs
 
 ensure_pyside6_stubs()
-import spectra.ui.qt_compat as qt_compat  # noqa: E402
+import spectra.ui.qt_compat as qt_compat
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _UI_ROOT = _REPO_ROOT / "spectra" / "ui"
@@ -29,10 +29,20 @@ class TestQtCompat(unittest.TestCase):
 
     def test_qt_widget_symbols_exported(self):
         for name in (
-            "QApplication", "QWidget", "QVBoxLayout", "QHBoxLayout",
-            "QLabel", "QPushButton", "QPlainTextEdit", "QScrollArea",
-            "QDialog", "QComboBox", "QLineEdit", "QCheckBox",
-            "QMenu", "QMessageBox",
+            "QApplication",
+            "QWidget",
+            "QVBoxLayout",
+            "QHBoxLayout",
+            "QLabel",
+            "QPushButton",
+            "QPlainTextEdit",
+            "QScrollArea",
+            "QDialog",
+            "QComboBox",
+            "QLineEdit",
+            "QCheckBox",
+            "QMenu",
+            "QMessageBox",
         ):
             self.assertTrue(hasattr(qt_compat, name), f"missing {name}")
 

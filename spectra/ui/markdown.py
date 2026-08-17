@@ -50,8 +50,8 @@ _MARKDOWN_HINT_RE = re.compile(
 )
 
 _ASCII_ART_PATTERN = re.compile(
-    r'[┌─┐│└┘▽▼▲△╔╗╚╝║═╟┤┬┴├┤┼┴┬╭╮╰╯╱╲╳▀▄■▴▸▶►◄↕↔↖↗↘↙→←↑↓⇐⇑⇒⇔⇕⇖⇗⇘⇙⌈⌉⌊⌋⌌⌍⌎⏏⏐⏑⏒⏓⏔⏕⏖⏗⏘⏙␟␠␡␢␣␤␥␦␧␨␩␪␫␬␭␮␯␰␱␲␳␴␵␶␷␸␹␺␻␼␽␾␿⏀⏁⏂⏃⏄⏅⏆⏇⏈⏉⏊⏋⏌⏍⏎⏏⏐⏑⏒⏓⏔⏕⏖⏗⏘⏙⏚⏛⏜⏝⏞⏟⏠]',
-    re.MULTILINE
+    r"[┌─┐│└┘▽▼▲△╔╗╚╝║═╟┤┬┴├┤┼┴┬╭╮╰╯╱╲╳▀▄■▴▸▶►◄↕↔↖↗↘↙→←↑↓⇐⇑⇒⇔⇕⇖⇗⇘⇙⌈⌉⌊⌋⌌⌍⌎⏏⏐⏑⏒⏓⏔⏕⏖⏗⏘⏙␟␠␡␢␣␤␥␦␧␨␩␪␫␬␭␮␯␰␱␲␳␴␵␶␷␸␹␺␻␼␽␾␿⏀⏁⏂⏃⏄⏅⏆⏇⏈⏉⏊⏋⏌⏍⏎⏏⏐⏑⏒⏓⏔⏕⏖⏗⏘⏙⏚⏛⏜⏝⏞⏟⏠]",
+    re.MULTILINE,
 )
 
 _INLINE_CODE_STYLE = (
@@ -69,12 +69,12 @@ _DIAGRAM_STYLE = (
 
 # Finding bookmark styles
 _FINDING_STYLES = {
-    "critical": f"background-color:#3d1f1f; color:#ff6b6b; border:1px solid #ff6b6b; border-radius:3px; padding:2px 6px; font-weight:bold;",
-    "suspicious": f"background-color:#3d2a1f; color:#ffa07a; border:1px solid #ffa07a; border-radius:3px; padding:2px 6px;",
-    "verified": f"background-color:#1f3d2a; color:#6bff98; border:1px solid #6bff98; border-radius:3px; padding:2px 6px;",
-    "interesting": f"background-color:#3d3a1f; color:#ffd93d; border:1px solid #ffd93d; border-radius:3px; padding:2px 6px;",
-    "question": f"background-color:#1f2a3d; color:#3a9fd5; border:1px solid #3a9fd5; border-radius:3px; padding:2px 6px;",
-    "false_positive": f"background-color:#2a2a2a; color:#808080; border:1px solid #808080; border-radius:3px; padding:2px 6px;",
+    "critical": "background-color:#3d1f1f; color:#ff6b6b; border:1px solid #ff6b6b; border-radius:3px; padding:2px 6px; font-weight:bold;",
+    "suspicious": "background-color:#3d2a1f; color:#ffa07a; border:1px solid #ffa07a; border-radius:3px; padding:2px 6px;",
+    "verified": "background-color:#1f3d2a; color:#6bff98; border:1px solid #6bff98; border-radius:3px; padding:2px 6px;",
+    "interesting": "background-color:#3d3a1f; color:#ffd93d; border:1px solid #ffd93d; border-radius:3px; padding:2px 6px;",
+    "question": "background-color:#1f2a3d; color:#3a9fd5; border:1px solid #3a9fd5; border-radius:3px; padding:2px 6px;",
+    "false_positive": "background-color:#2a2a2a; color:#808080; border:1px solid #808080; border-radius:3px; padding:2px 6px;",
 }
 
 _BLOCK_CODE_STYLE = (
@@ -84,18 +84,9 @@ _BLOCK_CODE_STYLE = (
     f"white-space:pre-wrap; word-break:break-all;"
 )
 
-_TABLE_STYLE = (
-    "border:1px solid #2e2e34; border-collapse:collapse; "
-    "margin:6px 0; width:100%; border-radius:4px;"
-)
-_TABLE_CELL_STYLE = (
-    "border:1px solid #28282e; padding:5px 8px; "
-    "text-align:left; vertical-align:top; font-size:12px;"
-)
-_TABLE_HEADER_STYLE = (
-    "background-color:#202025; color:#3a9fd5; "
-    "font-weight:bold; font-size:12px; padding:6px 8px;"
-)
+_TABLE_STYLE = "border:1px solid #2e2e34; border-collapse:collapse; margin:6px 0; width:100%; border-radius:4px;"
+_TABLE_CELL_STYLE = "border:1px solid #28282e; padding:5px 8px; text-align:left; vertical-align:top; font-size:12px;"
+_TABLE_HEADER_STYLE = "background-color:#202025; color:#3a9fd5; font-weight:bold; font-size:12px; padding:6px 8px;"
 _TABLE_ROW_STYLE = "font-size:12px;"
 
 
@@ -138,11 +129,11 @@ def _parse_table(lines: list[str], start_idx: int) -> tuple[str, int]:
     # Check for separator row
     if start_idx + 1 < len(lines) and _is_separator_row(lines[start_idx + 1]):
         # This is a valid table with separator
-        separator_idx = start_idx + 1
+        _separator_idx = start_idx + 1
         data_start_idx = start_idx + 2
     else:
         # No separator row, treat all rows as data
-        separator_idx = start_idx  # No separator
+        _separator_idx = start_idx  # No separator
         data_start_idx = start_idx + 1
 
     # Parse data rows
@@ -160,13 +151,11 @@ def _parse_table(lines: list[str], start_idx: int) -> tuple[str, int]:
     html_parts = ['<table style="' + _TABLE_STYLE + '">']
 
     # Header row
-    html_parts.append('<tr>')
+    html_parts.append("<tr>")
     for header in headers:
         header_html = _inline(header)
-        html_parts.append(
-            f'<th style="{_TABLE_CELL_STYLE}{_TABLE_HEADER_STYLE}">{header_html}</th>'
-        )
-    html_parts.append('</tr>')
+        html_parts.append(f'<th style="{_TABLE_CELL_STYLE}{_TABLE_HEADER_STYLE}">{header_html}</th>')
+    html_parts.append("</tr>")
 
     # Data rows
     for row in data_rows:
@@ -177,12 +166,10 @@ def _parse_table(lines: list[str], start_idx: int) -> tuple[str, int]:
                 cell_html = _inline(row[j])
             else:
                 cell_html = ""
-            html_parts.append(
-                f'<td style="{_TABLE_CELL_STYLE}">{cell_html}</td>'
-            )
-        html_parts.append('</tr>')
+            html_parts.append(f'<td style="{_TABLE_CELL_STYLE}">{cell_html}</td>')
+        html_parts.append("</tr>")
 
-    html_parts.append('</table>')
+    html_parts.append("</table>")
 
     return "".join(html_parts), i
 
@@ -197,7 +184,6 @@ _SUSPICIOUS_API_PATTERNS = {
     "NtWriteVirtualMemory": {"severity": "critical", "color": _API_CRITICAL_FG},
     "NtCreateThreadEx": {"severity": "critical", "color": _API_CRITICAL_FG},
     "RtlCreateUserThread": {"severity": "critical", "color": _API_CRITICAL_FG},
-
     # High - Code Injection, Memory Manipulation
     "SetWindowsHookEx": {"severity": "high", "color": _API_HIGH_FG},
     "SetWindowsHookExA": {"severity": "high", "color": _API_HIGH_FG},
@@ -205,7 +191,6 @@ _SUSPICIOUS_API_PATTERNS = {
     "VirtualProtect": {"severity": "high", "color": _API_HIGH_FG},
     "VirtualProtectEx": {"severity": "high", "color": _API_HIGH_FG},
     "NtProtectVirtualMemory": {"severity": "high", "color": _API_HIGH_FG},
-
     # High - Crypto, Network
     "CryptEncrypt": {"severity": "high", "color": _API_HIGH_FG},
     "CryptDecrypt": {"severity": "high", "color": _API_HIGH_FG},
@@ -216,7 +201,6 @@ _SUSPICIOUS_API_PATTERNS = {
     "HttpSendRequestW": {"severity": "high", "color": _API_HIGH_FG},
     "InternetConnect": {"severity": "high", "color": _API_HIGH_FG},
     "GetProcAddress": {"severity": "high", "color": _API_HIGH_FG},
-
     # Medium - Process/File/Registry
     "CreateProcess": {"severity": "medium", "color": _API_MEDIUM_FG},
     "ShellExecute": {"severity": "medium", "color": _API_MEDIUM_FG},
@@ -225,7 +209,6 @@ _SUSPICIOUS_API_PATTERNS = {
     "RegSetValueEx": {"severity": "medium", "color": _API_MEDIUM_FG},
     "CreateFile": {"severity": "medium", "color": _API_MEDIUM_FG},
     "DeleteFile": {"severity": "medium", "color": _API_MEDIUM_FG},
-
     # Anti-debug APIs
     "IsDebuggerPresent": {"severity": "critical", "color": _ANTI_DEBUG_FG},
     "CheckRemoteDebuggerPresent": {"severity": "critical", "color": _ANTI_DEBUG_FG},
@@ -279,7 +262,7 @@ def _is_ascii_art_diagram(text: str) -> bool:
     if not text or len(text) < 3:
         return False
 
-    lines = text.split('\n')
+    lines = text.split("\n")
     if len(lines) < 3:
         return False
 
@@ -483,11 +466,11 @@ def md_to_html(text: str, return_code_blocks: bool = False) -> str | tuple:
     # Phase 3: restore code blocks and diagrams (only if not returning for widget rendering)
     if not return_code_blocks:
         # Code blocks: BLOCK0, BLOCK1, BLOCK2...
-        for idx, block_html in enumerate(code_blocks):
+        for idx, _block_html in enumerate(code_blocks):
             result = result.replace(f"\x00BLOCK{idx}\x00", blocks[idx])
 
         # Diagram blocks: DIAGRAM0, DIAGRAM1, DIAGRAM2...
-        for idx, diagram_html in enumerate(diagram_blocks):
+        for idx, _diagram_html in enumerate(diagram_blocks):
             # Diagram blocks come after code blocks in the blocks list
             block_idx = len(code_blocks) + idx
             result = result.replace(f"\x00DIAGRAM{idx}\x00", blocks[block_idx])

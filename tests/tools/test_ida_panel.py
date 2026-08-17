@@ -13,7 +13,8 @@ from tests.mocks.ida_mock import install_ida_mocks
 
 install_ida_mocks()
 
-from tests.qt_stubs import ensure_pyside6_stubs, _qt_class
+from tests.qt_stubs import _qt_class, ensure_pyside6_stubs
+
 ensure_pyside6_stubs()
 
 # Stub spectra.ui.panel_core
@@ -31,12 +32,12 @@ _actions_mod = types.ModuleType("spectra.ida.ui.actions")
 _actions_mod.SpectraUIHooks = MagicMock()
 sys.modules["spectra.ida.ui.actions"] = _actions_mod
 
-from spectra.ida.ui.panel import SpectraPanel  # noqa: E402
-
+from spectra.ida.ui.panel import SpectraPanel
 
 # ---------------------------------------------------------------------------
 # Helper
 # ---------------------------------------------------------------------------
+
 
 def _make_panel() -> SpectraPanel:
     """Create SpectraPanel bypassing __init__, injecting mock _core."""
@@ -50,6 +51,7 @@ def _make_panel() -> SpectraPanel:
 # ---------------------------------------------------------------------------
 # shutdown
 # ---------------------------------------------------------------------------
+
 
 class TestSpectraIdaPanelShutdown(unittest.TestCase):
     def test_shutdown_calls_core_shutdown(self):
@@ -75,6 +77,7 @@ class TestSpectraIdaPanelShutdown(unittest.TestCase):
 # prefill_input
 # ---------------------------------------------------------------------------
 
+
 class TestSpectraIdaPanelPrefillInput(unittest.TestCase):
     def test_prefill_delegates_when_core_available(self):
         panel = _make_panel()
@@ -97,6 +100,7 @@ class TestSpectraIdaPanelPrefillInput(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # __getattr__
 # ---------------------------------------------------------------------------
+
 
 class TestSpectraIdaPanelGetattr(unittest.TestCase):
     def test_getattr_delegates_to_core(self):
@@ -122,6 +126,7 @@ class TestSpectraIdaPanelGetattr(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # OnClose
 # ---------------------------------------------------------------------------
+
 
 class TestSpectraIdaPanelOnClose(unittest.TestCase):
     def test_on_close_calls_shutdown(self):

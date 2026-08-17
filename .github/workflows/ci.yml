@@ -1,0 +1,73 @@
+# Spectra CI — mirrors ci-local.sh
+# Runs the same five checks the local script runs, plus a version
+# consistency gate, on every push/PR to main.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.11"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest ruff mypy
+
+      - name: Ruff format check
+        run: ruff format --check spectra/
+
+      - name: Ruff lint
+        run: ruff check spectra/
+
+      - name: Mypy (core + providers)
+        # --explicit-package-bases: the repo root has a Binary Ninja bootstrap
+        # __init__.py; without this flag mypy maps modules twice
+        # ("Spectra.spectra" vs "spectra") and fails outright.
+        run: mypy spectra/core spectra/providers --explicit-package-bases --pretty
+
+      - name: Version consistency
+        run: python scripts/check_versions.py
+
+      - name: Pytest
+        run: pytest tests/ --tb=short -q
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t spectra:ci .
+
+      - name: Smoke test (CLI --version)
+        run: docker run --rm spectra:ci spectra_cli.py --version

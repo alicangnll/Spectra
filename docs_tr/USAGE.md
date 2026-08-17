@@ -3175,6 +3175,7 @@ Kullanıcı: 0x401000-0x402000 aralığındaki tüm fonksiyonları analiz et
 from typing import Annotated
 from spectra.tools.base import tool
 
+
 @tool(category="custom")
 def my_custom_tool(param: Annotated[str, "Parameter açıklaması"]) -> str:
     """LLM için araç açıklaması."""
@@ -3186,6 +3187,7 @@ def my_custom_tool(param: Annotated[str, "Parameter açıklaması"]) -> str:
 ```python
 # spectra/ida/tools/registry.py veya spectra/binja/tools/registry.py içinde
 from spectra.tools import my_custom_module
+
 _TOOL_MODULES = (..., my_custom_module)
 ```
 

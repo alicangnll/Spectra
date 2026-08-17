@@ -87,7 +87,7 @@ class SessionHistory:
         if not os.path.exists(path):
             return None
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 data = json.load(f)
         except (json.JSONDecodeError, OSError) as exc:
             log_debug(f"Failed to load session {session_id}: {exc}")
@@ -142,7 +142,7 @@ class SessionHistory:
                 continue
             path = os.path.join(self._dir, fname)
             try:
-                with open(path, "r", encoding="utf-8") as f:
+                with open(path, encoding="utf-8") as f:
                     entry = json.load(f)
                 # When db_instance_id is provided, use it as the primary key
                 # (UUIDs are globally unique, so path matching is redundant).
@@ -171,11 +171,3 @@ class SessionHistory:
             return None
         sessions.sort(key=lambda s: s.get("created_at", 0), reverse=True)
         return self.load_session(sessions[0]["id"])
-
-    def delete_session(self, session_id: str) -> bool:
-        removed = False
-        for path in (self._session_path(session_id), self._summary_path(session_id)):
-            if os.path.exists(path):
-                os.remove(path)
-                removed = True
-        return removed

@@ -11,12 +11,13 @@ from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from tests.mocks.ida_mock import install_ida_mocks
+
 install_ida_mocks()
 
-from spectra.core.types import Message, Role, TokenUsage, ToolCall, ToolResult
-from spectra.state.session import SessionState
-from spectra.state.history import SessionHistory
 from spectra.core.config import SpectraConfig
+from spectra.core.types import Message, Role, TokenUsage, ToolCall, ToolResult
+from spectra.state.history import SessionHistory
+from spectra.state.session import SessionState
 
 
 class TestSessionState(unittest.TestCase):
@@ -157,7 +158,10 @@ class TestSessionHistory(unittest.TestCase):
 
         def fail_if_messages_loaded(fp, *args, **kwargs):
             data = real_load(fp, *args, **kwargs)
-            self.assertEqual(set(data.keys()), {"id", "created_at", "provider", "model", "idb_path", "db_instance_id", "messages", "description"})
+            self.assertEqual(
+                set(data.keys()),
+                {"id", "created_at", "provider", "model", "idb_path", "db_instance_id", "messages", "description"},
+            )
             self.assertIsInstance(data["messages"], int)
             return data
 

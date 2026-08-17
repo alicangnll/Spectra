@@ -156,7 +156,7 @@ class MutationLogPanel(QFrame):
     def shutdown(self) -> None:
         """Disconnect signals to prevent dangling lambda references during Qt cleanup."""
         try:
-            if hasattr(self, '_undo_btn'):
+            if hasattr(self, "_undo_btn"):
                 self._undo_btn.clicked.disconnect()
         except (RuntimeError, TypeError):
             pass  # Widget already destroyed

@@ -17,9 +17,10 @@ from typing import Any
 
 # Try to import IDA API
 try:
-    import idaapi
-    import idc
-    import idautils
+    import idaapi  # noqa: F401 — availability probe
+    import idautils  # noqa: F401 — availability probe
+    import idc  # noqa: F401 — availability probe
+
     IDA_AVAILABLE = True
 except ImportError:
     IDA_AVAILABLE = False
@@ -31,37 +32,37 @@ FINDING_CATEGORIES = {
         "name": "Suspicious",
         "color": "#ffa07a",  # Orange
         "icon": "!",
-        "description": "Potentially malicious code/behavior"
+        "description": "Potentially malicious code/behavior",
     },
     "critical": {
         "name": "Critical",
         "color": "#ff6b6b",  # Red
         "icon": "CRIT",
-        "description": "Critical security issue"
+        "description": "Critical security issue",
     },
     "verified": {
         "name": "Verified",
         "color": "#6bff98",  # Green
         "icon": "V",
-        "description": "Confirmed finding"
+        "description": "Confirmed finding",
     },
     "interesting": {
         "name": "Interesting",
         "color": "#ffd93d",  # Yellow
         "icon": "INT",
-        "description": "Notable code/behavior"
+        "description": "Notable code/behavior",
     },
     "false_positive": {
         "name": "False Positive",
         "color": "#808080",  # Gray
         "icon": "FP",
-        "description": "Confirmed as benign"
+        "description": "Confirmed as benign",
     },
     "question": {
         "name": "Question",
         "color": "#569cd6",  # Blue
         "icon": "?",
-        "description": "Needs further investigation"
+        "description": "Needs further investigation",
     },
 }
 
@@ -97,7 +98,7 @@ class Finding:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Finding":
+    def from_dict(cls, data: dict[str, Any]) -> Finding:
         """Create from dictionary."""
         return cls(
             address=data["address"],
@@ -122,6 +123,7 @@ class FindingsBookmarkManager:
         if not self.idb_path:
             # Use default location
             from ...core.logging import log_debug
+
             log_debug("No IDB path, using default findings location")
             return Path.home() / ".spectra" / "findings.json"
 
@@ -135,11 +137,12 @@ class FindingsBookmarkManager:
         try:
             findings_file = self._get_findings_file()
             if findings_file.exists():
-                with open(findings_file, "r", encoding="utf-8") as f:
+                with open(findings_file, encoding="utf-8") as f:
                     data = json.load(f)
                     self.findings = [Finding.from_dict(item) for item in data]
         except Exception as e:
             from ...core.logging import log_error
+
             log_error(f"Failed to load findings: {e}")
             self.findings = []
 
@@ -154,6 +157,7 @@ class FindingsBookmarkManager:
                 json.dump(data, f, indent=2, ensure_ascii=False)
         except Exception as e:
             from ...core.logging import log_error
+
             log_error(f"Failed to save findings: {e}")
 
     def add_finding(
@@ -346,7 +350,7 @@ class FindingsBookmarkManager:
         # In practice, you'd want more robust markdown parsing
         imported = 0
 
-        lines = markdown.split('\n')
+        lines = markdown.split("\n")
         current_finding = None
 
         for line in lines:
@@ -420,12 +424,14 @@ def add_finding_at_ea(ea: int, title: str, category: str = "interesting", notes:
 
     try:
         from ...core.logging import log_info
+
         manager = get_findings_manager()
-        finding = manager.add_finding(ea, title, category, notes)
+        _finding = manager.add_finding(ea, title, category, notes)
         log_info(f"Added finding at 0x{ea:X}: {title}")
         return True
     except Exception as e:
         from ...core.logging import log_error
+
         log_error(f"Failed to add finding: {e}")
         return False
 
@@ -444,6 +450,7 @@ def remove_finding_at_ea(ea: int) -> bool:
 
     try:
         from ...core.logging import log_info
+
         manager = get_findings_manager()
         success = manager.remove_finding(ea)
         if success:
@@ -451,6 +458,7 @@ def remove_finding_at_ea(ea: int) -> bool:
         return success
     except Exception as e:
         from ...core.logging import log_error
+
         log_error(f"Failed to remove finding: {e}")
         return False
 
@@ -471,7 +479,9 @@ if __name__ == "__main__":
 
     # Add some test findings
     manager.add_finding(0x401000, "Process injection entry point", "critical", "Uses CreateRemoteThread")
-    manager.add_finding(0x401100, "String decryption", "suspicious", "Custom crypto algorithm", tags=["crypto", "strings"])
+    manager.add_finding(
+        0x401100, "String decryption", "suspicious", "Custom crypto algorithm", tags=["crypto", "strings"]
+    )
     manager.add_finding(0x401200, "False positive", "false_positive", "Benign library function")
 
     # Export to markdown

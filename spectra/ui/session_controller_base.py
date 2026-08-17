@@ -14,7 +14,7 @@ from ..agent.loop import AgentLoop, BackgroundAgentRunner
 from ..agent.turn import TurnEvent
 from ..core.config import SpectraConfig
 from ..core.host import get_database_instance_id, set_database_instance_id
-from ..core.logging import log_debug, log_error, log_info
+from ..core.logging import log_debug, log_error, log_info, log_warning
 from ..mcp.manager import MCPManager
 from ..providers.registry import ProviderRegistry
 from ..skills.registry import SkillRegistry
@@ -118,6 +118,7 @@ class SessionControllerBase:
             if self._should_enable_auto_reload():
                 try:
                     from ..core.auto_reload import enable_auto_reload
+
                     enable_auto_reload()
                     log_info("Development mode: Auto-reload enabled")
                 except Exception as e:
@@ -152,6 +153,7 @@ class SessionControllerBase:
         """Check if auto-reload should be enabled for development."""
         # Check environment variable
         import os
+
         if os.getenv("SPECTRA_AUTO_RELOAD", "").lower() in ("1", "true", "yes"):
             return True
 
@@ -224,7 +226,7 @@ class SessionControllerBase:
         # If we closed the active tab, switch to another available tab
         if tab_id == self._active_tab_id and self._sessions:
             # Switch to the first available tab
-            self._active_tab_id = list(self._sessions.keys())[0]
+            self._active_tab_id = next(iter(self._sessions))
             log_debug(f"Auto-switched to tab {self._active_tab_id} after closing active tab")
 
     def switch_tab(self, tab_id: str) -> bool:

@@ -101,6 +101,9 @@ class SubagentRunner:
             host_name=self.host_name,
             parent_loop=self._parent_loop,
         )
+        # Enforce the turn cap in the loop itself — the prompt hint alone
+        # is advisory and the normal loop would otherwise run to 1000 turns.
+        loop.max_turns = max_turns
 
         log_info(f"Subagent started: task={task[:80]!r}, max_turns={max_turns}, silent={silent}")
 

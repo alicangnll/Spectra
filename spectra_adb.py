@@ -48,10 +48,8 @@ __author__ = "Ali Can Gönüllü"
 
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
-from typing import Any, Dict
 
 # Add Spectra to path
 spectra_path = Path(__file__).parent
@@ -59,7 +57,9 @@ sys.path.insert(0, str(spectra_path))
 
 # Try to import Spectra components
 try:
-    from spectra.adb import AdbManager, create_adb_tools
+    # create_adb_tools is imported only to probe availability here.
+    from spectra.adb import AdbManager, create_adb_tools  # noqa: F401
+
     SPECTRA_AVAILABLE = True
 except ImportError:
     SPECTRA_AVAILABLE = False
@@ -68,9 +68,9 @@ except ImportError:
 
 def print_section(title: str) -> None:
     """Print formatted section header."""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"  {title}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
 
 def print_json(data: dict, pretty: bool = True) -> None:
@@ -90,18 +90,20 @@ def cmd_check(args) -> int:
         result = manager.check_adb_available()
 
         if result.get("adb_available"):
-            print(f"✅ ADB is available")
+            print("✅ ADB is available")
             print(f"   Path: {result.get('adb_path')}")
             print(f"   Devices: {result.get('device_count', 0)}")
 
             if result.get("devices"):
-                print(f"\nConnected devices:")
+                print("\nConnected devices:")
                 for device in result.get("devices", []):
-                    print(f"  - {device.get('id')}: {device.get('product', 'unknown')} ({device.get('model', 'unknown')})")
+                    print(
+                        f"  - {device.get('id')}: {device.get('product', 'unknown')} ({device.get('model', 'unknown')})"
+                    )
             else:
-                print(f"\n⚠️  No devices connected. Connect a device via USB or wireless.")
-                print(f"   USB: Enable USB debugging on device")
-                print(f"   Wireless: adb connect <IP>:<port>")
+                print("\n⚠️  No devices connected. Connect a device via USB or wireless.")
+                print("   USB: Enable USB debugging on device")
+                print("   Wireless: adb connect <IP>:<port>")
         else:
             print(f"❌ ADB not available: {result.get('error')}")
 
@@ -118,12 +120,12 @@ def cmd_connect(args) -> int:
 
     try:
         manager = AdbManager()
-        device_id = args.device if hasattr(args, 'device') and args.device else None
+        device_id = args.device if hasattr(args, "device") and args.device else None
 
         result = manager.connect_to_device(device_id)
 
         if result.get("success"):
-            print(f"✅ Connected to device")
+            print("✅ Connected to device")
             print(f"   ID: {result.get('device_id')}")
             print(f"   Manufacturer: {result.get('manufacturer')}")
             print(f"   Model: {result.get('model')}")
@@ -151,7 +153,7 @@ def cmd_install(args) -> int:
 
         # First connect if not connected
         check = manager.check_adb_available()
-        if check.get('device_count', 0) == 0:
+        if check.get("device_count", 0) == 0:
             print("⚠️  No device connected. Connecting...")
             conn = manager.connect_to_device()
             if not conn.get("success"):
@@ -159,13 +161,11 @@ def cmd_install(args) -> int:
                 return 1
 
         result = manager.install_apk(
-            apk_path=args.apk,
-            replace=not args.no_replace,
-            grant_permissions=not args.no_grant
+            apk_path=args.apk, replace=not args.no_replace, grant_permissions=not args.no_grant
         )
 
         if result.get("success"):
-            print(f"✅ APK installed successfully")
+            print("✅ APK installed successfully")
             print(f"   {result.get('output')}")
         else:
             print(f"❌ Installation failed: {result.get('error')}")
@@ -185,13 +185,10 @@ def cmd_uninstall(args) -> int:
     try:
         manager = AdbManager()
 
-        result = manager.uninstall_app(
-            package_name=args.package,
-            keep_data=args.keep_data
-        )
+        result = manager.uninstall_app(package_name=args.package, keep_data=args.keep_data)
 
         if result.get("success"):
-            print(f"✅ Package uninstalled successfully")
+            print("✅ Package uninstalled successfully")
             print(f"   {result.get('output')}")
         else:
             print(f"❌ Uninstallation failed: {result.get('error')}")
@@ -214,13 +211,13 @@ def cmd_shell(args) -> int:
         result = manager.run_shell_command(args.command)
 
         if result.get("success"):
-            output = result.get('output', '')
+            output = result.get("output", "")
             if output:
                 print(output)
             else:
                 print("(No output)")
         else:
-            error = result.get('error', '')
+            error = result.get("error", "")
             print(f"❌ Command failed: {error}")
             return 1
 
@@ -241,7 +238,7 @@ def cmd_packages(args) -> int:
         result = manager.list_packages(user_only=not args.all)
 
         if result.get("success"):
-            packages = result.get('packages', [])
+            packages = result.get("packages", [])
             print(f"Total packages: {result.get('count', 0)}\n")
 
             if args.filter:
@@ -280,7 +277,7 @@ def cmd_app_info(args) -> int:
             print(f"Target SDK: {result.get('target_sdk')}")
             print(f"Data Dir: {result.get('data_dir')}")
 
-            permissions = result.get('permissions', [])
+            permissions = result.get("permissions", [])
             print(f"\nPermissions ({len(permissions)}):")
             for perm in permissions[:20]:
                 print(f"  - {perm}")
@@ -308,7 +305,7 @@ def cmd_pull(args) -> int:
         result = manager.pull_file(args.remote, args.local)
 
         if result.get("success"):
-            print(f"✅ File pulled successfully")
+            print("✅ File pulled successfully")
             print(f"   From: {result.get('remote_path')}")
             print(f"   To: {result.get('local_path')}")
         else:
@@ -332,7 +329,7 @@ def cmd_push(args) -> int:
         result = manager.push_file(args.local, args.remote)
 
         if result.get("success"):
-            print(f"✅ File pushed successfully")
+            print("✅ File pushed successfully")
             print(f"   From: {result.get('local_path')}")
             print(f"   To: {result.get('remote_path')}")
         else:
@@ -355,7 +352,7 @@ def cmd_devices(args) -> int:
 
         result = manager.list_devices()
 
-        devices = result.get('devices', [])
+        devices = result.get("devices", [])
 
         if devices:
             print(f"Found {len(devices)} device(s):\n")
@@ -363,13 +360,13 @@ def cmd_devices(args) -> int:
             for device in devices:
                 print(f"  ID: {device.get('id')}")
                 print(f"  Status: {device.get('status')}")
-                if device.get('model'):
+                if device.get("model"):
                     print(f"  Model: {device.get('model')}")
-                if device.get('product'):
+                if device.get("product"):
                     print(f"  Product: {device.get('product')}")
-                if device.get('device'):
+                if device.get("device"):
                     print(f"  Device: {device.get('device')}")
-                if device.get('usb'):
+                if device.get("usb"):
                     print(f"  USB: {device.get('usb')}")
                 print()
         else:
@@ -410,7 +407,7 @@ Examples:
 Safety:
   Shell commands are restricted to read-only operations for safety.
   Dangerous commands (rm, format, etc.) are blocked even on rooted devices.
-        """
+        """,
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
 

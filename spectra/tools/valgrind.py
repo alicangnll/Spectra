@@ -14,11 +14,10 @@ from __future__ import annotations
 import os
 import re
 import subprocess
-import tempfile
 from typing import Any
 
+from ..core.logging import log_debug, log_info
 from ..core.tool_infrastructure import ExternalTool
-from ..core.logging import log_debug, log_error, log_info
 from ..tools.base import ParameterSchema, ToolDefinition
 
 
@@ -70,7 +69,10 @@ def _ensure_valgrind() -> str:
 # Tool Functions
 # ============================================================================
 
-def valgrind_memcheck(binary: str, args: str, leak_check: str = "summary", track_origins: bool = False, verbose: bool = False) -> str:
+
+def valgrind_memcheck(
+    binary: str, args: str, leak_check: str = "summary", track_origins: bool = False, verbose: bool = False
+) -> str:
     """Run binary under Valgrind memcheck for memory error detection.
 
     Args:
@@ -141,7 +143,7 @@ def valgrind_massif(binary: str, args: str, snapshot_freq: str = "10", detailed_
     cmd = [
         valgrind_path,
         "--tool=massif",
-        f"--massif-out-file=massif.out.%p",
+        "--massif-out-file=massif.out.%p",
         f"--snapshot-freq={snapshot_freq}",
         f"--detailed-freq={detailed_freq}",
     ]
@@ -192,7 +194,7 @@ def valgrind_callgrind(binary: str, args: str, callgraph: bool = True, branch_si
     cmd = [
         valgrind_path,
         "--tool=callgrind",
-        f"--callgrind-out-file=callgrind.out.%p",
+        "--callgrind-out-file=callgrind.out.%p",
     ]
 
     if callgraph:
@@ -247,7 +249,7 @@ def valgrind_cachegrind(binary: str, args: str, cache_sim: bool = True, branch_s
     cmd = [
         valgrind_path,
         "--tool=cachegrind",
-        f"--cachegrind-out-file=cachegrind.out.%p",
+        "--cachegrind-out-file=cachegrind.out.%p",
     ]
 
     if not cache_sim:
@@ -386,15 +388,15 @@ def valgrind_parse_suppressions(suppressions_file: str) -> str:
         return f"Error: Suppressions file not found: {suppressions_file}"
 
     try:
-        with open(suppressions_file, 'r') as f:
+        with open(suppressions_file) as f:
             content = f.read()
 
         # Basic validation
         if not content.strip():
             return "Suppressions file is empty"
 
-        lines = content.split('\n')
-        suppression_count = len([l for l in lines if l.strip().startswith('{' )])
+        lines = content.split("\n")
+        suppression_count = len([ln for ln in lines if ln.strip().startswith("{")])
 
         output = [
             f"Suppressions file: {suppressions_file}",
@@ -413,6 +415,7 @@ def valgrind_parse_suppressions(suppressions_file: str) -> str:
 # Tool Definitions
 # ============================================================================
 
+
 def create_valgrind_tools() -> list[ToolDefinition]:
     """Create Valgrind tool definitions.
 
@@ -426,82 +429,152 @@ def create_valgrind_tools() -> list[ToolDefinition]:
             category="debugging",
             parameters=[
                 ParameterSchema(name="binary", type="string", description="Target binary path", required=True),
-                ParameterSchema(name="args", type="string", description="Command-line arguments", required=False, default=""),
-                ParameterSchema(name="leak_check", type="string", description="Leak check level (summary|no|full|yes)", required=False, default="summary"),
-                ParameterSchema(name="track_origins", type="boolean", description="Track origins of uninitialized values", required=False, default=False),
-                ParameterSchema(name="verbose", type="boolean", description="Enable verbose output", required=False, default=False),
+                ParameterSchema(
+                    name="args", type="string", description="Command-line arguments", required=False, default=""
+                ),
+                ParameterSchema(
+                    name="leak_check",
+                    type="string",
+                    description="Leak check level (summary|no|full|yes)",
+                    required=False,
+                    default="summary",
+                ),
+                ParameterSchema(
+                    name="track_origins",
+                    type="boolean",
+                    description="Track origins of uninitialized values",
+                    required=False,
+                    default=False,
+                ),
+                ParameterSchema(
+                    name="verbose", type="boolean", description="Enable verbose output", required=False, default=False
+                ),
             ],
-            handler=lambda binary, args="", leak_check="summary", track_origins=False, verbose=False, **kwargs: valgrind_memcheck(binary, args, leak_check, track_origins, verbose),
+            handler=lambda binary, args="", leak_check="summary", track_origins=False, verbose=False, **kwargs: (
+                valgrind_memcheck(binary, args, leak_check, track_origins, verbose)
+            ),
         ),
-
         ToolDefinition(
             name="valgrind_massif",
             description="Profile memory usage with Massif heap profiler",
             category="debugging",
             parameters=[
                 ParameterSchema(name="binary", type="string", description="Target binary path", required=True),
-                ParameterSchema(name="args", type="string", description="Command-line arguments", required=False, default=""),
-                ParameterSchema(name="snapshot_freq", type="string", description="Snapshot frequency (instructions or ms)", required=False, default="10"),
-                ParameterSchema(name="detailed_freq", type="integer", description="Detailed snapshot frequency", required=False, default=10),
+                ParameterSchema(
+                    name="args", type="string", description="Command-line arguments", required=False, default=""
+                ),
+                ParameterSchema(
+                    name="snapshot_freq",
+                    type="string",
+                    description="Snapshot frequency (instructions or ms)",
+                    required=False,
+                    default="10",
+                ),
+                ParameterSchema(
+                    name="detailed_freq",
+                    type="integer",
+                    description="Detailed snapshot frequency",
+                    required=False,
+                    default=10,
+                ),
             ],
-            handler=lambda binary, args="", snapshot_freq="10", detailed_freq=10, **kwargs: valgrind_massif(binary, args, snapshot_freq, detailed_freq),
+            handler=lambda binary, args="", snapshot_freq="10", detailed_freq=10, **kwargs: valgrind_massif(
+                binary, args, snapshot_freq, detailed_freq
+            ),
         ),
-
         ToolDefinition(
             name="valgrind_callgrind",
             description="Profile performance with Callgrind",
             category="debugging",
             parameters=[
                 ParameterSchema(name="binary", type="string", description="Target binary path", required=True),
-                ParameterSchema(name="args", type="string", description="Command-line arguments", required=False, default=""),
-                ParameterSchema(name="callgraph", type="boolean", description="Generate call graph", required=False, default=True),
-                ParameterSchema(name="branch_simulation", type="boolean", description="Enable branch prediction simulation", required=False, default=False),
+                ParameterSchema(
+                    name="args", type="string", description="Command-line arguments", required=False, default=""
+                ),
+                ParameterSchema(
+                    name="callgraph", type="boolean", description="Generate call graph", required=False, default=True
+                ),
+                ParameterSchema(
+                    name="branch_simulation",
+                    type="boolean",
+                    description="Enable branch prediction simulation",
+                    required=False,
+                    default=False,
+                ),
             ],
-            handler=lambda binary, args="", callgraph=True, branch_simulation=False, **kwargs: valgrind_callgrind(binary, args, callgraph, branch_simulation),
+            handler=lambda binary, args="", callgraph=True, branch_simulation=False, **kwargs: valgrind_callgrind(
+                binary, args, callgraph, branch_simulation
+            ),
         ),
-
         ToolDefinition(
             name="valgrind_cachegrind",
             description="Profile cache performance with cachegrind",
             category="debugging",
             parameters=[
                 ParameterSchema(name="binary", type="string", description="Target binary path", required=True),
-                ParameterSchema(name="args", type="string", description="Command-line arguments", required=False, default=""),
-                ParameterSchema(name="cache_sim", type="boolean", description="Enable cache simulation", required=False, default=True),
-                ParameterSchema(name="branch_sim", type="boolean", description="Enable branch prediction simulation", required=False, default=False),
+                ParameterSchema(
+                    name="args", type="string", description="Command-line arguments", required=False, default=""
+                ),
+                ParameterSchema(
+                    name="cache_sim",
+                    type="boolean",
+                    description="Enable cache simulation",
+                    required=False,
+                    default=True,
+                ),
+                ParameterSchema(
+                    name="branch_sim",
+                    type="boolean",
+                    description="Enable branch prediction simulation",
+                    required=False,
+                    default=False,
+                ),
             ],
-            handler=lambda binary, args="", cache_sim=True, branch_sim=False, **kwargs: valgrind_cachegrind(binary, args, cache_sim, branch_sim),
+            handler=lambda binary, args="", cache_sim=True, branch_sim=False, **kwargs: valgrind_cachegrind(
+                binary, args, cache_sim, branch_sim
+            ),
         ),
-
         ToolDefinition(
             name="valgrind_helgrind",
             description="Detect thread errors with Helgrind",
             category="debugging",
             parameters=[
                 ParameterSchema(name="binary", type="string", description="Target binary path", required=True),
-                ParameterSchema(name="args", type="string", description="Command-line arguments", required=False, default=""),
-                ParameterSchema(name="history_level", type="string", description="History level (full|approx|none)", required=False, default="full"),
+                ParameterSchema(
+                    name="args", type="string", description="Command-line arguments", required=False, default=""
+                ),
+                ParameterSchema(
+                    name="history_level",
+                    type="string",
+                    description="History level (full|approx|none)",
+                    required=False,
+                    default="full",
+                ),
             ],
-            handler=lambda binary, args="", history_level="full", **kwargs: valgrind_helgrind(binary, args, history_level),
+            handler=lambda binary, args="", history_level="full", **kwargs: valgrind_helgrind(
+                binary, args, history_level
+            ),
         ),
-
         ToolDefinition(
             name="valgrind_drd",
             description="Detect thread errors with DRD (alternative to Helgrind)",
             category="debugging",
             parameters=[
                 ParameterSchema(name="binary", type="string", description="Target binary path", required=True),
-                ParameterSchema(name="args", type="string", description="Command-line arguments", required=False, default=""),
+                ParameterSchema(
+                    name="args", type="string", description="Command-line arguments", required=False, default=""
+                ),
             ],
             handler=lambda binary, args="", **kwargs: valgrind_drd(binary, args),
         ),
-
         ToolDefinition(
             name="valgrind_parse_suppressions",
             description="Parse and display Valgrind suppressions file",
             category="debugging",
             parameters=[
-                ParameterSchema(name="suppressions_file", type="string", description="Path to suppressions file", required=True),
+                ParameterSchema(
+                    name="suppressions_file", type="string", description="Path to suppressions file", required=True
+                ),
             ],
             handler=lambda suppressions_file, **kwargs: valgrind_parse_suppressions(suppressions_file),
         ),

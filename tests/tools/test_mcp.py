@@ -10,38 +10,42 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from tests.mocks.ida_mock import install_ida_mocks
+
 install_ida_mocks()
 
-from spectra.mcp.config import MCPServerConfig, load_mcp_config, save_mcp_config
-from spectra.mcp.protocol import (
-    MCPToolSchema,
-    encode_jsonrpc_request,
-    decode_jsonrpc_response,
-)
 from spectra.mcp.bridge import _mcp_schema_to_parameters, register_mcp_tools
 from spectra.mcp.client import MCPClient
+from spectra.mcp.config import MCPServerConfig, load_mcp_config, save_mcp_config
 from spectra.mcp.manager import MCPManager
+from spectra.mcp.protocol import (
+    MCPToolSchema,
+    decode_jsonrpc_response,
+    encode_jsonrpc_request,
+)
 from spectra.tools.registry import ToolRegistry
 
 
 class TestMCPConfig(unittest.TestCase):
     def test_load_valid_config(self):
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-            json.dump({
-                "mcpServers": {
-                    "test-server": {
-                        "command": "python",
-                        "args": ["-m", "test_mcp"],
-                        "env": {"FOO": "bar"},
-                        "enabled": True,
-                    },
-                    "disabled-server": {
-                        "command": "node",
-                        "args": ["server.js"],
-                        "enabled": False,
-                    },
-                }
-            }, f)
+            json.dump(
+                {
+                    "mcpServers": {
+                        "test-server": {
+                            "command": "python",
+                            "args": ["-m", "test_mcp"],
+                            "env": {"FOO": "bar"},
+                            "enabled": True,
+                        },
+                        "disabled-server": {
+                            "command": "node",
+                            "args": ["server.js"],
+                            "enabled": False,
+                        },
+                    }
+                },
+                f,
+            )
             path = f.name
 
         try:
@@ -90,11 +94,14 @@ class TestMCPConfig(unittest.TestCase):
 
     def test_skip_missing_command(self):
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-            json.dump({
-                "mcpServers": {
-                    "no-cmd": {"args": ["x"]},
-                }
-            }, f)
+            json.dump(
+                {
+                    "mcpServers": {
+                        "no-cmd": {"args": ["x"]},
+                    }
+                },
+                f,
+            )
             path = f.name
         try:
             servers = load_mcp_config(path)
@@ -122,11 +129,15 @@ class TestMCPProtocol(unittest.TestCase):
         self.assertIn("error", resp)
 
     def test_tool_schema_dataclass(self):
-        ts = MCPToolSchema(name="test", description="A test tool", input_schema={
-            "type": "object",
-            "properties": {"x": {"type": "integer"}},
-            "required": ["x"],
-        })
+        ts = MCPToolSchema(
+            name="test",
+            description="A test tool",
+            input_schema={
+                "type": "object",
+                "properties": {"x": {"type": "integer"}},
+                "required": ["x"],
+            },
+        )
         self.assertEqual(ts.name, "test")
         self.assertIn("x", ts.input_schema["properties"])
 
@@ -259,6 +270,44 @@ class TestMCPManager(unittest.TestCase):
     def test_stop_all_empty(self):
         mgr = MCPManager()
         mgr.stop_all()  # Should not raise
+
+    def test_external_configs_survive_load_config(self):
+        """Reloading the config file must not drop external servers.
+
+        Regression test: load_config() replaces _configs; externally
+        discovered servers (Claude/Codex sources) used to vanish on reload.
+        """
+        from spectra.mcp.config import MCPServerConfig
+
+        mgr = MCPManager()
+        external = MCPServerConfig(name="external-claude", command="npx", args=["-y", "some-server"])
+        mgr.add_external_configs([external])
+
+        # Simulate a reload: config file (nonexistent → empty) is re-read.
+        mgr.load_config("/nonexistent/mcp.json")
+
+        names = [c.name for c in mgr._configs]
+        self.assertIn("external-claude", names)
+
+    def test_external_configs_survive_reload(self):
+        """Full reload() cycle keeps external servers registered.
+
+        The external server is disabled so the reload does not attempt to
+        spawn a real npx subprocess from the test process.
+        """
+        from spectra.mcp.config import MCPServerConfig
+        from spectra.tools.registry import ToolRegistry
+
+        mgr = MCPManager()
+        external = MCPServerConfig(name="external-codex", command="npx", args=["-y", "codex-mcp"], enabled=False)
+        mgr.add_external_configs([external])
+
+        registry = ToolRegistry()
+        mgr.reload(registry, config_path="/nonexistent/mcp.json")
+
+        names = [c.name for c in mgr._configs]
+        self.assertIn("external-codex", names)
+        mgr.shutdown()
 
 
 if __name__ == "__main__":

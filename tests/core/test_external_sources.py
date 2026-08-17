@@ -12,20 +12,21 @@ from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from tests.mocks.ida_mock import install_ida_mocks
+
 install_ida_mocks()
 
 from spectra.core.external_sources import (
-    get_claude_code_base,
-    get_codex_base,
+    _get_claude_managed_mcp_path,
+    _load_codex_mcp_toml,
+    _load_mcp_json,
+    discover_all_external_mcp,
+    discover_all_external_skills,
     discover_claude_skills,
     discover_codex_skills,
-    discover_all_external_skills,
+    get_claude_code_base,
+    get_codex_base,
     load_claude_mcp,
     load_codex_mcp,
-    discover_all_external_mcp,
-    _load_mcp_json,
-    _load_codex_mcp_toml,
-    _get_claude_managed_mcp_path,
 )
 
 
@@ -181,14 +182,14 @@ class TestMCPDiscoveryTOML(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             toml_path = Path(tmpdir) / "config.toml"
             toml_path.write_text(
-                '[mcp_servers.my_server]\n'
+                "[mcp_servers.my_server]\n"
                 'command = "node"\n'
                 'args = ["server.js", "--port", "3000"]\n'
-                '\n'
-                '[mcp_servers.another]\n'
+                "\n"
+                "[mcp_servers.another]\n"
                 'command = "python"\n'
                 'args = ["-m", "mcp_server"]\n'
-                'startup_timeout_sec = 120\n'
+                "startup_timeout_sec = 120\n"
             )
             servers = _load_codex_mcp_toml(toml_path)
             self.assertEqual(len(servers), 2)
@@ -226,12 +227,7 @@ class TestMCPDiscoveryTOML(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             toml_path = Path(tmpdir) / "config.toml"
             toml_path.write_text(
-                '[mcp_servers.no_cmd]\n'
-                'args = ["x"]\n'
-                '\n'
-                '[mcp_servers.has_cmd]\n'
-                'command = "node"\n'
-                'args = ["y"]\n'
+                '[mcp_servers.no_cmd]\nargs = ["x"]\n\n[mcp_servers.has_cmd]\ncommand = "node"\nargs = ["y"]\n'
             )
             servers = _load_codex_mcp_toml(toml_path)
             self.assertEqual(len(servers), 1)
@@ -242,10 +238,10 @@ class TestMCPDiscoveryTOML(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             toml_path = Path(tmpdir) / "config.toml"
             toml_path.write_text(
-                '[mcp_servers.srv]\n'
+                "[mcp_servers.srv]\n"
                 'command = "node"\n'
                 'args = ["srv.js"]\n'
-                '[mcp_servers.srv.env]\n'
+                "[mcp_servers.srv.env]\n"
                 'PORT = "3000"\n'
                 'DEBUG = "1"\n'
             )
@@ -258,10 +254,7 @@ class TestMCPDiscoveryTOML(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             base = Path(tmpdir)
             toml_path = base / "config.toml"
-            toml_path.write_text(
-                '[mcp_servers.toml_srv]\n'
-                'command = "node"\n'
-            )
+            toml_path.write_text('[mcp_servers.toml_srv]\ncommand = "node"\n')
             # Also create a mcp.json to prove it's ignored
             json_path = base / "mcp.json"
             with open(json_path, "w") as f:
@@ -358,23 +351,21 @@ class TestClaudeMCPMerge(unittest.TestCase):
         """All 4 sources merge correctly with dedup."""
         with tempfile.TemporaryDirectory() as tmpdir:
             base = Path(tmpdir)
+            # Commands must be in the MCP safe list — unknown commands are
+            # blocked by the security validator before merge results surface.
             # Source 1: .mcp.json
-            (base / ".mcp.json").write_text(json.dumps(
-                {"mcpServers": {"s1": {"command": "a"}, "dup": {"command": "first"}}}
-            ))
+            (base / ".mcp.json").write_text(
+                json.dumps({"mcpServers": {"s1": {"command": "node"}, "dup": {"command": "node"}}})
+            )
             # Source 2: mcp.json
-            (base / "mcp.json").write_text(json.dumps(
-                {"mcpServers": {"s2": {"command": "b"}, "dup": {"command": "second"}}}
-            ))
+            (base / "mcp.json").write_text(
+                json.dumps({"mcpServers": {"s2": {"command": "python"}, "dup": {"command": "python"}}})
+            )
             # Source 3: .claude.json
-            (base / ".claude.json").write_text(json.dumps(
-                {"mcpServers": {"s3": {"command": "c"}}}
-            ))
+            (base / ".claude.json").write_text(json.dumps({"mcpServers": {"s3": {"command": "npx"}}}))
             # Source 4: managed
             managed_path = base / "managed.json"
-            managed_path.write_text(json.dumps(
-                {"mcpServers": {"s4": {"command": "d"}}}
-            ))
+            managed_path.write_text(json.dumps({"mcpServers": {"s4": {"command": "node"}}}))
 
             with patch("spectra.core.external_sources.get_claude_code_base", return_value=base):
                 with patch("spectra.core.external_sources.Path.home", return_value=base):
@@ -382,9 +373,9 @@ class TestClaudeMCPMerge(unittest.TestCase):
                         servers = load_claude_mcp()
                         names = {s.name for s in servers}
                         self.assertEqual(names, {"s1", "s2", "s3", "s4", "dup"})
-                        # dup should use "first" (from .mcp.json)
+                        # dup should use .mcp.json's command (preferred source)
                         dup = next(s for s in servers if s.name == "dup")
-                        self.assertEqual(dup.command, "first")
+                        self.assertEqual(dup.command, "node")
 
 
 class TestAggregateDiscovery(unittest.TestCase):

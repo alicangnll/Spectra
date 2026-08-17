@@ -10,7 +10,6 @@ Provides tools for:
 
 from __future__ import annotations
 
-import os
 import glob
 from pathlib import Path
 from typing import Annotated
@@ -47,7 +46,7 @@ def read_file(
         if file_size > 100_000:  # 100KB limit
             return f"Error: File too large ({file_size:,} bytes). Max 100KB."
 
-        with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+        with open(file_path, encoding="utf-8", errors="replace") as f:
             content = f.read()
 
         # Add line count info
@@ -122,7 +121,7 @@ def edit_file(
         if not file_path.exists():
             return f"Error: File not found: {path}"
 
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             content = f.read()
 
         if old_text not in content:

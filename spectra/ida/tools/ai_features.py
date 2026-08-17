@@ -7,6 +7,7 @@ from typing import Annotated
 # Try to import IDA API
 try:
     import idautils
+
     IDA_AVAILABLE = True
 except ImportError:
     IDA_AVAILABLE = False
@@ -14,13 +15,15 @@ except ImportError:
 from ...tools.ai_features import (
     auto_document_function,
     find_similar_functions,
-    semantic_search,
+)
+from ...tools.ai_features import (
+    semantic_search as _semantic_search_impl,
 )
 from ...tools.base import tool
 
 
 @tool(category="ai", description="Search functions by semantic meaning")
-def search_functions(
+def semantic_search(
     query: Annotated[str, "Natural language query (e.g., 'crypto functions', 'file operations')"],
     limit: Annotated[int, "Maximum number of results"] = 10,
 ) -> str:
@@ -40,7 +43,7 @@ def search_functions(
         Ranked list of matching functions with relevance scores
         and reasons for each match.
     """
-    return semantic_search(query, limit)
+    return _semantic_search_impl(query, limit)
 
 
 @tool(category="ai", description="Find functions similar to a given function")

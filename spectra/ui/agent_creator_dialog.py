@@ -1,10 +1,9 @@
 """Agent creation dialog for adding new skills/agents from the UI."""
 
 from pathlib import Path
-from typing import Any
 
-from ..core.logging import log_debug, log_error, log_info
 from ..core.auto_reload import trigger_reload
+from ..core.logging import log_debug, log_error, log_info
 from .qt_compat import (
     QComboBox,
     QDialog,
@@ -18,7 +17,6 @@ from .qt_compat import (
     QTabWidget,
     QVBoxLayout,
     QWidget,
-    qt_run,
 )
 
 
@@ -167,9 +165,7 @@ class AgentCreatorDialog(QDialog):
         layout.addWidget(self._status_label)
 
         # Buttons
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
-        )
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         buttons.setStyleSheet(
             "QPushButton { background: #2d2d2d; color: #d4d4d4; border: 1px solid #3c3c3c; "
             "border-radius: 4px; padding: 6px 16px; font-size: 11px; min-width: 80px; }"
@@ -354,7 +350,7 @@ class AgentCreatorDialog(QDialog):
         task_content = self._task_edit.toPlainText().strip()
 
         if not task_content:
-            task_content = f"""Task: This agent performs custom analysis tasks.
+            task_content = """Task: This agent performs custom analysis tasks.
 
 ## Approach
 - Analyze the binary based on user requirements
@@ -426,7 +422,7 @@ mode: {mode}
             QMessageBox.critical(
                 self,
                 "Creation Failed",
-                f"Failed to create agent '{name}':\n{str(e)}",
+                f"Failed to create agent '{name}':\n{e!s}",
             )
 
     def get_created_skill_path(self) -> Path | None:

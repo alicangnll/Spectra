@@ -5,6 +5,7 @@ For host capability flags see ``spectra.core.host``.
 """
 
 from __future__ import annotations
+
 import json
 from pathlib import Path
 
@@ -25,11 +26,11 @@ try:
             if (_parent / "update.json").exists():
                 _update_json_path = _parent / "update.json"
                 break
-    with open(_update_json_path, "r") as f:
+    with open(_update_json_path) as f:
         _update_info = json.load(f)
         PLUGIN_VERSION = _update_info["version"]
 except (FileNotFoundError, KeyError, json.JSONDecodeError):
-    PLUGIN_VERSION = "1.2.5"  # Fallback version
+    PLUGIN_VERSION = "1.3.9"  # Fallback version — keep in sync with update.json
 
 PLUGIN_NAME = "Spectra"
 PLUGIN_HOTKEY = "Ctrl+Shift+I"

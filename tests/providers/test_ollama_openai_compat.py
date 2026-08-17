@@ -10,15 +10,16 @@ from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from tests.mocks.ida_mock import install_ida_mocks
+
 install_ida_mocks()
 
-from spectra.providers.ollama_provider import OllamaProvider, DEFAULT_OLLAMA_URL
+from spectra.providers.ollama_provider import DEFAULT_OLLAMA_URL, OllamaProvider
 from spectra.providers.openai_compat import OpenAICompatProvider
-
 
 # ---------------------------------------------------------------------------
 # OllamaProvider
 # ---------------------------------------------------------------------------
+
 
 class TestOllamaProviderInit(unittest.TestCase):
     def test_defaults(self):
@@ -81,9 +82,11 @@ class TestOllamaListModels(unittest.TestCase):
         payload = {"models": [{"name": "phi3"}]}
         mock_resp = self._make_mock_response(payload)
         captured = {}
+
         def fake_urlopen(url, timeout=None):
             captured["url"] = url
             return mock_resp
+
         with patch("urllib.request.urlopen", fake_urlopen):
             OllamaProvider(api_base="http://localhost:11434/v1").list_models()
         assert captured["url"] == "http://localhost:11434/api/tags"
@@ -111,6 +114,7 @@ class TestOllamaListModels(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # OpenAICompatProvider
 # ---------------------------------------------------------------------------
+
 
 class TestOpenAICompatProvider(unittest.TestCase):
     def test_name_default(self):
@@ -149,6 +153,7 @@ class TestOpenAICompatProvider(unittest.TestCase):
 
     def test_get_client_raises_without_openai(self):
         from spectra.core.errors import ProviderError
+
         p = OpenAICompatProvider(api_key="k", api_base="http://localhost/v1")
         with patch("importlib.import_module", side_effect=ImportError("no openai")):
             with self.assertRaises(ProviderError):

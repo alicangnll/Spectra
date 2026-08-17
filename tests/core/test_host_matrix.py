@@ -10,30 +10,33 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock, patch
 
-
 # ---------------------------------------------------------------------------
 # Host detection flags (spectra.core.host)
 # ---------------------------------------------------------------------------
+
 
 class TestHostDetectionFlags(unittest.TestCase):
     """Verify module-level host flags are consistent with detection functions."""
 
     def test_flags_are_bool(self):
         """Host flags should be bool, regardless of host stubs."""
-        from spectra.core.host import IDA_AVAILABLE, BINARY_NINJA_AVAILABLE, HAS_HEXRAYS
+        from spectra.core.host import BINARY_NINJA_AVAILABLE, HAS_HEXRAYS, IDA_AVAILABLE
+
         self.assertIsInstance(IDA_AVAILABLE, bool)
         self.assertIsInstance(BINARY_NINJA_AVAILABLE, bool)
         self.assertIsInstance(HAS_HEXRAYS, bool)
 
     def test_hexrays_requires_ida(self):
         """HAS_HEXRAYS should only be True if IDA_AVAILABLE is True."""
-        from spectra.core.host import IDA_AVAILABLE, HAS_HEXRAYS
+        from spectra.core.host import HAS_HEXRAYS, IDA_AVAILABLE
+
         if HAS_HEXRAYS:
             self.assertTrue(IDA_AVAILABLE)
 
     def test_mutual_exclusion(self):
         """IDA and BN cannot both be the active host at once."""
-        from spectra.core.host import is_ida, is_binary_ninja
+        from spectra.core.host import is_binary_ninja, is_ida
+
         self.assertFalse(is_ida() and is_binary_ninja())
 
 
@@ -41,19 +44,23 @@ class TestHostDetectionFlags(unittest.TestCase):
 # dispatch_wrapper in ToolRegistry
 # ---------------------------------------------------------------------------
 
+
 class TestRegistryDispatchWrapper(unittest.TestCase):
     """Verify dispatch_wrapper is applied at execution time."""
 
     def _make_registry(self, wrapper=None):
         from spectra.tools.registry import ToolRegistry
+
         return ToolRegistry(dispatch_wrapper=wrapper)
 
     def _register_echo(self, registry):
         from spectra.tools.base import tool
+
         @tool(name="echo_test", description="Echo for testing")
         def echo_test(text: str) -> str:
             """Echo."""
             return f"echo:{text}"
+
         registry.register(echo_test._tool_definition)
         return echo_test
 
@@ -72,6 +79,7 @@ class TestRegistryDispatchWrapper(unittest.TestCase):
             def wrapped(*args, **kwargs):
                 call_log.append(("wrapped", handler.__name__))
                 return handler(*args, **kwargs)
+
             return wrapped
 
         reg = self._make_registry(wrapper=tracking_wrapper)
@@ -83,14 +91,17 @@ class TestRegistryDispatchWrapper(unittest.TestCase):
 
     def test_wrapper_exception_propagates(self):
         """Exceptions from wrapped handler propagate correctly."""
+
         def error_wrapper(handler):
             def wrapped(*args, **kwargs):
                 raise RuntimeError("dispatch error")
+
             return wrapped
 
         reg = self._make_registry(wrapper=error_wrapper)
         self._register_echo(reg)
         from spectra.core.errors import ToolError
+
         with self.assertRaises(ToolError):
             reg.execute("echo_test", {"text": "fail"})
 
@@ -100,9 +111,11 @@ class TestRegistryDispatchWrapper(unittest.TestCase):
 
         def mock_idasync(handler):
             """Simulated idasync: records call instead of using execute_sync."""
+
             def wrapped(*args, **kwargs):
                 main_thread_calls.append(handler.__name__)
                 return handler(*args, **kwargs)
+
             return wrapped
 
         reg = self._make_registry(wrapper=mock_idasync)
@@ -115,6 +128,7 @@ class TestRegistryDispatchWrapper(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # idasync behavior under different host conditions
 # ---------------------------------------------------------------------------
+
 
 class TestIdasyncStandalone(unittest.TestCase):
     """Verify idasync in standalone mode (no host) is a direct call."""
@@ -208,6 +222,7 @@ class TestIdasyncWithMockedHosts(unittest.TestCase):
 # @tool decorator is host-agnostic
 # ---------------------------------------------------------------------------
 
+
 class TestToolDecoratorHostAgnostic(unittest.TestCase):
     """Verify @tool creates definitions without any host-specific behavior."""
 
@@ -228,8 +243,8 @@ class TestToolDecoratorHostAgnostic(unittest.TestCase):
 
     def test_tool_handler_no_thread_dispatch(self):
         """@tool handler should NOT wrap with idasync — dispatch is registry's job."""
-        from spectra.tools.base import tool
         import spectra.core.thread_safety as ts
+        from spectra.tools.base import tool
 
         call_log = []
         original_idasync = ts.idasync
@@ -239,6 +254,7 @@ class TestToolDecoratorHostAgnostic(unittest.TestCase):
             return original_idasync(func)
 
         with patch.object(ts, "idasync", spy_idasync):
+
             @tool(name="test_no_dispatch", description="No dispatch test")
             def test_no_dispatch() -> str:
                 """Test."""

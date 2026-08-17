@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from spectra.core.host import HAS_HEXRAYS
 from spectra.core.thread_safety import idasync
-from spectra.tools.registry import ToolRegistry
 from spectra.tools import adb  # ADB tools (standalone, shared across hosts)
+from spectra.tools.registry import ToolRegistry
 
 from . import (
     advanced_decomp,

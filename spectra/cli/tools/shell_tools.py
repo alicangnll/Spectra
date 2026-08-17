@@ -9,8 +9,9 @@ from __future__ import annotations
 import json
 import subprocess
 import threading
+from collections.abc import Callable
 from pathlib import Path
-from typing import Annotated, Callable
+from typing import Annotated
 
 from ...tools.base import tool
 
@@ -24,7 +25,7 @@ def _load_dangerous_commands() -> dict:
     json_path = Path(__file__).parent / "dangerous_commands.json"
 
     try:
-        with open(json_path, "r", encoding="utf-8") as f:
+        with open(json_path, encoding="utf-8") as f:
             data = json.load(f)
         return data.get("categories", {})
     except (FileNotFoundError, json.JSONDecodeError) as e:
@@ -89,7 +90,7 @@ def check_dangerous_command(command: str) -> tuple[bool, str, list[str]]:
     highest_severity = None
 
     # Check each category from JSON
-    for category_name, category_data in _DANGEROUS_CATEGORIES.items():
+    for _category_name, category_data in _DANGEROUS_CATEGORIES.items():
         severity = category_data.get("severity", "MEDIUM")
         patterns = category_data.get("patterns", [])
 
@@ -103,7 +104,7 @@ def check_dangerous_command(command: str) -> tuple[bool, str, list[str]]:
 
                 # CRITICAL commands return immediately
                 if severity == "CRITICAL":
-                    reason = f"CRITICAL: This command could cause irreversible damage!"
+                    reason = "CRITICAL: This command could cause irreversible damage!"
                     return True, reason, [pattern]
 
     if detected_patterns and highest_severity:
@@ -131,18 +132,16 @@ def check_dangerous_python_code(code: str) -> tuple[bool, str, list[str]]:
     highest_severity = None
 
     # Check Python-specific categories from JSON
-    python_categories = {
-        k: v for k, v in _DANGEROUS_CATEGORIES.items()
-        if k.startswith("python_")
-    }
+    python_categories = {k: v for k, v in _DANGEROUS_CATEGORIES.items() if k.startswith("python_")}
 
-    for category_name, category_data in python_categories.items():
+    for _category_name, category_data in python_categories.items():
         severity = category_data.get("severity", "MEDIUM")
         patterns = category_data.get("patterns", [])
 
         for pattern in patterns:
             # Use regex for more flexible pattern matching
             import re
+
             try:
                 # Convert shell wildcard patterns to regex
                 regex_pattern = pattern.replace(".*", r".*").replace(".", r"\.")
@@ -155,7 +154,7 @@ def check_dangerous_python_code(code: str) -> tuple[bool, str, list[str]]:
 
                     # CRITICAL commands return immediately
                     if severity == "CRITICAL":
-                        reason = f"CRITICAL: This Python code could cause irreversible damage!"
+                        reason = "CRITICAL: This Python code could cause irreversible damage!"
                         return True, reason, [pattern]
             except re.error:
                 # Fallback to substring match if regex fails
@@ -164,12 +163,14 @@ def check_dangerous_python_code(code: str) -> tuple[bool, str, list[str]]:
                     if highest_severity is None or _severity_rank(severity) > _severity_rank(highest_severity):
                         highest_severity = severity
                     if severity == "CRITICAL":
-                        reason = f"CRITICAL: This Python code could cause irreversible damage!"
+                        reason = "CRITICAL: This Python code could cause irreversible damage!"
                         return True, reason, [pattern]
 
     if detected_patterns and highest_severity:
         if highest_severity == "HIGH":
-            reason = f"HIGH: This Python code poses significant risk ({_get_python_risk_description(detected_patterns)})"
+            reason = (
+                f"HIGH: This Python code poses significant risk ({_get_python_risk_description(detected_patterns)})"
+            )
             return True, reason, detected_patterns
         elif highest_severity == "MEDIUM":
             reason = f"MEDIUM: This Python code has potential risks ({_get_python_risk_description(detected_patterns)})"
@@ -284,6 +285,7 @@ def kill_all_subprocesses() -> None:
                     proc.terminate()
                     # Give it a moment to terminate gracefully
                     import time
+
                     time.sleep(0.01)
                     if proc.poll() is None:  # Still running
                         proc.kill()
@@ -355,12 +357,11 @@ def shell_command(
 
     try:
         # Check if command is dangerous
-        is_dangerous, danger_reason, detected_patterns = check_dangerous_command(command)
+        is_dangerous, danger_reason, _detected_patterns = check_dangerous_command(command)
 
         # Request user approval - DEFAULT DENY if no callback set
         if _approval_callback is None:
             # Safety: No callback configured = deny execution
-            import sys
             print()
             print("\033[31m" + "⚠️  ERROR: Shell command approval not configured!" + "\033[0m")
             print("\033[33m" + "    The shell_command tool requires an approval callback to be set." + "\033[0m")
@@ -373,7 +374,7 @@ def shell_command(
             return "Command execution cancelled by user."
 
         # Show execution indicator
-        print(f"\033[36m⏳ Running command...\033[0m", end="", flush=True)
+        print("\033[36m⏳ Running command...\033[0m", end="", flush=True)
 
         # Execute command with Popen for better cancellation support
         # Note: Popen doesn't support capture_output, use stdout/stderr PIPE
@@ -391,6 +392,7 @@ def shell_command(
         try:
             # Wait for completion with timeout
             import time
+
             start_time = time.time()
 
             while proc.poll() is None:
@@ -446,7 +448,7 @@ def shell_command(
         # Always cleanup: unregister subprocess and release lock
         try:
             unregister_subprocess(proc)
-        except:
+        except Exception:
             pass
         _shell_execution_lock.release()
 
@@ -469,6 +471,7 @@ def which(
     """
     try:
         import shutil
+
         path = shutil.which(command)
         if path:
             return path
@@ -496,6 +499,7 @@ def get_env(
         get_env("HOME")
     """
     import os
+
     return os.environ.get(variable, default)
 
 
@@ -520,5 +524,6 @@ def set_env(
         set_env("MY_VAR", "my_value")
     """
     import os
+
     os.environ[variable] = value
     return f"Set {variable}={value}"

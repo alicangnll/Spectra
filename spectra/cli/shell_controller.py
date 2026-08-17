@@ -5,10 +5,8 @@ Extends SessionControllerBase for CLI environment without disrupting IDA Pro plu
 
 from __future__ import annotations
 
-import os
 import sys
-from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from ..core.config import SpectraConfig
 from ..core.logging import log_debug, log_info
@@ -16,7 +14,6 @@ from ..state.history import SessionHistory
 from ..state.session import SessionState
 from ..tools.registry import ToolRegistry
 from ..ui.session_controller_base import SessionControllerBase
-
 
 # CLI-specific database instance ID (separate from IDA/BNDB)
 _CLI_DB_INSTANCE_ID = "spectra-cli"
@@ -30,11 +27,12 @@ def _flush_input() -> None:
     """
     try:
         import select
+
         # Check if there's pending input
         while select.select([sys.stdin], [], [], 0.0)[0]:
             # Read and discard pending input
             sys.stdin.readline()
-    except:
+    except Exception:
         # If flushing fails, just continue
         pass
 
@@ -51,17 +49,19 @@ def create_cli_tool_registry() -> ToolRegistry:
     registry = ToolRegistry()
 
     # Declare CLI capabilities (no IDA-specific features)
-    registry.set_capabilities({
-        "hexrays": False,
-        "idb_struct": False,
-        "database": False,
-        "ida_pro": False,
-        "binary_ninja": False,
-        "cli_mode": True,
-        "filesystem": True,
-        "shell": True,
-        "source_code_analysis": True,
-    })
+    registry.set_capabilities(
+        {
+            "hexrays": False,
+            "idb_struct": False,
+            "database": False,
+            "ida_pro": False,
+            "binary_ninja": False,
+            "cli_mode": True,
+            "filesystem": True,
+            "shell": True,
+            "source_code_analysis": True,
+        }
+    )
 
     return registry
 
@@ -115,6 +115,7 @@ class CLISessionController(SessionControllerBase):
         # Load CLI tools after base initialization
         try:
             from ..cli.tools import file_tools, shell_tools
+
             self._tool_registry.register_module(file_tools)
             self._tool_registry.register_module(shell_tools)
             log_info("CLI tools registered")
@@ -180,7 +181,7 @@ class CLISessionController(SessionControllerBase):
                 sid = s.get("id", "")
 
                 # Match by description (case-insensitive, partial match)
-                if session_id.lower() in desc.lower() or session_id == sid[:len(session_id)]:
+                if session_id.lower() in desc.lower() or session_id == sid[: len(session_id)]:
                     session = history.load_session(sid)
                     if session:
                         self._sessions[self._active_tab_id] = session
@@ -217,7 +218,7 @@ class CLISessionController(SessionControllerBase):
             desc = s.get("description", "")
 
             # Match by exact ID, partial ID, or description
-            if session_id == sid or session_id == sid[:len(session_id)] or session_id.lower() in desc.lower():
+            if session_id == sid or session_id == sid[: len(session_id)] or session_id.lower() in desc.lower():
                 target_session_id = sid
                 break
 
@@ -242,12 +243,14 @@ class CLISessionController(SessionControllerBase):
         # Format session info (entries are already dicts from JSON)
         result = []
         for s in sessions:
-            result.append({
-                "id": s.get("id", ""),
-                "description": s.get("description", "Unnamed"),
-                "timestamp": s.get("created_at", 0),
-                "message_count": s.get("message_count", 0),
-            })
+            result.append(
+                {
+                    "id": s.get("id", ""),
+                    "description": s.get("description", "Unnamed"),
+                    "timestamp": s.get("created_at", 0),
+                    "message_count": s.get("message_count", 0),
+                }
+            )
 
         return result
 
@@ -353,11 +356,13 @@ Always check available tools before assuming IDA features exist."""
 
         skills = []
         for skill in self._skill_registry.list_skills():
-            skills.append({
-                "slug": skill.slug,
-                "name": skill.name,
-                "description": skill.description or "",
-            })
+            skills.append(
+                {
+                    "slug": skill.slug,
+                    "name": skill.name,
+                    "description": skill.description or "",
+                }
+            )
 
         return skills
 
@@ -420,11 +425,11 @@ Always check available tools before assuming IDA features exist."""
         require user approval with dangerous command warnings.
         """
         from .tools.shell_tools import set_approval_callback
-        from .shell_ui import Colors
 
         # Approval state management with command limit from config
         class ApprovalState:
             """Track approval mode with automatic reset after N commands."""
+
             def __init__(self, auto_approve_limit: int = 10):
                 self.safe_auto_approve = False
                 self.reject_all = False
@@ -445,9 +450,11 @@ Always check available tools before assuming IDA features exist."""
                 """
                 self.command_count += 1
                 # Only check limit if limit > 0 (0 means unlimited)
-                if (self.safe_auto_approve and
-                    self.auto_approve_limit > 0 and
-                    self.command_count >= self.auto_approve_limit):
+                if (
+                    self.safe_auto_approve
+                    and self.auto_approve_limit > 0
+                    and self.command_count >= self.auto_approve_limit
+                ):
                     self.safe_auto_approve = False
                     self.command_count = 0
                     return True  # Signal that auto-approve was reset
@@ -459,12 +466,12 @@ Always check available tools before assuming IDA features exist."""
                     return "Reject all ON"
                 if self.safe_auto_approve:
                     if self.auto_approve_limit == 0:
-                        return f"Safe auto-approve ON (unlimited)"
+                        return "Safe auto-approve ON (unlimited)"
                     return f"Safe auto-approve ON ({self.command_count}/{self.auto_approve_limit})"
                 return "Manual approval"
 
         # Get auto-approve limit from config (default to 10 if not set)
-        auto_approve_limit = getattr(self.config, 'shell_auto_approve_limit', 10)
+        auto_approve_limit = getattr(self.config, "shell_auto_approve_limit", 10)
         approval_state = ApprovalState(auto_approve_limit=auto_approve_limit)
 
         def approval_callback(command: str, is_dangerous: bool, danger_reason: str) -> bool:
@@ -508,13 +515,19 @@ Always check available tools before assuming IDA features exist."""
                 was_reset = approval_state.increment_command_count()
                 if was_reset:
                     log_debug(f"Safe auto-approve mode reset after {approval_state.auto_approve_limit} commands")
-                    print(f"{YELLOW}⚠️  Safe auto-approve expired after {approval_state.auto_approve_limit} commands{RESET}")
+                    print(
+                        f"{YELLOW}⚠️  Safe auto-approve expired after {approval_state.auto_approve_limit} commands{RESET}"
+                    )
                     print(f"{YELLOW}    Reverting to manual approval for safety.{RESET}")
                     print()
                     # Fall through to manual approval
                 else:
                     log_debug(f"Shell command auto-approved (safe mode, #{approval_state.command_count}): {command}")
-                    count_text = f"{approval_state.command_count}/{approval_state.auto_approve_limit}" if approval_state.auto_approve_limit > 0 else "unlimited"
+                    count_text = (
+                        f"{approval_state.command_count}/{approval_state.auto_approve_limit}"
+                        if approval_state.auto_approve_limit > 0
+                        else "unlimited"
+                    )
                     print(f"{GREEN}✓ Auto-approved ({count_text}): {command}{RESET}")
                     set_shell_approval_state(False)  # Signal approval complete
                     return True
@@ -543,18 +556,22 @@ Always check available tools before assuming IDA features exist."""
             if is_dangerous:
                 # No "approve all" for dangerous commands!
                 prompt = (
-                    f"{BRIGHT_RED}⚠️  This command is DANGEROUS. Really approve? {RESET}" +
-                    "[Y]es/[N]o/[R]eject all: "
+                    f"{BRIGHT_RED}⚠️  This command is DANGEROUS. Really approve? {RESET}" + "[Y]es/[N]o/[R]eject all: "
                 )
             else:
-                limit_text = f"{approval_state.auto_approve_limit} cmds" if approval_state.auto_approve_limit > 0 else "unlimited"
+                limit_text = (
+                    f"{approval_state.auto_approve_limit} cmds"
+                    if approval_state.auto_approve_limit > 0
+                    else "unlimited"
+                )
                 prompt = (
-                    f"{YELLOW}Approve execution? {RESET}" +
-                    f"[Y]es/[N]o/[S]afe auto-approve ({limit_text})/[R]eject all: "
+                    f"{YELLOW}Approve execution? {RESET}"
+                    + f"[Y]es/[N]o/[S]afe auto-approve ({limit_text})/[R]eject all: "
                 )
 
             # Flush stdout to ensure clean output before waiting for input
             import sys
+
             sys.stdout.flush()
             sys.stderr.flush()
 
@@ -594,14 +611,22 @@ Always check available tools before assuming IDA features exist."""
                     approval_state.safe_auto_approve = True
                     approval_state.reject_all = False
                     approval_state.command_count = 0  # Reset count on new enable
-                    log_debug(f"Enabled safe auto-approve mode")
-                    limit_text = f"max {approval_state.auto_approve_limit} commands" if approval_state.auto_approve_limit > 0 else "unlimited"
+                    log_debug("Enabled safe auto-approve mode")
+                    limit_text = (
+                        f"max {approval_state.auto_approve_limit} commands"
+                        if approval_state.auto_approve_limit > 0
+                        else "unlimited"
+                    )
                     print(f"{GREEN}✓ Safe auto-approve mode enabled ({limit_text}){RESET}")
                     print(f"{GREEN}  Dangerous commands still require manual approval{RESET}")
                     if not is_dangerous:
                         # Auto-approve this command and return
                         set_shell_approval_state(False)  # Signal approval complete
-                        count_text = f"1/{approval_state.auto_approve_limit}" if approval_state.auto_approve_limit > 0 else "unlimited"
+                        count_text = (
+                            f"1/{approval_state.auto_approve_limit}"
+                            if approval_state.auto_approve_limit > 0
+                            else "unlimited"
+                        )
                         print(f"{GREEN}  Auto-approved ({count_text}): {command}{RESET}")
                         print(f"{CYAN}⏳ Executing command...{RESET}")
                         sys.stdout.flush()
@@ -613,7 +638,7 @@ Always check available tools before assuming IDA features exist."""
                     if response in ("r", "reset"):
                         # Reset all modes
                         approval_state.reset()
-                        log_debug(f"Reset approval modes")
+                        log_debug("Reset approval modes")
                         print(f"{YELLOW}✓ Approval modes reset to manual{RESET}")
                         # Ask again for this command
                         continue
@@ -621,7 +646,7 @@ Always check available tools before assuming IDA features exist."""
                         # Enable reject-all mode
                         approval_state.reject_all = True
                         approval_state.safe_auto_approve = False
-                        log_debug(f"Enabled reject-all mode")
+                        log_debug("Enabled reject-all mode")
                         print(f"{RED}✓ Reject-ALL mode enabled (use 'R' to reset){RESET}")
                         set_shell_approval_state(False)  # Signal approval complete
                         return False
@@ -681,51 +706,76 @@ Always check available tools before assuming IDA features exist."""
         if not provider_name:
             return "Provider name cannot be empty"
 
-        valid_providers = ["anthropic", "openai", "gemini", "ollama", "glm", "lmstudio"]
+        valid_providers = ["anthropic", "openai", "gemini", "ollama", "minimax", "glm", "lmstudio"]
         if provider_name not in valid_providers:
             return f"Invalid provider. Valid: {', '.join(valid_providers)}"
 
         # Update config
         self.config.provider.name = provider_name
 
-        # Set default model and API base for provider
-        default_configs = {
-            "anthropic": {
-                "model": "claude-3-5-sonnet-20241022",
-                "api_base": "",
-            },
-            "openai": {
-                "model": "gpt-4",
-                "api_base": "",
-            },
-            "gemini": {
-                "model": "gemini-pro",
-                "api_base": "",
-            },
-            "ollama": {
-                "model": "llama2",
-                "api_base": "",
-            },
-            "glm": {
-                "model": "glm-4",
-                "api_base": "https://open.bigmodel.cn/api/paas/v4/",
-            },
-            "lmstudio": {
-                "model": "local-model",
-                "api_base": "http://localhost:1234/v1",
-            },
+        # Default API base per provider. ALWAYS reset api_base — including
+        # to "" — so switching away from a local endpoint (lmstudio) does
+        # not leave the next provider pointing at localhost.
+        api_bases = {
+            "glm": "https://open.bigmodel.cn/api/paas/v4/",
+            "lmstudio": "http://localhost:1234/v1",
         }
+        self.config.provider.api_base = api_bases.get(provider_name, "")
 
-        config = default_configs.get(provider_name, {"model": "default", "api_base": ""})
-        self.config.provider.model = config["model"]
-        if config["api_base"]:
-            self.config.provider.api_base = config["api_base"]
+        # Default model: derived from the provider's builtin list so this
+        # code never carries a stale duplicate of the model catalog.
+        self.config.provider.model = self._default_model_for(provider_name)
 
         # Save config
         self.config.save()
 
         log_info(f"Provider changed to: {provider_name}")
         return None
+
+    @staticmethod
+    def _default_model_for(provider_name: str) -> str:
+        """Pick the default model for a provider from its builtin catalog.
+
+        Falls back to a per-provider literal when the catalog cannot be
+        consulted (unknown/custom provider, import failure, empty list).
+        """
+        fallbacks = {
+            "anthropic": "claude-sonnet-4-6",
+            "openai": "gpt-4o",
+            "gemini": "gemini-2.5-pro",
+            "ollama": "llama3.1",
+            "minimax": "MiniMax-M2.5",
+            "glm": "glm-5",
+            "lmstudio": "local-model",
+        }
+        try:
+            from ..providers import (
+                anthropic_provider,
+                gemini_provider,
+                minimax_provider,
+                ollama_provider,
+                openai_provider,
+            )
+
+            classes = {
+                "anthropic": anthropic_provider.AnthropicProvider,
+                "openai": openai_provider.OpenAIProvider,
+                "gemini": gemini_provider.GeminiProvider,
+                "ollama": ollama_provider.OllamaProvider,
+                "minimax": minimax_provider.MiniMaxProvider,
+            }
+            cls = classes.get(provider_name)
+            if cls is not None:
+                models = cls._builtin_models()
+                if models:
+                    model_id = getattr(models[0], "id", None)
+                    # Guard against stubbed/mock provider modules (tests) —
+                    # only trust a real non-empty string.
+                    if isinstance(model_id, str) and model_id:
+                        return model_id
+        except Exception:
+            pass
+        return fallbacks.get(provider_name, "local-model")
 
     def set_api_key(self, api_key: str) -> str | None:
         """Set the API key for the current provider.
@@ -777,15 +827,18 @@ Always check available tools before assuming IDA features exist."""
             # Convert ModelInfo to dict format
             result = []
             for model in models:
-                result.append({
-                    "id": model.id,
-                    "name": model.name,
-                })
+                result.append(
+                    {
+                        "id": model.id,
+                        "name": model.name,
+                    }
+                )
 
             log_info(f"Fetched {len(result)} models from {self.config.provider.name}")
             return result
         except Exception as e:
             import traceback
+
             log_debug(f"Failed to fetch models from API: {e}")
             traceback.print_exc()
             return []

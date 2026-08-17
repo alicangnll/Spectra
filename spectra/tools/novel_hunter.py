@@ -2,21 +2,19 @@
 
 from __future__ import annotations
 
-import json
 import re
-import time
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Annotated
 
-from ..core.logging import log_debug, log_error, log_info
 from ..tools.base import tool
 
 
 class VulnerabilityType(Enum):
     """Comprehensive vulnerability type classification"""
+
     STACK_OVERFLOW = "stack_buffer_overflow"
     HEAP_OVERFLOW = "heap_overflow"
     USE_AFTER_FREE = "use_after_free"
@@ -58,6 +56,7 @@ class Severity(Enum):
 @dataclass
 class VulnerabilityFinding:
     """A vulnerability finding from the hunter."""
+
     vuln_type: str
     severity: str
     location: str
@@ -81,26 +80,35 @@ class NovelVulnerabilityHunterCore:
     def _load_known_cves(self) -> set:
         """Load known CVE patterns to exclude."""
         return {
-            'cve-2024-', 'cve-2023-', 'cve-2022-', 'cve-2021-',
-            'cve-2020-', 'cve-2019-', 'cve-2018-', 'cve-2017-',
-            'cve-2016-', 'cve-2015-', 'cve-2014-', 'cve-2013-',
+            "cve-2024-",
+            "cve-2023-",
+            "cve-2022-",
+            "cve-2021-",
+            "cve-2020-",
+            "cve-2019-",
+            "cve-2018-",
+            "cve-2017-",
+            "cve-2016-",
+            "cve-2015-",
+            "cve-2014-",
+            "cve-2013-",
         }
 
     def _load_known_patterns(self) -> dict[str, list[str]]:
         """Load known vulnerability patterns to exclude."""
         return {
-            'stack_overflow': [
-                'classic_strcpy_old_code',
-                'well_documented_gets',
-                'standard_sprintf_vuln',
+            "stack_overflow": [
+                "classic_strcpy_old_code",
+                "well_documented_gets",
+                "standard_sprintf_vuln",
             ],
-            'heap_overflow': [
-                'common_malloc_overflow',
-                'well_known_heap_pattern',
+            "heap_overflow": [
+                "common_malloc_overflow",
+                "well_known_heap_pattern",
             ],
-            'format_string': [
-                'standard_printf_vuln',
-                'common_format_string',
+            "format_string": [
+                "standard_printf_vuln",
+                "common_format_string",
             ],
         }
 
@@ -127,9 +135,17 @@ class NovelVulnerabilityHunterCore:
 
         # Novel indicators increase confidence
         novel_indicators = [
-            'recent code', 'custom allocator', 'compiler optimization',
-            'simd', 'jit', 'template', 'novel', 'unknown',
-            'previously undocumented', 'next-generation', 'modern'
+            "recent code",
+            "custom allocator",
+            "compiler optimization",
+            "simd",
+            "jit",
+            "template",
+            "novel",
+            "unknown",
+            "previously undocumented",
+            "next-generation",
+            "modern",
         ]
 
         for indicator in novel_indicators:
@@ -143,9 +159,14 @@ class NovelVulnerabilityHunterCore:
         """Filter out false positive findings."""
         valid_findings = []
         false_positive_patterns = [
-            r'test.*vulnerability', r'demo.*function', r'example.*code',
-            r'sample.*implementation', r'non[- ]exploitable',
-            r'theoretical.*only', r'patched.*version', r'mitigated.*by',
+            r"test.*vulnerability",
+            r"demo.*function",
+            r"example.*code",
+            r"sample.*implementation",
+            r"non[- ]exploitable",
+            r"theoretical.*only",
+            r"patched.*version",
+            r"mitigated.*by",
         ]
 
         for finding in findings:
@@ -164,10 +185,10 @@ class NovelVulnerabilityHunterCore:
         """Assess exploitability of a vulnerability."""
         score = 0
 
-        if vuln.severity in ['CRITICAL', 'HIGH']:
+        if vuln.severity in ["CRITICAL", "HIGH"]:
             score += 3
 
-        high_exploit_types = ['RCE', 'LPE_KERNEL', 'LPE_SERVICE', 'COMMAND_INJECTION']
+        high_exploit_types = ["RCE", "LPE_KERNEL", "LPE_SERVICE", "COMMAND_INJECTION"]
         if any(t in vuln.vuln_type for t in high_exploit_types):
             score += 3
 
@@ -197,14 +218,16 @@ class NovelVulnerabilityHunterCore:
         ]
 
         for finding in findings:
-            lines.extend([
-                f"### {finding.vuln_type}",
-                f"**Severity:** {finding.severity}",
-                f"**Location:** {finding.location}",
-                f"**Novelty Confidence:** {finding.novel_confidence:.2f}",
-                f"**Description:** {finding.description}",
-                f"**Proof:** {finding.proof}",
-            ])
+            lines.extend(
+                [
+                    f"### {finding.vuln_type}",
+                    f"**Severity:** {finding.severity}",
+                    f"**Location:** {finding.location}",
+                    f"**Novelty Confidence:** {finding.novel_confidence:.2f}",
+                    f"**Description:** {finding.description}",
+                    f"**Proof:** {finding.proof}",
+                ]
+            )
 
             if finding.exploit_ready:
                 lines.append("**EXPLOITABLE** - Exploit code generated")
@@ -234,41 +257,41 @@ def analyze_novel_vulnerabilities(
     hunter = NovelVulnerabilityHunterCore()
 
     findings = []
-    lines = code.split('\n')
+    lines = code.split("\n")
 
     # Analyze code for vulnerability patterns
     vuln_patterns = {
-        'NOVEL_SIGN_EXTENSION': [
-            (r'int\s+\w+\s*;\s*unsigned\s+int\s+\w+\s*=\s*\w+', 'Sign extension vulnerability'),
-            (r'size_t\s+\w+\s*=\s*\(int\)\w+', 'Signed to unsigned conversion'),
+        "NOVEL_SIGN_EXTENSION": [
+            (r"int\s+\w+\s*;\s*unsigned\s+int\s+\w+\s*=\s*\w+", "Sign extension vulnerability"),
+            (r"size_t\s+\w+\s*=\s*\(int\)\w+", "Signed to unsigned conversion"),
         ],
-        'NOVEL_ALLOCATOR': [
-            (r'custom.*allocator|pool.*alloc|arena.*alloc', 'Custom allocator implementation'),
-            (r'void\s*\*\s*\w+\s*=\s*\w+\s*\+\s*\w+\s*\*\s*size', 'Unchecked pool allocation'),
+        "NOVEL_ALLOCATOR": [
+            (r"custom.*allocator|pool.*alloc|arena.*alloc", "Custom allocator implementation"),
+            (r"void\s*\*\s*\w+\s*=\s*\w+\s*\+\s*\w+\s*\*\s*size", "Unchecked pool allocation"),
         ],
-        'NOVEL_BOUNDS_BYPASS': [
-            (r'if\s*\(\s*\w+\s*<\s*\w+\s*\)', 'Signed/unsigned comparison mismatch'),
-            (r'for\s*\(.*\w+\s*<=\s*\w+', 'Potential loop counter overflow'),
+        "NOVEL_BOUNDS_BYPASS": [
+            (r"if\s*\(\s*\w+\s*<\s*\w+\s*\)", "Signed/unsigned comparison mismatch"),
+            (r"for\s*\(.*\w+\s*<=\s*\w+", "Potential loop counter overflow"),
         ],
-        'NOVEL_SIMD': [
-            (r'__m256i|__m128|SSE|AVX', 'SIMD vector operations'),
-            (r'_mm_\w+', 'Intrinsic SIMD operations'),
+        "NOVEL_SIMD": [
+            (r"__m256i|__m128|SSE|AVX", "SIMD vector operations"),
+            (r"_mm_\w+", "Intrinsic SIMD operations"),
         ],
-        'NOVEL_JIT': [
-            (r'jit|compile.*code|bytecode.*interpret', 'JIT compilation'),
-            (r'llvm.*jit|v8.*engine', 'JIT engine'),
+        "NOVEL_JIT": [
+            (r"jit|compile.*code|bytecode.*interpret", "JIT compilation"),
+            (r"llvm.*jit|v8.*engine", "JIT engine"),
         ],
-        'STACK_OVERFLOW': [
-            (r'strcpy|strcat|gets\s*\(', 'Unsafe string functions'),
-            (r'sprintf\s*\(', 'Unsafe format string'),
+        "STACK_OVERFLOW": [
+            (r"strcpy|strcat|gets\s*\(", "Unsafe string functions"),
+            (r"sprintf\s*\(", "Unsafe format string"),
         ],
-        'HEAP_OVERFLOW': [
-            (r'malloc.*memcpy|malloc.*strncpy', 'Unchecked heap copy'),
-            (r'realloc\s*\(', 'Potential use-after-free'),
+        "HEAP_OVERFLOW": [
+            (r"malloc.*memcpy|malloc.*strncpy", "Unchecked heap copy"),
+            (r"realloc\s*\(", "Potential use-after-free"),
         ],
-        'USE_AFTER_FREE': [
-            (r'free\s*\([^)]+\)\s*;\s*\w+\s*->', 'Use after free pattern'),
-            (r'free\s*\([^)]+\)\s*;\s*\*\w+', 'Dereference after free'),
+        "USE_AFTER_FREE": [
+            (r"free\s*\([^)]+\)\s*;\s*\w+\s*->", "Use after free pattern"),
+            (r"free\s*\([^)]+\)\s*;\s*\*\w+", "Dereference after free"),
         ],
     }
 
@@ -285,7 +308,7 @@ def analyze_novel_vulnerabilities(
                         code_snippet=line.strip(),
                     )
 
-                    is_novel, confidence = hunter.is_novel_vulnerability(finding)
+                    _is_novel, confidence = hunter.is_novel_vulnerability(finding)
                     finding.novel_confidence = confidence
                     finding.exploit_ready = hunter.assess_exploitability(finding)
 
@@ -308,7 +331,7 @@ def analyze_novel_vulnerabilities(
 **Exploitable:** {sum(1 for f in valid_findings if f.exploit_ready)}
 
 **Focus Area:** {focus_area}
-**Novel Indicators Found:** {sum(1 for f in valid_findings if 'recent' in f.description.lower() or 'custom' in f.description.lower() or 'novel' in f.description.lower())}
+**Novel Indicators Found:** {sum(1 for f in valid_findings if "recent" in f.description.lower() or "custom" in f.description.lower() or "novel" in f.description.lower())}
 
 ---
 
@@ -334,7 +357,7 @@ def generate_exploit_template(
     - Proof-of-concept code
     """
     # Use .format() instead of f-string to avoid brace escaping issues in templates
-    exploit_template = """#!/usr/bin/env python3
+    exploit_template = f"""#!/usr/bin/env python3
 \"\"\"
 Auto-generated Exploit for Novel Vulnerability
 Vulnerability Type: {vuln_type}
@@ -498,7 +521,7 @@ def main():
 
 if __name__ == "__main__":
     main()
-""".format(vuln_type=vuln_type, location=location, description=description)
+"""
 
     return exploit_template
 
@@ -519,33 +542,58 @@ def check_novelty_indicators(
     - Previously undocumented patterns
     """
     novelty_indicators = {
-        'recent_code': [
-            'recently added', 'new feature', 'latest version', 'recent commit',
-            'latest changes', 'newly implemented', 'recently introduced'
+        "recent_code": [
+            "recently added",
+            "new feature",
+            "latest version",
+            "recent commit",
+            "latest changes",
+            "newly implemented",
+            "recently introduced",
         ],
-        'custom_allocator': [
-            'custom allocator', 'memory pool', 'arena allocation', 'pool manager',
-            'custom memory', 'region allocator', 'bump allocator'
+        "custom_allocator": [
+            "custom allocator",
+            "memory pool",
+            "arena allocation",
+            "pool manager",
+            "custom memory",
+            "region allocator",
+            "bump allocator",
         ],
-        'compiler_optimization': [
-            'compiler optimization', 'optimizer bug', 'LTO', 'PGO',
-            'link-time optimization', 'profile-guided', 'optimization-induced'
+        "compiler_optimization": [
+            "compiler optimization",
+            "optimizer bug",
+            "LTO",
+            "PGO",
+            "link-time optimization",
+            "profile-guided",
+            "optimization-induced",
         ],
-        'simd': [
-            'SIMD', 'vector', 'SSE', 'AVX', '__m256', '__m128',
-            'vectorization', 'intrinsic', 'vector operation'
+        "simd": ["SIMD", "vector", "SSE", "AVX", "__m256", "__m128", "vectorization", "intrinsic", "vector operation"],
+        "jit": [
+            "JIT",
+            "just-in-time",
+            "bytecode interpreter",
+            "runtime compilation",
+            "dynamic compilation",
+            "code generation",
+            "vm-based",
         ],
-        'jit': [
-            'JIT', 'just-in-time', 'bytecode interpreter', 'runtime compilation',
-            'dynamic compilation', 'code generation', 'vm-based'
+        "template": [
+            "template metaprogramming",
+            "constexpr evaluation",
+            "template instantiation",
+            "compile-time computation",
+            "template recursion",
         ],
-        'template': [
-            'template metaprogramming', 'constexpr evaluation', 'template instantiation',
-            'compile-time computation', 'template recursion'
-        ],
-        'unknown_patterns': [
-            'undocumented', 'unknown protocol', 'custom format', 'proprietary',
-            'non-standard', 'unusual pattern', 'novel approach'
+        "unknown_patterns": [
+            "undocumented",
+            "unknown protocol",
+            "custom format",
+            "proprietary",
+            "non-standard",
+            "unusual pattern",
+            "novel approach",
         ],
     }
 
@@ -568,12 +616,12 @@ def check_novelty_indicators(
     novelty_score = min(total_found * 0.1, 1.0)
 
     result_lines = [
-        f"Novelty Analysis Results",
-        f"",
+        "Novelty Analysis Results",
+        "",
         f"Novelty Score: {novelty_score:.2f} / 1.0",
         f"Categories Found: {len(found_indicators)}",
         f"Total Indicators: {total_found}",
-        f"",
+        "",
     ]
 
     for category, indicators in found_indicators.items():
@@ -590,10 +638,15 @@ def check_novelty_indicators(
         result_lines.append("⚠ LOW NOVELTY: Mostly standard patterns")
 
     result_lines.append("")
-    result_lines.append("Recommendation: " + (
-        "Proceed with deep analysis - high novelty detected" if novelty_score > 0.5 else
-        "Standard vulnerability analysis sufficient" if novelty_score > 0.3 else
-        "Known vulnerability patterns - check CVE databases first"
-    ))
+    result_lines.append(
+        "Recommendation: "
+        + (
+            "Proceed with deep analysis - high novelty detected"
+            if novelty_score > 0.5
+            else "Standard vulnerability analysis sufficient"
+            if novelty_score > 0.3
+            else "Known vulnerability patterns - check CVE databases first"
+        )
+    )
 
     return "\n".join(result_lines)

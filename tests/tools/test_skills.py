@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from tests.mocks.ida_mock import install_ida_mocks
+
 install_ida_mocks()
 
 from spectra.skills.loader import (
@@ -35,9 +36,14 @@ class TestFrontmatterParser(unittest.TestCase):
     def test_block_list(self):
         text = "allowed_tools:\n  - decompile_function\n  - get_xrefs\n  - rename_function"
         result = _parse_frontmatter(text)
-        self.assertEqual(result["allowed_tools"], [
-            "decompile_function", "get_xrefs", "rename_function",
-        ])
+        self.assertEqual(
+            result["allowed_tools"],
+            [
+                "decompile_function",
+                "get_xrefs",
+                "rename_function",
+            ],
+        )
 
     def test_quoted_values(self):
         text = 'name: "My Quoted Skill"\nversion: "1.0"'
@@ -72,7 +78,7 @@ class TestSplitFrontmatter(unittest.TestCase):
 
     def test_empty_body(self):
         text = "---\nname: Test\n---\n"
-        fm, body = _split_frontmatter(text)
+        fm, _body = _split_frontmatter(text)
         self.assertIn("name: Test", fm)
 
 
@@ -83,7 +89,9 @@ class TestDiscoverSkills(unittest.TestCase):
             skill_dir = os.path.join(tmpdir, "vuln-audit")
             os.makedirs(skill_dir)
             with open(os.path.join(skill_dir, "SKILL.md"), "w") as f:
-                f.write("---\nname: Vulnerability Audit\ndescription: Find security bugs\ntags: [security]\n---\nYou are a security auditor.\nAnalyze the function for vulnerabilities.\n")
+                f.write(
+                    "---\nname: Vulnerability Audit\ndescription: Find security bugs\ntags: [security]\n---\nYou are a security auditor.\nAnalyze the function for vulnerabilities.\n"
+                )
 
             skills = discover_skills(tmpdir)
             self.assertEqual(len(skills), 1)

@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import dataclasses
 from enum import Enum
-from typing import Optional
 
 
 class CommandType(Enum):
@@ -224,45 +223,53 @@ def get_help_text() -> str:
     for cmd, desc in SKILL_COMMANDS:
         lines.append(f"  {cmd:<30} {desc}")
 
-    lines.extend([
-        "",
-        "Session Commands:",
-    ])
+    lines.extend(
+        [
+            "",
+            "Session Commands:",
+        ]
+    )
     for cmd, desc in SESSION_COMMANDS:
         lines.append(f"  {cmd:<30} {desc}")
 
-    lines.extend([
-        "",
-        "Configuration Commands:",
-    ])
+    lines.extend(
+        [
+            "",
+            "Configuration Commands:",
+        ]
+    )
     for cmd, desc in CONFIG_COMMANDS:
         lines.append(f"  {cmd:<30} {desc}")
 
-    lines.extend([
-        "",
-        "System Commands:",
-    ])
+    lines.extend(
+        [
+            "",
+            "System Commands:",
+        ]
+    )
     for cmd, desc in SYSTEM_COMMANDS:
         lines.append(f"  {cmd:<30} {desc}")
 
-    lines.extend([
-        "",
-        "Natural Language:",
-        "  Any other input is sent to the AI for analysis.",
-        "",
-        "Examples:",
-        "  spectra> /vuln-audit",
-        "  spectra> /plan Analyze this binary",
-        "  spectra> /research crypto algorithms",
-        "  spectra> /save my-analysis",
-        "  spectra> /load abc123",
-        "  spectra> /skills",
-        "  spectra> /model claude-3-5-sonnet-20241022",
-        "  spectra> /provider anthropic",
-        "  spectra> /apikey sk-ant-xxx",
-        "  spectra> /config",
-        "  spectra> !ls -la",
-        "  spectra> What vulnerabilities exist in this code?",
-    ])
+    lines.extend(
+        [
+            "",
+            "Natural Language:",
+            "  Any other input is sent to the AI for analysis.",
+            "",
+            "Examples:",
+            "  spectra> /vuln-audit",
+            "  spectra> /plan Analyze this binary",
+            "  spectra> /research crypto algorithms",
+            "  spectra> /save my-analysis",
+            "  spectra> /load abc123",
+            "  spectra> /skills",
+            "  spectra> /model claude-3-5-sonnet-20241022",
+            "  spectra> /provider anthropic",
+            "  spectra> /apikey sk-ant-xxx",
+            "  spectra> /config",
+            "  spectra> !ls -la",
+            "  spectra> What vulnerabilities exist in this code?",
+        ]
+    )
 
     return "\n".join(lines)

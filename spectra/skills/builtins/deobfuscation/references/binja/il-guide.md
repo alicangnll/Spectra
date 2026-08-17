@@ -95,7 +95,7 @@ for instr in il_func.instructions:
         il_func.replace_expr(instr, new_expr)
 
 # MUST call both after modifications
-il_func.finalize()           # reconstructs basic blocks
+il_func.finalize()  # reconstructs basic blocks
 il_func.generate_ssa_form()  # rebuilds SSA and data flow
 ```
 

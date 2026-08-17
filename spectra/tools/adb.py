@@ -8,11 +8,9 @@ from __future__ import annotations
 import os
 import re
 import subprocess
-from typing import Any
 
 from ..core.logging import log_debug, log_error, log_info, log_warning
 from .base import tool
-
 
 # Singleton ADB manager instance
 _adb_manager = None
@@ -40,12 +38,7 @@ class _AdbManager:
 
         for name in possible_names:
             try:
-                result = subprocess.run(
-                    ["which", name],
-                    capture_output=True,
-                    text=True,
-                    timeout=5
-                )
+                result = subprocess.run(["which", name], capture_output=True, text=True, timeout=5)
                 if result.returncode == 0 and result.stdout.strip():
                     return result.stdout.strip()
             except (subprocess.TimeoutExpired, FileNotFoundError):
@@ -72,12 +65,7 @@ class _AdbManager:
     def _validate_adb(self) -> None:
         """Validate that ADB is working."""
         try:
-            result = subprocess.run(
-                [self._adb_path, "version"],
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
+            result = subprocess.run([self._adb_path, "version"], capture_output=True, text=True, timeout=10)
             if result.returncode == 0:
                 version = result.stdout.strip()
                 log_info(f"ADB found: {version.split()[4] if len(version.split()) > 4 else 'unknown'}")
@@ -87,22 +75,67 @@ class _AdbManager:
     def _check_shell_command_safety(self, command: str) -> tuple[bool, str]:
         """Check if a shell command is safe to execute."""
         dangerous_patterns = [
-            r'\brm\b.*-\rf', r'\brm\b.*/', r'\bformat\b', r'\bwipe\b',
-            r'\bfdisk\b', r'\bdd\b\s*if=.*of=', r'\bmkfs\b',
-            r'\bmount\b.*-o\s+remount', r'\bumount\b',
-            r'\breboot\b.*-(bootloader|recovery|safe)', r'\bsystem/bin/rm',
-            r'\brm\s+.*/system/', r'\brm\s+.*/data/', r'\bmv\s+.*/system/',
-            r'\bchmod\s+777\s+/', r'\bchown\s+root\s+/', r'\blkeditor\b',
-            r'\breditor\b', r'\bfactory\s+reset\b', r'\bkill\s+-9\s+\d+\s+\d+',
+            r"\brm\b.*-\rf",
+            r"\brm\b.*/",
+            r"\bformat\b",
+            r"\bwipe\b",
+            r"\bfdisk\b",
+            r"\bdd\b\s*if=.*of=",
+            r"\bmkfs\b",
+            r"\bmount\b.*-o\s+remount",
+            r"\bumount\b",
+            r"\breboot\b.*-(bootloader|recovery|safe)",
+            r"\bsystem/bin/rm",
+            r"\brm\s+.*/system/",
+            r"\brm\s+.*/data/",
+            r"\bmv\s+.*/system/",
+            r"\bchmod\s+777\s+/",
+            r"\bchown\s+root\s+/",
+            r"\blkeditor\b",
+            r"\breditor\b",
+            r"\bfactory\s+reset\b",
+            r"\bkill\s+-9\s+\d+\s+\d+",
         ]
 
         safe_prefixes = [
-            'ls', 'cat', 'getprop', 'dumpsys', 'ps', 'pm', 'am',
-            'netstat', 'netcfg', 'ifconfig', 'ip', 'route', 'env', 'printenv',
-            'which', 'pwd', 'id', 'whoami', 'date', 'top', 'grep', 'find',
-            'file', 'strings', 'head', 'tail', 'wc', 'stat', 'df', 'du',
-            'logcat', 'dmesg', 'sqlite3', 'settings', 'cmd', 'dumpstate',
-            'screencap', 'screenrecord',
+            "ls",
+            "cat",
+            "getprop",
+            "dumpsys",
+            "ps",
+            "pm",
+            "am",
+            "netstat",
+            "netcfg",
+            "ifconfig",
+            "ip",
+            "route",
+            "env",
+            "printenv",
+            "which",
+            "pwd",
+            "id",
+            "whoami",
+            "date",
+            "top",
+            "grep",
+            "find",
+            "file",
+            "strings",
+            "head",
+            "tail",
+            "wc",
+            "stat",
+            "df",
+            "du",
+            "logcat",
+            "dmesg",
+            "sqlite3",
+            "settings",
+            "cmd",
+            "dumpstate",
+            "screencap",
+            "screenrecord",
         ]
 
         command_lower = command.lower().strip()
@@ -121,7 +154,7 @@ class _AdbManager:
         if is_safe_prefix:
             return True, "OK"
 
-        read_only_patterns = [r'^cat\s+', r'^ls\s+-', r'^grep\s+', r'^file\s+', r'^strings\s+']
+        read_only_patterns = [r"^cat\s+", r"^ls\s+-", r"^grep\s+", r"^file\s+", r"^strings\s+"]
         for pattern in read_only_patterns:
             if re.match(pattern, command_lower):
                 return True, "Read-only operation"
@@ -144,25 +177,15 @@ def adb_check() -> str:
     manager = get_adb_manager()
 
     try:
-        result = subprocess.run(
-            [manager._adb_path, "start-server"],
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
+        result = subprocess.run([manager._adb_path, "start-server"], capture_output=True, text=True, timeout=10)
 
-        result = subprocess.run(
-            [manager._adb_path, "devices", "-l"],
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
+        result = subprocess.run([manager._adb_path, "devices", "-l"], capture_output=True, text=True, timeout=10)
 
         if result.returncode != 0:
             return f"ADB error: {result.stderr}"
 
         devices = []
-        for line in result.stdout.strip().split('\n')[1:]:
+        for line in result.stdout.strip().split("\n")[1:]:
             if not line.strip():
                 continue
             parts = line.split()
@@ -188,27 +211,21 @@ def adb_connect(device_id: str = "") -> str:
     manager = get_adb_manager()
 
     try:
-        if device_id and ':' in device_id:
+        if device_id and ":" in device_id:
             # Wireless connection
             result = subprocess.run(
-                [manager._adb_path, "connect", device_id],
-                capture_output=True,
-                text=True,
-                timeout=30
+                [manager._adb_path, "connect", device_id], capture_output=True, text=True, timeout=30
             )
             if result.returncode != 0 or "unable to connect" in result.stderr.lower():
                 return f"Wireless connection failed: {result.stderr or 'Connection failed'}"
 
         # Get device list to find target
         devices_result = subprocess.run(
-            [manager._adb_path, "devices", "-l"],
-            capture_output=True,
-            text=True,
-            timeout=10
+            [manager._adb_path, "devices", "-l"], capture_output=True, text=True, timeout=10
         )
 
         target_device = None
-        for line in devices_result.stdout.strip().split('\n')[1:]:
+        for line in devices_result.stdout.strip().split("\n")[1:]:
             if not line.strip():
                 continue
             parts = line.split()
@@ -224,16 +241,13 @@ def adb_connect(device_id: str = "") -> str:
 
         # Get device properties
         props_result = subprocess.run(
-            [manager._adb_path, "-s", target_device, "shell", "getprop"],
-            capture_output=True,
-            text=True,
-            timeout=30
+            [manager._adb_path, "-s", target_device, "shell", "getprop"], capture_output=True, text=True, timeout=30
         )
 
         props = props_result.stdout
 
         def extract_prop(name):
-            match = re.search(rf'\[{name}\]:\s*\[([^\]]+)\]', props)
+            match = re.search(rf"\[{name}\]:\s*\[([^\]]+)\]", props)
             return match.group(1) if match else "unknown"
 
         manufacturer = extract_prop("ro.product.manufacturer")
@@ -249,11 +263,11 @@ def adb_connect(device_id: str = "") -> str:
                 [manager._adb_path, "-s", target_device, "shell", "which", "su"],
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
             )
             if "su" in su_check.stdout and "not found" not in su_check.stdout:
                 rooted = "Yes"
-        except:
+        except Exception:
             pass
 
         log_info(f"Connected to device: {model} ({manufacturer})")
@@ -395,16 +409,13 @@ def adb_list_packages(user_only: bool = True) -> str:
             cmd.append("-3")
 
         output = subprocess.run(
-            [manager._adb_path, "-s", manager._connected_device] + cmd,
-            capture_output=True,
-            text=True,
-            timeout=30
+            [manager._adb_path, "-s", manager._connected_device, *cmd], capture_output=True, text=True, timeout=30
         ).stdout
 
         packages = []
-        for line in output.strip().split('\n'):
-            if line.startswith('package:'):
-                packages.append(line.replace('package:', '').strip())
+        for line in output.strip().split("\n"):
+            if line.startswith("package:"):
+                packages.append(line.replace("package:", "").strip())
 
         total = len(packages)
         preview = packages[:20]
@@ -437,11 +448,11 @@ def adb_app_info(package_name: str) -> str:
             [manager._adb_path, "-s", manager._connected_device, "shell", "dumpsys", "package", package_name],
             capture_output=True,
             text=True,
-            timeout=30
+            timeout=30,
         ).stdout
 
         def parse_field(name):
-            match = re.search(rf'{name}=[=]?\s*([^\s,]+)', output)
+            match = re.search(rf"{name}=[=]?\s*([^\s,]+)", output)
             return match.group(1) if match else "unknown"
 
         version_code = parse_field("versionCode")
@@ -452,15 +463,15 @@ def adb_app_info(package_name: str) -> str:
         # Get permissions
         permissions = []
         in_permissions = False
-        for line in output.split('\n'):
+        for line in output.split("\n"):
             line = line.strip()
-            if 'requested permissions:' in line.lower():
+            if "requested permissions:" in line.lower():
                 in_permissions = True
                 continue
             if in_permissions:
-                if line.startswith('install') or not line:
+                if line.startswith("install") or not line:
                     break
-                if 'android.permission.' in line or 'com.' in line:
+                if "android.permission." in line or "com." in line:
                     permissions.append(line.strip())
 
         perm_preview = permissions[:15]
@@ -500,7 +511,7 @@ def adb_pull(remote_path: str, local_path: str) -> str:
             [manager._adb_path, "-s", manager._connected_device, "pull", remote_path, local_path],
             capture_output=True,
             text=True,
-            timeout=60
+            timeout=60,
         )
 
         if result.returncode == 0:
@@ -532,7 +543,7 @@ def adb_push(local_path: str, remote_path: str) -> str:
             [manager._adb_path, "-s", manager._connected_device, "push", local_path, remote_path],
             capture_output=True,
             text=True,
-            timeout=60
+            timeout=60,
         )
 
         if result.returncode == 0:

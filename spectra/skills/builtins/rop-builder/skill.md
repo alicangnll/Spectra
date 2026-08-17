@@ -210,20 +210,17 @@ Fake a stack frame to return to chosen location:
 **Gadget Database**
 ```python
 gadgets = {
-    'pop_rdi': [0x4005a6, 0x4006b2, 0x4008c4],
-    'pop_rsi': [0x4005a0, 0x4006b5],
-    'pop_rdx': [0x4005a3],
-    'xor_rax': [0x4007a2],
-    'syscall': [0x400800],
+    "pop_rdi": [0x4005A6, 0x4006B2, 0x4008C4],
+    "pop_rsi": [0x4005A0, 0x4006B5],
+    "pop_rdx": [0x4005A3],
+    "xor_rax": [0x4007A2],
+    "syscall": [0x400800],
 }
 
+
 def build_chain(type):
-    if type == 'system':
-        return [
-            gadgets['pop_rdi'][0],
-            binsh_addr,
-            system_plt
-        ]
+    if type == "system":
+        return [gadgets["pop_rdi"][0], binsh_addr, system_plt]
 ```
 
 **Chain Builder Algorithm**

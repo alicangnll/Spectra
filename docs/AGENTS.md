@@ -246,6 +246,7 @@ Users can send follow-up messages while the agent is working. Queued messages ap
 from typing import Annotated
 from spectra.tools.base import tool
 
+
 @tool(category="navigation")
 def jump_to(
     address: Annotated[str, "Target address (hex string, e.g. '0x401000')"],
@@ -272,12 +273,14 @@ Optional `@tool` parameters:
 **For IDA** — add the module import to `spectra/ida/tools/registry.py`:
 ```python
 from spectra.tools import my_new_module
+
 _TOOL_MODULES = (..., my_new_module)
 ```
 
 **For Binary Ninja** — add the module import to `spectra/binja/tools/registry.py`:
 ```python
 from spectra.binja.tools import my_new_module
+
 _TOOL_MODULES = (..., my_new_module)
 ```
 
@@ -294,9 +297,7 @@ for param in defn.parameters:
     if param.required and param.name not in arguments:
         missing.append(param.name)
 if missing:
-    raise ToolValidationError(
-        f"Tool {name} missing required parameters: {', '.join(missing)}"
-    )
+    raise ToolValidationError(f"Tool {name} missing required parameters: {', '.join(missing)}")
 ```
 
 This prevents cryptic `TypeError: missing 1 required positional argument` messages and provides clear feedback to the LLM about which parameters are missing.
@@ -708,6 +709,7 @@ class RenameJob:
     status: Literal["queued", "analyzing", "renamed", "skipped", "error"] = "queued"
     error: str = ""
 
+
 class BulkRenamerEngine:
     """Processes rename jobs in configurable batches."""
 
@@ -765,6 +767,7 @@ class RenameEventType(str, Enum):
     BATCH_PROGRESS = "batch_progress"  # N/total
     ALL_DONE = "all_done"
 
+
 @dataclass
 class RenameEvent:
     type: RenameEventType
@@ -800,21 +803,23 @@ class SubagentStatus(str, Enum):
     FAILED = "failed"
     CANCELLED = "cancelled"
 
+
 @dataclass
 class SubagentInfo:
-    id: str                       # uuid4
-    name: str                     # user-visible label
-    task: str                     # the prompt/goal
-    agent_type: str               # "custom" | "network_recon" | "report_writer"
+    id: str  # uuid4
+    name: str  # user-visible label
+    task: str  # the prompt/goal
+    agent_type: str  # "custom" | "network_recon" | "report_writer"
     status: SubagentStatus
-    created_at: float             # time.time()
+    created_at: float  # time.time()
     completed_at: float | None
-    parent_id: str | None         # for nested subagents
-    children: list[str]           # child subagent IDs
-    summary: str                  # final output (compact)
-    turn_count: int               # how many turns executed
+    parent_id: str | None  # for nested subagents
+    children: list[str]  # child subagent IDs
+    summary: str  # final output (compact)
+    turn_count: int  # how many turns executed
     token_usage: TokenUsage | None
-    perks: list[str]              # enabled perks (see Perks System)
+    perks: list[str]  # enabled perks (see Perks System)
+
 
 class SubagentManager:
     """Registry of all subagents in the current session."""
@@ -893,12 +898,10 @@ SUBAGENT_PERKS: dict[str, str] = {
         "levels deep. Decompile every function you reference."
     ),
     "string_harvesting": (
-        "List ALL string references in every function you analyze. "
-        "Include cross-references to those strings."
+        "List ALL string references in every function you analyze. Include cross-references to those strings."
     ),
     "import_mapping": (
-        "Map every imported API call. Note which functions call which imports "
-        "and what arguments they pass."
+        "Map every imported API call. Note which functions call which imports and what arguments they pass."
     ),
     "memory_layout": (
         "Analyze stack frame layouts, global variable accesses, and "
@@ -1045,12 +1048,13 @@ File: `spectra/agent/a2a/registry.py`
 ```python
 @dataclass
 class ExternalAgentConfig:
-    name: str                # "claude-code", "codex", "custom-a2a"
+    name: str  # "claude-code", "codex", "custom-a2a"
     transport: Literal["a2a", "subprocess"]
-    endpoint: str            # URL for a2a, command for subprocess
+    endpoint: str  # URL for a2a, command for subprocess
     capabilities: list[str]  # ["code_generation", "research", "refactoring"]
-    model: str               # optional model override
-    env: dict[str, str]      # environment variables for subprocess
+    model: str  # optional model override
+    env: dict[str, str]  # environment variables for subprocess
+
 
 class ExternalAgentRegistry:
     """Discover and manage external agents."""
@@ -1060,20 +1064,24 @@ class ExternalAgentRegistry:
         agents = []
         # Check for claude CLI
         if shutil.which("claude"):
-            agents.append(ExternalAgentConfig(
-                name="claude-code",
-                transport="subprocess",
-                endpoint="claude",
-                capabilities=["code_generation", "research", "refactoring"],
-            ))
+            agents.append(
+                ExternalAgentConfig(
+                    name="claude-code",
+                    transport="subprocess",
+                    endpoint="claude",
+                    capabilities=["code_generation", "research", "refactoring"],
+                )
+            )
         # Check for codex CLI
         if shutil.which("codex"):
-            agents.append(ExternalAgentConfig(
-                name="codex",
-                transport="subprocess",
-                endpoint="codex",
-                capabilities=["code_generation", "research"],
-            ))
+            agents.append(
+                ExternalAgentConfig(
+                    name="codex",
+                    transport="subprocess",
+                    endpoint="codex",
+                    capabilities=["code_generation", "research"],
+                )
+            )
         # Load user-configured A2A agents from config
         ...
         return agents

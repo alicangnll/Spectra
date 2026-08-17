@@ -6,14 +6,15 @@ import unittest
 from unittest.mock import MagicMock
 
 from tests.qt_stubs import ensure_pyside6_stubs
+
 ensure_pyside6_stubs()
 
-from spectra.ui.input_area import InputArea, _SkillPopup  # noqa: E402
-
+from spectra.ui.input_area import InputArea, _SkillPopup
 
 # ---------------------------------------------------------------------------
 # _SkillPopup — pure list logic
 # ---------------------------------------------------------------------------
+
 
 def _make_popup() -> _SkillPopup:
     popup = object.__new__(_SkillPopup)
@@ -85,6 +86,7 @@ class TestSkillPopupMoveSelection(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # InputArea — pure logic methods
 # ---------------------------------------------------------------------------
+
 
 def _make_input() -> InputArea:
     area = object.__new__(InputArea)

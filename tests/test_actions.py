@@ -8,6 +8,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from tests.mocks.ida_mock import install_ida_mocks
+
 install_ida_mocks()
 
 # The _handle_* functions are defined inside `if _HAS_IDA:` block,
@@ -117,9 +118,16 @@ class TestActionHandlers(unittest.TestCase):
 
     def test_fallback_function_name(self):
         """When func_name is None, handlers should use sub_<ea> format."""
-        for name in ["_handle_explain", "_handle_rename", "_handle_deobfuscate",
-                      "_handle_vuln_audit", "_handle_suggest_types", "_handle_annotate",
-                      "_handle_clean_mcode", "_handle_xref_analysis"]:
+        for name in [
+            "_handle_explain",
+            "_handle_rename",
+            "_handle_deobfuscate",
+            "_handle_vuln_audit",
+            "_handle_suggest_types",
+            "_handle_annotate",
+            "_handle_clean_mcode",
+            "_handle_xref_analysis",
+        ]:
             handler = getattr(actions_mod, name, None)
             if handler is None:
                 continue

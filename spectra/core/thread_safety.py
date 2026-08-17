@@ -69,7 +69,7 @@ def idasync(func: F) -> F:
             result_holder: list = []
             error_holder: list = []
 
-            def _thunk():
+            def _thunk() -> int:
                 try:
                     _log(f"idasync: {fname} _thunk executing on main thread")
                     result_holder.append(func(*args, **kwargs))

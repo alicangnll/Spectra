@@ -154,6 +154,7 @@ You can write custom agent handlers with Python code.
 from typing import Any, Dict
 from ..agent.base import AgentHandler
 
+
 class CustomAnalyzerAgent(AgentHandler):
     """Custom analysis agent handler."""
 
@@ -180,18 +181,14 @@ class CustomAnalyzerAgent(AgentHandler):
             results.append(result)
 
         # 3. Return results
-        return {
-            "agent": self.name,
-            "task": task,
-            "results": results,
-            "status": "completed"
-        }
+        return {"agent": self.name, "task": task, "results": results, "status": "completed"}
 
     def _analyze_task(self, task: str) -> Dict[str, Any]:
         """Analyze the task."""
         # Extract addresses from task
         import re
-        addresses = re.findall(r'0x[0-9a-fA-F]+', task)
+
+        addresses = re.findall(r"0x[0-9a-fA-F]+", task)
         return {"addresses": addresses}
 
     def _analyze_address(self, address: int) -> Dict[str, Any]:
@@ -199,17 +196,11 @@ class CustomAnalyzerAgent(AgentHandler):
         # Use IDA API
         try:
             import idaapi
+
             func_name = idaapi.get_func_name(address)
-            return {
-                "address": address,
-                "function": func_name,
-                "analysis": "manual review needed"
-            }
+            return {"address": address, "function": func_name, "analysis": "manual review needed"}
         except:
-            return {
-                "address": address,
-                "error": "Failed to analyze"
-            }
+            return {"address": address, "error": "Failed to analyze"}
 ```
 
 ### Registering the Agent:
@@ -232,6 +223,7 @@ You can define subagents used in exploration mode.
 
 from typing import Any, Dict
 
+
 class FunctionAnalyzerSubagent:
     """Function analysis subagent."""
 
@@ -243,12 +235,9 @@ class FunctionAnalyzerSubagent:
             try:
                 # Use IDA API for analysis
                 import idaapi
+
                 func = idaapi.get_func(addr)
-                results[addr] = {
-                    "name": func.get_name(),
-                    "size": func.get_size(),
-                    "bounds": func.get_bounds()
-                }
+                results[addr] = {"name": func.get_name(), "size": func.get_size(), "bounds": func.get_bounds()}
             except:
                 results[addr] = {"error": "Failed to analyze"}
 

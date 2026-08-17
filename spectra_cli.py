@@ -30,10 +30,9 @@ Commands:
 
 Author: Ali Can Gönüllü
 License: MIT
-Version: 5.0.0
+Version: see update.json (single source of truth)
 """
 
-__version__ = "5.0.0"
 __author__ = "Ali Can Gönüllü"
 
 import argparse
@@ -49,11 +48,16 @@ sys.path.insert(0, str(spectra_path))
 # NEW CLI INFRASTRUCTURE IMPORTS
 # ============================================================================
 
-from spectra.cli.shell_controller import CLISessionController
-from spectra.cli.shell_repl import ShellREPL
-from spectra.cli.shell_ui import ShellUI
-from spectra.core.config import SpectraConfig
-from spectra.core.logging import log_info, log_error
+from spectra.cli.shell_controller import CLISessionController  # noqa: E402
+from spectra.cli.shell_repl import ShellREPL  # noqa: E402
+from spectra.cli.shell_ui import ShellUI  # noqa: E402
+from spectra.constants import PLUGIN_VERSION  # noqa: E402
+from spectra.core.config import SpectraConfig  # noqa: E402
+from spectra.core.logging import log_error, log_info  # noqa: E402
+
+# Single source of truth for the version is update.json (read by
+# spectra.constants); the CLI must never carry its own diverging copy.
+__version__ = PLUGIN_VERSION
 
 # ============================================================================
 # CLI ENTRY POINT
@@ -70,25 +74,25 @@ def check_api_key_from_config(config) -> tuple[bool, str]:
         Tuple of (has_key, provider_name)
     """
     # First check environment variables (highest priority)
-    api_key = os.getenv('SPECTRA_API_KEY') or os.getenv('ANTHROPIC_API_KEY')
+    api_key = os.getenv("SPECTRA_API_KEY") or os.getenv("ANTHROPIC_API_KEY")
     if api_key:
-        return True, 'anthropic'
+        return True, "anthropic"
 
-    if os.getenv('OPENAI_API_KEY'):
-        return True, 'openai'
+    if os.getenv("OPENAI_API_KEY"):
+        return True, "openai"
 
-    if os.getenv('GEMINI_API_KEY'):
-        return True, 'gemini'
+    if os.getenv("GEMINI_API_KEY"):
+        return True, "gemini"
 
     # Check for Ollama (no API key needed)
-    if os.getenv('OLLAMA_HOST') or os.getenv('OLLAMA_BASE_URL'):
-        return True, 'ollama'
+    if os.getenv("OLLAMA_HOST") or os.getenv("OLLAMA_BASE_URL"):
+        return True, "ollama"
 
     # Check config file
     if config and config.provider.api_key:
         return True, config.provider.name
 
-    return False, 'local'
+    return False, "local"
 
 
 def cmd_dir_loc(directory: str) -> int:
@@ -119,7 +123,7 @@ def cmd_dir_loc(directory: str) -> int:
         config = SpectraConfig.load_or_create()
 
         # Check for API key (from env or config)
-        has_key, provider = check_api_key_from_config(config)
+        has_key, _provider = check_api_key_from_config(config)
 
         # If no API key, prompt user
         if not has_key:
@@ -161,7 +165,6 @@ def cmd_dir_loc(directory: str) -> int:
                     config.save()
 
                     has_key = True
-                    provider = provider_name
                     print(f"✓ API key saved for {provider_name}")
                     print()
                 else:
@@ -179,6 +182,7 @@ def cmd_dir_loc(directory: str) -> int:
 
         # Wait for runtime initialization
         import time
+
         max_wait = 10
         waited = 0
         while not controller._runtime_init_done.is_set() and waited < max_wait:
@@ -220,6 +224,7 @@ def cmd_dir_loc(directory: str) -> int:
         return 0
     except Exception as e:
         import traceback
+
         log_error(f"Error: {e}")
         traceback.print_exc()
         return 1
@@ -231,24 +236,10 @@ def main() -> int:
     Returns:
         Exit code
     """
-    parser = argparse.ArgumentParser(
-        description="Spectra CLI - AI-Powered Security Analysis Shell"
-    )
-    parser.add_argument(
-        "--version",
-        action="store_true",
-        help="Show version and exit"
-    )
-    parser.add_argument(
-        "command",
-        nargs="?",
-        help="Command (dir_loc)"
-    )
-    parser.add_argument(
-        "directory",
-        nargs="?",
-        help="Directory to analyze"
-    )
+    parser = argparse.ArgumentParser(description="Spectra CLI - AI-Powered Security Analysis Shell")
+    parser.add_argument("--version", action="store_true", help="Show version and exit")
+    parser.add_argument("command", nargs="?", help="Command (dir_loc)")
+    parser.add_argument("directory", nargs="?", help="Directory to analyze")
 
     args = parser.parse_args()
 

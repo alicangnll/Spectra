@@ -768,22 +768,21 @@ Artık tüm bayt kodlara sahibim. Hesaplamayı anlamak için kapsamlı bir emül
   - `code`:
 
 ```python
-
 import struct
 
 # 0x602060 ile 0x6023e0 arasındaki bayt kodunu oku
 bytecode_start = 0x602060
 bv = current_view
 
-bytecode = bytes(bv.read(bytecode_start, 0x6023e0 - bytecode_start))
+bytecode = bytes(bv.read(bytecode_start, 0x6023E0 - bytecode_start))
 
 # VM işleyici tablosu 0x602400 adresinde, 21 girdi, her biri 16 bayt: opcode(8) + handler_addr(8)
 handler_table = {}
 for i in range(21):
     off = 0x602400 - bytecode_start + i * 16
-    data = bytes(bv.read(0x602400 + i*16, 16))
+    data = bytes(bv.read(0x602400 + i * 16, 16))
     opcode = data[0]
-    addr = struct.unpack('<Q', data[8:16])[0]
+    addr = struct.unpack("<Q", data[8:16])[0]
     handler_table[opcode] = addr
 
 # İşleyici adreslerini işlemlere eşleyin (disassembly analize dayalı):
@@ -859,7 +858,6 @@ for i in range(21):
 print("Handler table:")
 for op, addr in sorted(handler_table.items()):
     print(f"  0x{op:02x} -> 0x{addr:06x}")
-
 ```
 
 
@@ -876,18 +874,16 @@ NameError: name 'current_view' is not defined
   - `code`:
 
 ```python
-
 import struct
 
 bv = binaryninja.open_view("/Users/kurono/Documents/tigress-challenges/Linux-x86_64/0000/challenge-0")
 
 bytecode_start = 0x602060
-bytecode_end = 0x6023e0
+bytecode_end = 0x6023E0
 bytecode = bytes(bv.read(bytecode_start, bytecode_end - bytecode_start))
 
 print(f"Bayt kodu uzunluğu: {len(bytecode)} bayt")
 print(f"Bayt kodu hex: {bytecode.hex()}")
-
 ```
 
 
@@ -904,10 +900,8 @@ AttributeError: module 'binaryninja' has no attribute 'open_view'
   - `code`:
 
 ```python
-
 # İkili görünümü bulmayı deneyeyim
 print(dir())
-
 ```
 
 
@@ -924,11 +918,10 @@ stdout:
   - `code`:
 
 ```python
-
 import struct
 
 bytecode_start = 0x602060
-bytecode_end = 0x6023e0
+bytecode_end = 0x6023E0
 bytecode = bytes(bv.read(bytecode_start, bytecode_end - bytecode_start))
 
 print(f"Bayt kodu uzunluğu: {len(bytecode)} bayt")
@@ -970,17 +963,17 @@ while ip < len(bytecode):
     op = bytecode[ip]
     addr = bytecode_start + ip
 
-    if op == 0x60 or op == 0xe1:
+    if op == 0x60 or op == 0xE1:
         if ip + 9 <= len(bytecode):
-            imm = struct.unpack('<Q', bytecode[ip+1:ip+9])[0]
+            imm = struct.unpack("<Q", bytecode[ip + 1 : ip + 9])[0]
             instructions.append((addr, f"PUSH 0x{imm:016x}  ({imm})"))
             ip += 9
         else:
             instructions.append((addr, f"PUSH <truncated>"))
             break
-    elif op == 0x8e:
+    elif op == 0x8E:
         if ip + 5 <= len(bytecode):
-            arg = struct.unpack('<I', bytecode[ip+1:ip+5])[0]
+            arg = struct.unpack("<I", bytecode[ip + 1 : ip + 5])[0]
             name = "input" if arg == 0 else "output"
             instructions.append((addr, f"PUSH_ARG_PTR {name} (arg {arg})"))
             ip += 5
@@ -988,65 +981,65 @@ while ip < len(bytecode):
             break
     elif op == 0x90:
         if ip + 5 <= len(bytecode):
-            off = struct.unpack('<i', bytecode[ip+1:ip+5])[0]
+            off = struct.unpack("<i", bytecode[ip + 1 : ip + 5])[0]
             instructions.append((addr, f"PUSH_LOCAL_PTR [local+0x{off:x}]"))
             ip += 5
         else:
             break
-    elif op == 0x4e:
+    elif op == 0x4E:
         instructions.append((addr, "NOP_IDENTITY"))
         ip += 1
     elif op == 0x61:
         instructions.append((addr, "DEREF_61"))
         ip += 1
-    elif op == 0x6e:
+    elif op == 0x6E:
         instructions.append((addr, "DEREF_6e"))
         ip += 1
-    elif op == 0x3c:
+    elif op == 0x3C:
         instructions.append((addr, "ADD_3c"))
         ip += 1
-    elif op == 0x0e:
+    elif op == 0x0E:
         instructions.append((addr, "ADD_0e"))
         ip += 1
-    elif op == 0x5f:
+    elif op == 0x5F:
         instructions.append((addr, "ADD_5f"))
         ip += 1
     elif op == 0x27:
         instructions.append((addr, "ADD_SEXT32"))
         ip += 1
-    elif op == 0xc7:
+    elif op == 0xC7:
         instructions.append((addr, "MUL"))
         ip += 1
     elif op == 0x56:
         instructions.append((addr, "OR"))
         ip += 1
-    elif op == 0x4a:
+    elif op == 0x4A:
         instructions.append((addr, "AND"))
         ip += 1
-    elif op == 0x5d:
+    elif op == 0x5D:
         instructions.append((addr, "SHL"))
         ip += 1
-    elif op == 0x2b:
+    elif op == 0x2B:
         instructions.append((addr, "SHR"))
         ip += 1
     elif op == 0x42:
         instructions.append((addr, "SUB"))
         ip += 1
-    elif op == 0xdf:
+    elif op == 0xDF:
         instructions.append((addr, "STORE"))
         ip += 1
-    elif op == 0xf2:
+    elif op == 0xF2:
         instructions.append((addr, "NOP"))
         ip += 1
-    elif op == 0xf4:
+    elif op == 0xF4:
         if ip + 5 <= len(bytecode):
-            rel = struct.unpack('<i', bytecode[ip+1:ip+5])[0]
+            rel = struct.unpack("<i", bytecode[ip + 1 : ip + 5])[0]
             target = bytecode_start + ip + 1 + rel  # IP opcode+1'de
             instructions.append((addr, f"RELJMP {rel:+d} -> 0x{target:06x}"))
             ip += 5
         else:
             break
-    elif op == 0x4d:
+    elif op == 0x4D:
         instructions.append((addr, "HALT"))
         ip += 1
         break
@@ -1057,7 +1050,6 @@ while ip < len(bytecode):
 print("VM Disassembly:")
 for addr, ins in instructions:
     print(f"  0x{addr:06x}: {ins}")
-
 ```
 
 
@@ -1367,20 +1359,20 @@ local[3] = rotation_result
   - `code`:
 
 ```python
-
 import struct
 
 bytecode_start = 0x602060
-bytecode = bytes(bv.read(bytecode_start, 0x6023e0 - bytecode_start))
+bytecode = bytes(bv.read(bytecode_start, 0x6023E0 - bytecode_start))
 
 MASK64 = 0xFFFFFFFFFFFFFFFF
+
 
 def emulate_vm(input_val):
     """input_val'ı input[0] olarak alıp output[0] döndüren VM emülatörü"""
     # Bellek modeli
     input_arr = [input_val]  # girdi dizisi
-    output_arr = [0]         # çıktı dizisi
-    local_vars = [0] * 16   # yerel değişkenler (local+0x10'da)
+    output_arr = [0]  # çıktı dizisi
+    local_vars = [0] * 16  # yerel değişkenler (local+0x10'da)
 
     # Yığın
     stack = []
@@ -1395,27 +1387,27 @@ def emulate_vm(input_val):
         """İşaretçiyi başvur"""
         if isinstance(val, tuple):
             kind, off = val
-            if kind == 'input':
+            if kind == "input":
                 return input_arr[off // 8]
-            elif kind == 'output':
+            elif kind == "output":
                 return output_arr[off // 8]
-            elif kind == 'local':
+            elif kind == "local":
                 return local_vars[off // 8]
-            elif kind == 'input_base':
+            elif kind == "input_base":
                 # girdi dizisinin kendisine işaretçi
-                return ('input', 0)
-            elif kind == 'output_base':
-                return ('output', 0)
+                return ("input", 0)
+            elif kind == "output_base":
+                return ("output", 0)
         return val
 
     def store_ptr(ptr, val):
         if isinstance(ptr, tuple):
             kind, off = ptr
-            if kind == 'input':
+            if kind == "input":
                 input_arr[off // 8] = val & MASK64
-            elif kind == 'output':
+            elif kind == "output":
                 output_arr[off // 8] = val & MASK64
-            elif kind == 'local':
+            elif kind == "local":
                 local_vars[off // 8] = val & MASK64
 
     max_steps = 10000
@@ -1425,31 +1417,31 @@ def emulate_vm(input_val):
         step += 1
         op = bytecode[ip]
 
-        if op == 0x60 or op == 0xe1:  # PUSH_IMM64
-            imm = struct.unpack('<Q', bytecode[ip+1:ip+9])[0]
+        if op == 0x60 or op == 0xE1:  # PUSH_IMM64
+            imm = struct.unpack("<Q", bytecode[ip + 1 : ip + 9])[0]
             stack.append(imm)
             ip += 9
 
-        elif op == 0x8e:  # PUSH_ARG_PTR
-            arg = struct.unpack('<I', bytecode[ip+1:ip+5])[0]
+        elif op == 0x8E:  # PUSH_ARG_PTR
+            arg = struct.unpack("<I", bytecode[ip + 1 : ip + 5])[0]
             if arg == 0:
-                stack.append(('input_base', 0))
+                stack.append(("input_base", 0))
             else:
-                stack.append(('output_base', 0))
+                stack.append(("output_base", 0))
             ip += 5
 
         elif op == 0x90:  # PUSH_LOCAL_PTR
-            off = struct.unpack('<i', bytecode[ip+1:ip+5])[0]
+            off = struct.unpack("<i", bytecode[ip + 1 : ip + 5])[0]
             # local+0x10 tabandır, ofset rbp-0x50'ye göre
             # Ama modelimizde local_vars[0] = local+0x10
             # PUSH_LOCAL_PTR'dan gelen ofset rbp-0x50'ye eklenir
             # Yani local+0x10, rbp-0x50'den 0x10 ofset demektir
             # Bunu ('local', off - 0x10) olarak değerlendiriyoruz ama aslında
             # ADD_SEXT32 hesaplanan indeksi buna ekleyecek
-            stack.append(('local_base', off))
+            stack.append(("local_base", off))
             ip += 5
 
-        elif op == 0x4e:  # NOP_IDENTITY
+        elif op == 0x4E:  # NOP_IDENTITY
             ip += 1
 
         elif op == 0x61:  # DEREF - TOS = *TOS
@@ -1458,13 +1450,13 @@ def emulate_vm(input_val):
             stack.append(result)
             ip += 1
 
-        elif op == 0x6e:  # DEREF - 0x61 ile aynı
+        elif op == 0x6E:  # DEREF - 0x61 ile aynı
             val = stack.pop()
             result = resolve_ptr(val)
             stack.append(result)
             ip += 1
 
-        elif op == 0x3c or op == 0x0e or op == 0x5f:  # ADD varyantları
+        elif op == 0x3C or op == 0x0E or op == 0x5F:  # ADD varyantları
             a = stack.pop()  # TOS
             b = stack.pop()  # NOS
             # İşaretçi aritmetiği
@@ -1495,7 +1487,7 @@ def emulate_vm(input_val):
                 stack.append((a + b) & MASK64)
             ip += 1
 
-        elif op == 0xc7:  # MUL
+        elif op == 0xC7:  # MUL
             a = stack.pop()
             b = stack.pop()
             stack.append((a * b) & MASK64)
@@ -1507,13 +1499,13 @@ def emulate_vm(input_val):
             stack.append((a | b) & MASK64)
             ip += 1
 
-        elif op == 0x4a:  # AND
+        elif op == 0x4A:  # AND
             a = stack.pop()
             b = stack.pop()
             stack.append((a & b) & MASK64)
             ip += 1
 
-        elif op == 0x5d:  # SHL: shift çıkar, değer çıkar, değer << shift it. IP += 1
+        elif op == 0x5D:  # SHL: shift çıkar, değer çıkar, değer << shift it. IP += 1
             nos = stack.pop()  # Bekleyen, yığın sırası...
             # İşleyici: rsi=[SP]=TOS, rax=[SP-8]=NOS, sonuç=TOS<<NOS
             # Ama biz önce TOS sonra NOS çıkarıyoruz
@@ -1524,7 +1516,7 @@ def emulate_vm(input_val):
             stack.append((tos << shift) & MASK64)
             ip += 1
 
-        elif op == 0x2b:  # SHR: NOS >> TOS
+        elif op == 0x2B:  # SHR: NOS >> TOS
             tos = stack.pop()
             nos = stack.pop()
             shift = tos & 63
@@ -1537,7 +1529,7 @@ def emulate_vm(input_val):
             stack.append((tos - nos) & MASK64)
             ip += 1
 
-        elif op == 0xdf:  # STORE: *[SP-8] = [SP-16], 3 çıkar
+        elif op == 0xDF:  # STORE: *[SP-8] = [SP-16], 3 çıkar
             # İşleyici: [SP]=addr, [SP-8]=val, *addr=val, SP-=16
             # Bekleyen, 0x400c52 işleyicisini yeniden okuyorum:
             # rax = [SP] -> addr
@@ -1546,24 +1538,25 @@ def emulate_vm(input_val):
             # SP -= 16 (2 element çıkarır... ama addr hesaplama elementi de?)
             # Aslında SP -= 0x10 = 2 qword
             addr = stack.pop()  # TOS = adres
-            val = stack.pop()   # NOS = değer
+            val = stack.pop()  # NOS = değer
             store_ptr(addr, val)
             ip += 1
 
-        elif op == 0xf2:  # NOP
+        elif op == 0xF2:  # NOP
             ip += 1
 
-        elif op == 0xf4:  # RELJMP
-            rel = struct.unpack('<i', bytecode[ip+1:ip+5])[0]
+        elif op == 0xF4:  # RELJMP
+            rel = struct.unpack("<i", bytecode[ip + 1 : ip + 5])[0]
             ip = ip + 1 + rel
 
-        elif op == 0x4d:  # HALT
+        elif op == 0x4D:  # HALT
             break
         else:
             print(f"Bilinmeyen opcode 0x{op:02x} ofset {ip} konumunda")
             break
 
     return output_arr[0]
+
 
 # SHL işleyicisi yeniden incelenmeli. Yeniden okuyalım:
 # 0x5d at 0x40080b'de:
@@ -1596,7 +1589,6 @@ print(f"VM({test_input}) = {result}")
 for x in [0, 1, 100, 12345678]:
     r = emulate_vm(x)
     print(f"VM({x}) = {r}")
-
 ```
 
 
@@ -1617,13 +1609,13 @@ TypeError: unsupported operand type(s) for |: 'int' and 'tuple'
   - `code`:
 
 ```python
-
 import struct
 
 bytecode_start = 0x602060
-bytecode = bytes(bv.read(bytecode_start, 0x6023e0 - bytecode_start))
+bytecode = bytes(bv.read(bytecode_start, 0x6023E0 - bytecode_start))
 
 MASK64 = 0xFFFFFFFFFFFFFFFF
+
 
 def emulate_vm(input_val):
     input_arr = [input_val & MASK64]
@@ -1643,17 +1635,17 @@ def emulate_vm(input_val):
             raise ValueError(f"İşaretçi olmayan başvuru: {v}")
         kind, off = v
         idx = off // 8
-        if kind == 'input':
+        if kind == "input":
             return input_arr[idx]
-        elif kind == 'output':
+        elif kind == "output":
             return output_arr[idx]
-        elif kind == 'local':
+        elif kind == "local":
             return local_vars[idx]
-        elif kind == 'input_base':
+        elif kind == "input_base":
             # İşaretçi-işaretçi başvurusu bize dizi işaretçisi verir
-            return ('input', 0)
-        elif kind == 'output_base':
-            return ('output', 0)
+            return ("input", 0)
+        elif kind == "output_base":
+            return ("output", 0)
 
     def store(ptr, val):
         if not is_ptr(ptr):
@@ -1661,11 +1653,11 @@ def emulate_vm(input_val):
         kind, off = ptr
         idx = off // 8
         v = val & MASK64 if isinstance(val, int) else val
-        if kind == 'input':
+        if kind == "input":
             input_arr[idx] = v
-        elif kind == 'output':
+        elif kind == "output":
             output_arr[idx] = v
-        elif kind == 'local':
+        elif kind == "local":
             local_vars[idx] = v
         else:
             raise ValueError(f"Saklama hedefi {kind}")
@@ -1684,31 +1676,31 @@ def emulate_vm(input_val):
         step += 1
         op = bytecode[ip]
 
-        if op in (0x60, 0xe1):  # PUSH_IMM64
-            imm = struct.unpack('<Q', bytecode[ip+1:ip+9])[0]
+        if op in (0x60, 0xE1):  # PUSH_IMM64
+            imm = struct.unpack("<Q", bytecode[ip + 1 : ip + 9])[0]
             stack.append(imm)
             ip += 9
-        elif op == 0x8e:  # PUSH_ARG_PTR
-            arg = struct.unpack('<I', bytecode[ip+1:ip+5])[0]
-            stack.append(('input_base', 0) if arg == 0 else ('output_base', 0))
+        elif op == 0x8E:  # PUSH_ARG_PTR
+            arg = struct.unpack("<I", bytecode[ip + 1 : ip + 5])[0]
+            stack.append(("input_base", 0) if arg == 0 else ("output_base", 0))
             ip += 5
         elif op == 0x90:  # PUSH_LOCAL_PTR
-            off = struct.unpack('<i', bytecode[ip+1:ip+5])[0]
+            off = struct.unpack("<i", bytecode[ip + 1 : ip + 5])[0]
             # local+0x10 tabandır, ofset rbp-0x50'ye göre
             # Ama modelimizde local_vars[0] = local+0x10
             # PUSH_LOCAL_PTR'dan gelen ofset rbp-0x50'ye eklenir
             # Yani local+0x10, rbp-0x50'den 0x10 ofset demektir
             # Bunu ('local', off - 0x10) olarak değerlendiriyoruz ama aslında
             # ADD_SEXT32 hesaplanan indeksi buna ekleyecek
-            stack.append(('local_base', off))
+            stack.append(("local_base", off))
             ip += 5
-        elif op == 0x4e:  # NOP_IDENTITY
+        elif op == 0x4E:  # NOP_IDENTITY
             ip += 1
-        elif op in (0x61, 0x6e):  # DEREF
+        elif op in (0x61, 0x6E):  # DEREF
             val = stack.pop()
             stack.append(deref(val))
             ip += 1
-        elif op in (0x3c, 0x0e, 0x5f):  # ADD
+        elif op in (0x3C, 0x0E, 0x5F):  # ADD
             tos = stack.pop()
             nos = stack.pop()
             stack.append(add_vals(tos, nos))
@@ -1723,7 +1715,7 @@ def emulate_vm(input_val):
                 nos = nos32
             stack.append(add_vals(tos, nos))
             ip += 1
-        elif op == 0xc7:  # MUL
+        elif op == 0xC7:  # MUL
             tos = stack.pop()
             nos = stack.pop()
             stack.append((tos * nos) & MASK64)
@@ -1733,17 +1725,17 @@ def emulate_vm(input_val):
             nos = stack.pop()
             stack.append((tos | nos) & MASK64)
             ip += 1
-        elif op == 0x4a:  # AND
+        elif op == 0x4A:  # AND
             tos = stack.pop()
             nos = stack.pop()
             stack.append((tos & nos) & MASK64)
             ip += 1
-        elif op == 0x5d:  # SHL: TOS << (NOS & 63)
+        elif op == 0x5D:  # SHL: TOS << (NOS & 63)
             tos = stack.pop()
             nos = stack.pop()
             stack.append((tos << (nos & 63)) & MASK64)
             ip += 1
-        elif op == 0x2b:  # SHR: NOS >> (TOS & 63)
+        elif op == 0x2B:  # SHR: NOS >> (TOS & 63)
             tos = stack.pop()
             nos = stack.pop()
             stack.append((nos >> (tos & 63)) & MASK64)
@@ -1753,17 +1745,17 @@ def emulate_vm(input_val):
             nos = stack.pop()
             stack.append((tos - nos) & MASK64)
             ip += 1
-        elif op == 0xdf:  # STORE
+        elif op == 0xDF:  # STORE
             addr = stack.pop()
             val = stack.pop()
             store(addr, val)
             ip += 1
-        elif op == 0xf2:  # NOP
+        elif op == 0xF2:  # NOP
             ip += 1
-        elif op == 0xf4:  # RELJMP
-            rel = struct.unpack('<i', bytecode[ip+1:ip+5])[0]
+        elif op == 0xF4:  # RELJMP
+            rel = struct.unpack("<i", bytecode[ip + 1 : ip + 5])[0]
             ip = ip + 1 + rel
-        elif op == 0x4d:  # HALT
+        elif op == 0x4D:  # HALT
             break
         else:
             print(f"Bilinmeyen opcode 0x{op:02x} ip={ip} konumunda")
@@ -1771,11 +1763,11 @@ def emulate_vm(input_val):
 
     return output_arr[0]
 
+
 # Test
-for x in [0, 1, 42, 100, 12345678, 0xdeadbeef]:
+for x in [0, 1, 42, 100, 12345678, 0xDEADBEEF]:
     r = emulate_vm(x)
     print(f"VM({x}) = {r}")
-
 ```
 
 
@@ -1796,13 +1788,13 @@ Sorun şu ki, ofset hesaplandıktan sonra `local_base` bir `local` işaretçisi 
   - `code`:
 
 ```python
-
 import struct
 
 bytecode_start = 0x602060
-bytecode = bytes(bv.read(bytecode_start, 0x6023e0 - bytecode_start))
+bytecode = bytes(bv.read(bytecode_start, 0x6023E0 - bytecode_start))
 
 MASK64 = 0xFFFFFFFFFFFFFFFF
+
 
 def emulate_vm(input_val, debug=False):
     input_arr = [input_val & MASK64]
@@ -1823,11 +1815,11 @@ def emulate_vm(input_val, debug=False):
             return v
         kind, off = v
         # local_base with 0x10 + i*8 ofset -> local[i]
-        if kind == 'local_base':
+        if kind == "local_base":
             # Taban rbp-0x50, ofset 0x10 demek rbp-0x50+0x10 = rbp-0x40
             # local_vars[0], ofset 0x10'a karşılık gelir
             # local_vars[i], ofset 0x10 + i*8'e karşılık gelir
-            return ('local', off - 0x10)  # ayarla so local[0] = ofset 0
+            return ("local", off - 0x10)  # ayarla so local[0] = ofset 0
         return v
 
     def deref(v):
@@ -1836,16 +1828,16 @@ def emulate_vm(input_val, debug=False):
             raise ValueError(f"İşaretçi olmayan başvuru: {v}")
         kind, off = v
         idx = off // 8
-        if kind == 'input':
+        if kind == "input":
             return input_arr[idx]
-        elif kind == 'output':
+        elif kind == "output":
             return output_arr[idx]
-        elif kind == 'local':
+        elif kind == "local":
             return local_vars[idx]
-        elif kind == 'input_base':
-            return ('input', 0)
-        elif kind == 'output_base':
-            return ('output', 0)
+        elif kind == "input_base":
+            return ("input", 0)
+        elif kind == "output_base":
+            return ("output", 0)
         else:
             raise ValueError(f"Bilinmeyen ptr kind: {kind}")
 
@@ -1856,11 +1848,11 @@ def emulate_vm(input_val, debug=False):
         kind, off = ptr
         idx = off // 8
         v = val & MASK64 if isinstance(val, int) else val
-        if kind == 'input':
+        if kind == "input":
             input_arr[idx] = v
-        elif kind == 'output':
+        elif kind == "output":
             output_arr[idx] = v
-        elif kind == 'local':
+        elif kind == "local":
             local_vars[idx] = v
         else:
             raise ValueError(f"Saklama hedefi {kind}")
@@ -1881,27 +1873,29 @@ def emulate_vm(input_val, debug=False):
 
         if debug:
             int_stack = [s if isinstance(s, int) else f"ptr({s})" for s in stack]
-            print(f"  ip={ip:3d} op=0x{op:02x} stack_depth={len(stack)} top={int_stack[-3:] if len(int_stack)>0 else '[]'}")
+            print(
+                f"  ip={ip:3d} op=0x{op:02x} stack_depth={len(stack)} top={int_stack[-3:] if len(int_stack) > 0 else '[]'}"
+            )
 
-        if op in (0x60, 0xe1):
-            imm = struct.unpack('<Q', bytecode[ip+1:ip+9])[0]
+        if op in (0x60, 0xE1):
+            imm = struct.unpack("<Q", bytecode[ip + 1 : ip + 9])[0]
             stack.append(imm)
             ip += 9
-        elif op == 0x8e:
-            arg = struct.unpack('<I', bytecode[ip+1:ip+5])[0]
-            stack.append(('input_base', 0) if arg == 0 else ('output_base', 0))
+        elif op == 0x8E:
+            arg = struct.unpack("<I", bytecode[ip + 1 : ip + 5])[0]
+            stack.append(("input_base", 0) if arg == 0 else ("output_base", 0))
             ip += 5
         elif op == 0x90:
-            off = struct.unpack('<i', bytecode[ip+1:ip+5])[0]
-            stack.append(('local_base', off))
+            off = struct.unpack("<i", bytecode[ip + 1 : ip + 5])[0]
+            stack.append(("local_base", off))
             ip += 5
-        elif op == 0x4e:
+        elif op == 0x4E:
             ip += 1
-        elif op in (0x61, 0x6e):
+        elif op in (0x61, 0x6E):
             val = stack.pop()
             stack.append(deref(val))
             ip += 1
-        elif op in (0x3c, 0x0e, 0x5f):
+        elif op in (0x3C, 0x0E, 0x5F):
             tos = stack.pop()
             nos = stack.pop()
             stack.append(add_vals(tos, nos))
@@ -1916,7 +1910,7 @@ def emulate_vm(input_val, debug=False):
                 nos = nos32
             stack.append(add_vals(tos, nos))
             ip += 1
-        elif op == 0xc7:
+        elif op == 0xC7:
             tos = stack.pop()
             nos = stack.pop()
             stack.append((tos * nos) & MASK64)
@@ -1926,17 +1920,17 @@ def emulate_vm(input_val, debug=False):
             nos = stack.pop()
             stack.append((tos | nos) & MASK64)
             ip += 1
-        elif op == 0x4a:
+        elif op == 0x4A:
             tos = stack.pop()
             nos = stack.pop()
             stack.append((tos & nos) & MASK64)
             ip += 1
-        elif op == 0x5d:  # SHL: TOS << (NOS & 63)
+        elif op == 0x5D:  # SHL: TOS << (NOS & 63)
             tos = stack.pop()
             nos = stack.pop()
             stack.append((tos << (nos & 63)) & MASK64)
             ip += 1
-        elif op == 0x2b:  # SHR: NOS >> (TOS & 63)
+        elif op == 0x2B:  # SHR: NOS >> (TOS & 63)
             tos = stack.pop()
             nos = stack.pop()
             stack.append((nos >> (tos & 63)) & MASK64)
@@ -1946,17 +1940,17 @@ def emulate_vm(input_val, debug=False):
             nos = stack.pop()
             stack.append((tos - nos) & MASK64)
             ip += 1
-        elif op == 0xdf:
+        elif op == 0xDF:
             addr = stack.pop()
             val = stack.pop()
             store(addr, val)
             ip += 1
-        elif op == 0xf2:
+        elif op == 0xF2:
             ip += 1
-        elif op == 0xf4:
-            rel = struct.unpack('<i', bytecode[ip+1:ip+5])[0]
+        elif op == 0xF4:
+            rel = struct.unpack("<i", bytecode[ip + 1 : ip + 5])[0]
             ip = ip + 1 + rel
-        elif op == 0x4d:
+        elif op == 0x4D:
             break
         else:
             print(f"Bilinmeyen opcode 0x{op:02x} ip={ip} konumunda")
@@ -1964,11 +1958,11 @@ def emulate_vm(input_val, debug=False):
 
     return output_arr[0]
 
+
 # Test
-for x in [0, 1, 42, 100, 12345678, 0xdeadbeef]:
+for x in [0, 1, 42, 100, 12345678, 0xDEADBEEF]:
     r = emulate_vm(x)
     print(f"VM({x}) = {r}")
-
 ```
 
 
@@ -2557,7 +2551,6 @@ Sembolik formül VM emülatörüyle mükemmel eşleşiyor. Şimdi ikili dosyayı
   - `code`:
 
 ```python
-
 # Temiz deobfuskasyon edilmiş fonksiyonu yazdır
 print("""
 === DEOBFUSKE EDİLMİŞ FONKSİYON ===
@@ -2590,12 +2583,11 @@ uint64_t compute(uint64_t x) {
 # Ayrıca kullanılan sabitleri göster
 print("Kullanılan sabitler:")
 print(f"  886599889  = 0x34D870D1")
-print(f"  0xFFFFFFFFD9FCA98B (işaretli: {0xFFFFFFFFD9FCA98B - (1<<64)})")
+print(f"  0xFFFFFFFFD9FCA98B (işaretli: {0xFFFFFFFFD9FCA98B - (1 << 64)})")
 print(f"  74171520   = 0x046BC480")
 print(f"  951885855  = 0x38BCA01F")
 print(f"  500810693  = 0x1DD9C3C5")
 print(f"  746348727  = 0x2C7C60B7")
-
 ```
 
 

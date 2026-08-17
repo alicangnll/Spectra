@@ -2,19 +2,20 @@
 
 from __future__ import annotations
 
-import sys
 import os
+import sys
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from tests.mocks.ida_mock import install_ida_mocks
+
 install_ida_mocks()
 
-from spectra.agent.turn import TurnEvent, TurnEventType
-from spectra.agent.plan_mode import parse_plan, create_plan_from_text
 from spectra.agent.context_window import ContextWindowManager
-from spectra.core.types import Message, Role, TokenUsage
+from spectra.agent.plan_mode import create_plan_from_text, parse_plan
+from spectra.agent.turn import TurnEvent, TurnEventType
 from spectra.core.config import SpectraConfig
+from spectra.core.types import Message, Role, TokenUsage
 from spectra.state.session import SessionState
 
 
@@ -103,7 +104,8 @@ class TestSessionState(unittest.TestCase):
     def test_add_message(self):
         session = SessionState()
         msg = Message(
-            role=Role.ASSISTANT, content="test",
+            role=Role.ASSISTANT,
+            content="test",
             token_usage=TokenUsage(prompt_tokens=10, completion_tokens=5, total_tokens=15),
         )
         session.add_message(msg)
@@ -120,7 +122,9 @@ class TestSessionState(unittest.TestCase):
 class TestSessionHistory(unittest.TestCase):
     def test_save_and_load(self):
         import tempfile
+
         from spectra.state.history import SessionHistory
+
         cfg = SpectraConfig()
         cfg._config_dir = tempfile.mkdtemp()
 
@@ -138,7 +142,9 @@ class TestSessionHistory(unittest.TestCase):
 
     def test_list_sessions(self):
         import tempfile
+
         from spectra.state.history import SessionHistory
+
         cfg = SpectraConfig()
         cfg._config_dir = tempfile.mkdtemp()
         history = SessionHistory(cfg)

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from ...core.config import SpectraConfig
 from ...core.logging import log_debug
-from...skills.loader import SkillDefinition
+from ...skills.loader import SkillDefinition
 from ..qt_compat import (
     QCheckBox,
     QGroupBox,
@@ -16,7 +16,6 @@ from ..qt_compat import (
     QPushButton,
     QScrollArea,
     QTextEdit,
-    Qt,
     QVBoxLayout,
     QWidget,
 )
@@ -190,10 +189,10 @@ class SkillsTab(QWidget):
         desc_lines.append("")
 
         # Try to read skill body if available
-        skill_path = getattr(skill, 'path', None)
+        skill_path = getattr(skill, "path", None)
         if skill_path and Path(skill_path).exists():
             try:
-                with open(skill_path, 'r') as f:
+                with open(skill_path) as f:
                     body = f.read()
                     if body.strip():
                         desc_lines.append("---")

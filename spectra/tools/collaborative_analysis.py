@@ -21,8 +21,9 @@ from typing import Any
 # Try to import IDA API
 try:
     import idaapi
-    import idc
     import idautils
+    import idc
+
     IDA_AVAILABLE = True
 except ImportError:
     IDA_AVAILABLE = False
@@ -30,6 +31,7 @@ except ImportError:
 # Try to import Binary Ninja API
 try:
     import binaryninja
+
     BINJA_AVAILABLE = True
 except ImportError:
     BINJA_AVAILABLE = False
@@ -43,6 +45,7 @@ SPECTRA_COLLAB_DIR.mkdir(parents=True, exist_ok=True)
 @dataclass
 class Finding:
     """A single finding that can be shared with the team."""
+
     address: int
     type: str  # "vulnerability", "suspicious", "interesting", "false_positive"
     category: str  # "overflow", "uaf", "crypto", "network", etc.
@@ -64,6 +67,7 @@ class Finding:
 @dataclass
 class Annotation:
     """A function or address annotation."""
+
     address: int
     type: str  # "comment", "rename", "type_change"
     old_value: str = ""
@@ -79,6 +83,7 @@ class Annotation:
 @dataclass
 class AnalysisSnapshot:
     """A complete analysis snapshot for sharing."""
+
     binary_name: str = ""
     binary_hash: str = ""
     analyst: str = "Unknown"
@@ -146,53 +151,61 @@ def _export_findings_ida() -> list[Finding]:
             cmt = idc.get_func_cmt(func_ea, 0) or ""
             if cmt:
                 # Look for finding markers in comments: [FINDING:TYPE:SEVERITY]
-                matches = re.findall(r'\[FINDING:(\w+):(\w+)\]\s*(.*?)(?:\n|$)', cmt)
+                matches = re.findall(r"\[FINDING:(\w+):(\w+)\]\s*(.*?)(?:\n|$)", cmt)
                 for ftype, severity, title in matches:
-                    findings.append(Finding(
-                        address=func_ea,
-                        type=ftype.lower(),
-                        category="general",
-                        severity=severity.lower(),
-                        title=title.strip(),
-                        description=cmt,
-                        function_name=func_name,
-                    ))
+                    findings.append(
+                        Finding(
+                            address=func_ea,
+                            type=ftype.lower(),
+                            category="general",
+                            severity=severity.lower(),
+                            title=title.strip(),
+                            description=cmt,
+                            function_name=func_name,
+                        )
+                    )
         except Exception:
             pass
 
     # Export suspicious API findings if tool exists
     try:
         from .suspicious_api import scan_all_suspicious_apis
+
         api_results = scan_all_suspicious_apis()
         for api in api_results.get("suspicious_apis", [])[:20]:
-            findings.append(Finding(
-                address=api.get("address", 0),
-                type="suspicious",
-                category="api",
-                severity=api.get("severity", "medium"),
-                title=f"Suspicious API: {api.get('name', 'unknown')}",
-                description=api.get("description", ""),
-                function_name=api.get("function", ""),
-                tags=["suspicious_api"],
-            ))
+            findings.append(
+                Finding(
+                    address=api.get("address", 0),
+                    type="suspicious",
+                    category="api",
+                    severity=api.get("severity", "medium"),
+                    title=f"Suspicious API: {api.get('name', 'unknown')}",
+                    description=api.get("description", ""),
+                    function_name=api.get("function", ""),
+                    tags=["suspicious_api"],
+                )
+            )
     except Exception:
         pass
 
     # Export anti-debug findings if tool exists
     try:
         from .anti_debug import scan_all_anti_debug
+
         ad_results = scan_all_anti_debug()
         for ad in ad_results.get("api_calls", [])[:10]:
-            findings.append(Finding(
-                address=ad.get("address", 0),
-                type="suspicious",
-                category="anti_debug",
-                severity=ad.get("severity", "medium"),
-                title=f"Anti-Debug: {ad.get('api', 'unknown')}",
-                description=ad.get("description", ""),
-                function_name=ad.get("function", ""),
-                tags=["anti_debug"],
-            ))
+            findings.append(
+                Finding(
+                    address=ad.get("address", 0),
+                    type="suspicious",
+                    category="anti_debug",
+                    severity=ad.get("severity", "medium"),
+                    title=f"Anti-Debug: {ad.get('api', 'unknown')}",
+                    description=ad.get("description", ""),
+                    function_name=ad.get("function", ""),
+                    tags=["anti_debug"],
+                )
+            )
     except Exception:
         pass
 
@@ -212,24 +225,28 @@ def _export_annotations_ida() -> list[Annotation]:
 
         # Check if it was renamed (not sub_*)
         if not func_name.startswith("sub_") and not func_name.startswith("loc_"):
-            annotations.append(Annotation(
-                address=func_ea,
-                type="rename",
-                new_value=func_name,
-                old_value=f"sub_{func_ea:X}",
-            ))
+            annotations.append(
+                Annotation(
+                    address=func_ea,
+                    type="rename",
+                    new_value=func_name,
+                    old_value=f"sub_{func_ea:X}",
+                )
+            )
 
     # Export function comments
     for func_ea in idautils.Functions():
         try:
             cmt = idc.get_func_cmt(func_ea, 0)
             if cmt and cmt.strip():
-                annotations.append(Annotation(
-                    address=func_ea,
-                    type="comment",
-                    new_value=cmt,
-                    function_name=idc.get_func_name(func_ea),
-                ))
+                annotations.append(
+                    Annotation(
+                        address=func_ea,
+                        type="comment",
+                        new_value=cmt,
+                        function_name=idc.get_func_name(func_ea),
+                    )
+                )
         except Exception:
             pass
 
@@ -270,22 +287,26 @@ def export_snapshot_binja(bv, analyst: str = "Unknown", summary: str = "") -> An
     # Export renamed functions
     for func in bv.functions:
         if not func.name.startswith("sub_"):
-            annotations.append(Annotation(
-                address=func.start,
-                type="rename",
-                new_value=func.name,
-            ))
+            annotations.append(
+                Annotation(
+                    address=func.start,
+                    type="rename",
+                    new_value=func.name,
+                )
+            )
 
     # Export comments
     for func in bv.functions:
         for comment_addr, comment in func.get_comment_addresses(bv):
             if comment and comment.strip():
-                annotations.append(Annotation(
-                    address=comment_addr,
-                    type="comment",
-                    new_value=comment,
-                    function_name=func.name,
-                ))
+                annotations.append(
+                    Annotation(
+                        address=comment_addr,
+                        type="comment",
+                        new_value=comment,
+                        function_name=func.name,
+                    )
+                )
 
     return AnalysisSnapshot(
         binary_name=binary_info["name"],
@@ -357,15 +378,17 @@ def list_shared_snapshots() -> list[dict[str, Any]]:
             with open(filepath) as f:
                 data = json.load(f)
 
-            snapshots.append({
-                "filepath": str(filepath),
-                "binary_name": data.get("binary_name", "unknown"),
-                "analyst": data.get("analyst", "Unknown"),
-                "timestamp": data.get("timestamp", ""),
-                "finding_count": len(data.get("findings", [])),
-                "annotation_count": len(data.get("annotations", [])),
-                "summary": data.get("summary", ""),
-            })
+            snapshots.append(
+                {
+                    "filepath": str(filepath),
+                    "binary_name": data.get("binary_name", "unknown"),
+                    "analyst": data.get("analyst", "Unknown"),
+                    "timestamp": data.get("timestamp", ""),
+                    "finding_count": len(data.get("findings", [])),
+                    "annotation_count": len(data.get("annotations", [])),
+                    "summary": data.get("summary", ""),
+                }
+            )
         except Exception:
             continue
 
@@ -462,7 +485,9 @@ def format_collaboration_report(snapshots: list[AnalysisSnapshot]) -> str:
 
             for severity in ["critical", "high", "medium", "low", "info"]:
                 if severity in by_severity:
-                    icon = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🟢", "info": "🔵"}.get(severity, "⚪")
+                    icon = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🟢", "info": "🔵"}.get(
+                        severity, "⚪"
+                    )
                     report_lines.append(f"\n**{icon.upper()} {severity.upper()}**\n")
                     for finding in by_severity[severity][:10]:
                         verified_mark = "✓" if finding.verified else ""
@@ -485,11 +510,10 @@ def format_collaboration_report(snapshots: list[AnalysisSnapshot]) -> str:
 
     # Contributors
     if len(snapshots) > 1:
-        report_lines.append(f"\n### Contributors\n")
+        report_lines.append("\n### Contributors\n")
         for snapshot in sorted(snapshots, key=lambda s: s.timestamp):
             report_lines.append(
-                f"- **{snapshot.analyst}** - {snapshot.findings} findings, "
-                f"{snapshot.annotations} annotations\n"
+                f"- **{snapshot.analyst}** - {snapshot.findings} findings, {snapshot.annotations} annotations\n"
             )
 
     return "\n".join(report_lines)

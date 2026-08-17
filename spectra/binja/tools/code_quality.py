@@ -66,14 +66,16 @@ def analyze_code_metrics() -> str:
 
         security_issues.extend(func_security_issues)
 
-        functions.append({
-            "name": func.name,
-            "address": hex(func.start),
-            "instruction_count": instr_count,
-            "basic_blocks": basic_blocks,
-            "complexity": complexity,
-            "security_issues": func_security_issues,
-        })
+        functions.append(
+            {
+                "name": func.name,
+                "address": hex(func.start),
+                "instruction_count": instr_count,
+                "basic_blocks": basic_blocks,
+                "complexity": complexity,
+                "security_issues": func_security_issues,
+            }
+        )
 
     # Calculate aggregate metrics
     func_count = len(functions)
@@ -82,7 +84,7 @@ def analyze_code_metrics() -> str:
 
     # Find most complex and largest functions
     most_complex = sorted(functions, key=lambda x: x["complexity"], reverse=True)[:10]
-    largest = sorted(functions, key=lambda x: x["instruction_count"], reverse=True)[:10]
+    _largest = sorted(functions, key=lambda x: x["instruction_count"], reverse=True)[:10]
 
     # Calculate security score
     score = 100
@@ -111,19 +113,19 @@ def analyze_code_metrics() -> str:
     report_lines.append(f"**Large Functions:** {large_functions}\n")
 
     grade_color = {"A": "🟢", "B": "🟡", "C": "🟠", "D": "🔴", "F": "⚫"}.get(grade, "")
-    report_lines.append(f"\n### Security Score\n")
+    report_lines.append("\n### Security Score\n")
     report_lines.append(f"**Grade:** {grade_color} {grade} ({score}/100)\n")
     report_lines.append(f"**Security Issues:** {len(security_issues)}\n")
 
     if most_complex:
-        report_lines.append(f"\n### Most Complex Functions\n")
+        report_lines.append("\n### Most Complex Functions\n")
         for func in most_complex[:10]:
             report_lines.append(f"- **{func['name']}** (Complexity: {func['complexity']})\n")
             report_lines.append(f"  - Address: {func['address']}\n")
             report_lines.append(f"  - Size: {func['instruction_count']} instructions\n")
 
     if security_issues:
-        report_lines.append(f"\n### Security Issues\n")
+        report_lines.append("\n### Security Issues\n")
         by_severity = {}
         for issue in security_issues:
             severity = issue.get("severity", "low")

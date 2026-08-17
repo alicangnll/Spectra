@@ -184,6 +184,7 @@ class ContextBar(QFrame):
         try:
             if is_ida():
                 import ida_kernwin
+
                 ida_kernwin.jumpto(ea)
             elif is_binary_ninja():
                 bv = get_binary_ninja_view()

@@ -6,9 +6,9 @@ orchestration lives in ``spectra.binja.bootstrap``.
 """
 
 try:
-    import binaryninja  # type: ignore[import-not-found]  # noqa: F401
+    import binaryninja  # type: ignore[import-not-found]
 except Exception:
     binaryninja = None
 
 if binaryninja is not None:
-    from .spectra_binaryninja import *  # noqa: F401
+    from .spectra_binaryninja import *  # noqa: F403

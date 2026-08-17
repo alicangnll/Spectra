@@ -10,10 +10,10 @@ import types
 import unittest
 from unittest.mock import MagicMock
 
-
 # ---------------------------------------------------------------------------
 # Minimal stubs so the module-level host imports don't break
 # ---------------------------------------------------------------------------
+
 
 def _stub_mod(name: str, **kw) -> types.ModuleType:
     m = types.ModuleType(name)
@@ -24,19 +24,24 @@ def _stub_mod(name: str, **kw) -> types.ModuleType:
 # binaryninja stub — just needs to be importable
 sys.modules.setdefault("binaryninja", _stub_mod("binaryninja"))
 
-from spectra.binja.tools.compat import call_compat, parse_addr_like  # noqa: E402
-from spectra.binja.tools.fn_utils import (  # noqa: E402
-    get_function_end, get_function_name, iter_function_instruction_addresses,
+from spectra.binja.tools.compat import call_compat, parse_addr_like
+from spectra.binja.tools.disasm_utils import render_tokens
+from spectra.binja.tools.fn_utils import (
+    get_function_end,
+    get_function_name,
+    iter_function_instruction_addresses,
 )
-from spectra.binja.tools.sym_utils import (  # noqa: E402
-    is_export_symbol, is_import_symbol, symbol_name, symbol_type_name,
+from spectra.binja.tools.sym_utils import (
+    is_export_symbol,
+    is_import_symbol,
+    symbol_name,
+    symbol_type_name,
 )
-from spectra.binja.tools.disasm_utils import render_tokens  # noqa: E402
-
 
 # ---------------------------------------------------------------------------
 # parse_addr_like
 # ---------------------------------------------------------------------------
+
 
 class TestParseAddrLike(unittest.TestCase):
     def test_int_passthrough(self):
@@ -56,6 +61,7 @@ class TestParseAddrLike(unittest.TestCase):
 # call_compat
 # ---------------------------------------------------------------------------
 
+
 class TestCallCompat(unittest.TestCase):
     def test_calls_first_matching_method(self):
         obj = MagicMock()
@@ -68,6 +74,7 @@ class TestCallCompat(unittest.TestCase):
         class Obj:
             def fallback(self):
                 return "fallback_result"
+
         result = call_compat(Obj(), "nonexistent", "fallback")
         self.assertEqual(result, "fallback_result")
 
@@ -83,8 +90,10 @@ class TestCallCompat(unittest.TestCase):
     def test_skips_non_callable_attr(self):
         class Obj:
             noncall = 42  # not callable
+
             def real(self):
                 return "real"
+
         result = call_compat(Obj(), "noncall", "real")
         self.assertEqual(result, "real")
 
@@ -92,6 +101,7 @@ class TestCallCompat(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # get_function_name
 # ---------------------------------------------------------------------------
+
 
 class TestGetFunctionName(unittest.TestCase):
     def test_name_attribute(self):
@@ -123,6 +133,7 @@ class TestGetFunctionName(unittest.TestCase):
 # get_function_end
 # ---------------------------------------------------------------------------
 
+
 class TestGetFunctionEnd(unittest.TestCase):
     def test_highest_address_attribute(self):
         func = MagicMock()
@@ -151,6 +162,7 @@ class TestGetFunctionEnd(unittest.TestCase):
 # render_tokens
 # ---------------------------------------------------------------------------
 
+
 class TestRenderTokens(unittest.TestCase):
     def test_empty_list(self):
         self.assertEqual(render_tokens([]), "")
@@ -177,6 +189,7 @@ class TestRenderTokens(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # symbol_name
 # ---------------------------------------------------------------------------
+
 
 class TestSymbolName(unittest.TestCase):
     def test_none_returns_empty(self):
@@ -212,6 +225,7 @@ class TestSymbolName(unittest.TestCase):
 # symbol_type_name
 # ---------------------------------------------------------------------------
 
+
 class TestSymbolTypeName(unittest.TestCase):
     def test_no_type_returns_empty(self):
         sym = MagicMock()
@@ -233,6 +247,7 @@ class TestSymbolTypeName(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # is_import_symbol / is_export_symbol
 # ---------------------------------------------------------------------------
+
 
 class TestSymbolKind(unittest.TestCase):
     def test_import_symbol(self):
@@ -259,6 +274,7 @@ class TestSymbolKind(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # iter_function_instruction_addresses
 # ---------------------------------------------------------------------------
+
 
 class TestIterFunctionInstructionAddresses(unittest.TestCase):
     def _make_bb(self, start: int, end: int) -> MagicMock:

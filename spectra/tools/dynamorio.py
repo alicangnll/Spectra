@@ -15,12 +15,11 @@ import os
 import re
 import shutil
 import subprocess
-import tempfile
 from pathlib import Path
 from typing import Any
 
+from ..core.logging import log_debug, log_info
 from ..core.tool_infrastructure import ExternalTool
-from ..core.logging import log_debug, log_error, log_info
 from ..tools.base import ParameterSchema, ToolDefinition
 
 
@@ -83,6 +82,7 @@ class DynamoRIOTool(ExternalTool):
                     if os.path.isfile(drrun_path):
                         self._base_path = bin_path
                         from ..core.tool_infrastructure import ToolLocation
+
                         location = ToolLocation(path=drrun_path, version=self._extract_version(drrun_path))
                         self._location = location
                         return location
@@ -150,7 +150,6 @@ def check_dynamorio_available() -> bool:
 
 def _ensure_dynamorio() -> str:
     """Ensure DynamoRIO is available and return drrun path."""
-    import shutil
     dynamorio = get_dynamorio()
     if not dynamorio.is_available():
         raise RuntimeError("DynamoRIO not found. Install from https://dynamorio.org")
@@ -164,6 +163,7 @@ def _ensure_dynamorio() -> str:
 # Tool Functions
 # ============================================================================
 
+
 def dynamorio_run(binary: str, args: str, client_lib: str = "", output_dir: str = "") -> str:
     """Run binary under DynamoRIO instrumentation.
 
@@ -176,7 +176,6 @@ def dynamorio_run(binary: str, args: str, client_lib: str = "", output_dir: str 
     Returns:
         DynamoRIO execution output
     """
-    import shutil
     drrun_path = _ensure_dynamorio()
 
     cmd = [drrun_path]
@@ -228,7 +227,6 @@ def dynamorio_coverage(binary: str, args: str, output_file: str = "") -> str:
     Returns:
         Coverage analysis output
     """
-    import shutil
     dynamorio = get_dynamorio()
     if not dynamorio.is_available():
         return "Error: DynamoRIO not available"
@@ -272,7 +270,6 @@ def dynamorio_symbols(binary: str) -> str:
     Returns:
         Symbol list output
     """
-    import shutil
     dynamorio = get_dynamorio()
     if not dynamorio.is_available():
         return "Error: DynamoRIO not available"
@@ -309,7 +306,6 @@ def dynamorio_strace(binary: str, args: str) -> str:
     Returns:
         System call trace output
     """
-    import shutil
     dynamorio = get_dynamorio()
     if not dynamorio.is_available():
         return "Error: DynamoRIO not available"
@@ -349,7 +345,6 @@ def dynamorio_memory(binary: str, args: str, leaks_only: bool = False) -> str:
     Returns:
         Memory analysis output
     """
-    import shutil
     dynamorio = get_dynamorio()
     if not dynamorio.is_available():
         return "Error: DynamoRIO not available"
@@ -398,12 +393,12 @@ def dynamorio_analyze_trace(trace_file: str) -> str:
 
     try:
         # Read and analyze trace file
-        with open(trace_file, 'r') as f:
+        with open(trace_file) as f:
             trace_data = f.read()
 
         # Basic analysis
-        lines = trace_data.split('\n')
-        basic_blocks = len([l for l in lines if l.strip() and not l.startswith('#')])
+        lines = trace_data.split("\n")
+        basic_blocks = len([ln for ln in lines if ln.strip() and not ln.startswith("#")])
 
         output = [
             f"Trace Analysis: {trace_file}",
@@ -421,6 +416,7 @@ def dynamorio_analyze_trace(trace_file: str) -> str:
 # Tool Definitions
 # ============================================================================
 
+
 def create_dynamorio_tools() -> list[ToolDefinition]:
     """Create DynamoRIO tool definitions.
 
@@ -434,25 +430,47 @@ def create_dynamorio_tools() -> list[ToolDefinition]:
             category="dynamic_analysis",
             parameters=[
                 ParameterSchema(name="binary", type="string", description="Target binary path", required=True),
-                ParameterSchema(name="args", type="string", description="Command-line arguments", required=False, default=""),
-                ParameterSchema(name="client_lib", type="string", description="Custom client library path (optional)", required=False, default=""),
-                ParameterSchema(name="output_dir", type="string", description="Output directory for logs (optional)", required=False, default=""),
+                ParameterSchema(
+                    name="args", type="string", description="Command-line arguments", required=False, default=""
+                ),
+                ParameterSchema(
+                    name="client_lib",
+                    type="string",
+                    description="Custom client library path (optional)",
+                    required=False,
+                    default="",
+                ),
+                ParameterSchema(
+                    name="output_dir",
+                    type="string",
+                    description="Output directory for logs (optional)",
+                    required=False,
+                    default="",
+                ),
             ],
-            handler=lambda binary, args="", client_lib="", output_dir="", **kwargs: dynamorio_run(binary, args, client_lib, output_dir),
+            handler=lambda binary, args="", client_lib="", output_dir="", **kwargs: dynamorio_run(
+                binary, args, client_lib, output_dir
+            ),
         ),
-
         ToolDefinition(
             name="dynamorio_coverage",
             description="Run code coverage analysis using drcov",
             category="dynamic_analysis",
             parameters=[
                 ParameterSchema(name="binary", type="string", description="Target binary path", required=True),
-                ParameterSchema(name="args", type="string", description="Command-line arguments", required=False, default=""),
-                ParameterSchema(name="output_file", type="string", description="Output file for coverage data", required=False, default=""),
+                ParameterSchema(
+                    name="args", type="string", description="Command-line arguments", required=False, default=""
+                ),
+                ParameterSchema(
+                    name="output_file",
+                    type="string",
+                    description="Output file for coverage data",
+                    required=False,
+                    default="",
+                ),
             ],
             handler=lambda binary, args="", output_file="", **kwargs: dynamorio_coverage(binary, args, output_file),
         ),
-
         ToolDefinition(
             name="dynamorio_symbols",
             description="Extract symbols from binary using drsym",
@@ -462,30 +480,37 @@ def create_dynamorio_tools() -> list[ToolDefinition]:
             ],
             handler=lambda binary, **kwargs: dynamorio_symbols(binary),
         ),
-
         ToolDefinition(
             name="dynamorio_strace",
             description="Trace system calls with drstrace",
             category="dynamic_analysis",
             parameters=[
                 ParameterSchema(name="binary", type="string", description="Target binary path", required=True),
-                ParameterSchema(name="args", type="string", description="Command-line arguments", required=False, default=""),
+                ParameterSchema(
+                    name="args", type="string", description="Command-line arguments", required=False, default=""
+                ),
             ],
             handler=lambda binary, args="", **kwargs: dynamorio_strace(binary, args),
         ),
-
         ToolDefinition(
             name="dynamorio_memory",
             description="Detect memory errors with Dr. Memory",
             category="debugging",
             parameters=[
                 ParameterSchema(name="binary", type="string", description="Target binary path", required=True),
-                ParameterSchema(name="args", type="string", description="Command-line arguments", required=False, default=""),
-                ParameterSchema(name="leaks_only", type="boolean", description="Only report memory leaks", required=False, default=False),
+                ParameterSchema(
+                    name="args", type="string", description="Command-line arguments", required=False, default=""
+                ),
+                ParameterSchema(
+                    name="leaks_only",
+                    type="boolean",
+                    description="Only report memory leaks",
+                    required=False,
+                    default=False,
+                ),
             ],
             handler=lambda binary, args="", leaks_only=False, **kwargs: dynamorio_memory(binary, args, leaks_only),
         ),
-
         ToolDefinition(
             name="dynamorio_analyze_trace",
             description="Analyze DynamoRIO trace file",

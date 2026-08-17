@@ -61,7 +61,7 @@ class FunctionSearchData:
 class AdvancedSearchEngine:
     """Advanced search engine for binary code."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._functions: dict[int, FunctionSearchData] = {}
         self._name_index: dict[str, int] = {}
         self._string_index: dict[str, set[int]] = {}  # string -> function addresses
@@ -112,7 +112,7 @@ class AdvancedSearchEngine:
         self._size_index[size].add(address)
 
     def search(
-        self, criteria: SearchCriteria, query: str = "", min_score: float = 0.0, max_results: int = 50, **kwargs
+        self, criteria: SearchCriteria, query: str = "", min_score: float = 0.0, max_results: int = 50, **kwargs: Any
     ) -> list[SearchResult]:
         """Execute a search query.
 
@@ -149,7 +149,9 @@ class AdvancedSearchEngine:
         else:
             return []
 
-    def _search_similarity(self, target_func: str, min_score: float, max_results: int, **kwargs) -> list[SearchResult]:
+    def _search_similarity(
+        self, target_func: str, min_score: float, max_results: int, **kwargs: Any
+    ) -> list[SearchResult]:
         """Find functions similar to a target function.
 
         Uses Jaccard similarity on callees, strings, and imports.
@@ -191,7 +193,7 @@ class AdvancedSearchEngine:
         results.sort(key=lambda r: r.score, reverse=True)
         return results[:max_results]
 
-    def _search_pattern(self, pattern: str, min_score: float, max_results: int, **kwargs) -> list[SearchResult]:
+    def _search_pattern(self, pattern: str, min_score: float, max_results: int, **kwargs: Any) -> list[SearchResult]:
         """Search by instruction pattern regex."""
         try:
             regex = re.compile(pattern, re.IGNORECASE)
@@ -379,7 +381,7 @@ class AdvancedSearchEngine:
         results.sort(key=lambda r: r.address)
         return results[:max_results]
 
-    def _search_combined(self, query: str, min_score: float, max_results: int, **kwargs) -> list[SearchResult]:
+    def _search_combined(self, query: str, min_score: float, max_results: int, **kwargs: Any) -> list[SearchResult]:
         """Combine multiple search criteria."""
         all_results: dict[int, SearchResult] = {}
 

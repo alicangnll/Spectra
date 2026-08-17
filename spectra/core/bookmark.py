@@ -60,7 +60,7 @@ class Bookmark:
     modified_at: str = ""
     color: str = "#FFFF00"  # Default yellow highlight
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.created_at:
             self.created_at = datetime.now().isoformat()
         if not self.modified_at:

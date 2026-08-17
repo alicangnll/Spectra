@@ -150,6 +150,7 @@ _TOOL_GROUP_LABELS: dict[str, tuple[str, str]] = {
     "list_strings_filter": ("Searched", "string"),
     "search_functions": ("Searched", "function"),
     "search_functions_by_name": ("Searched", "function"),
+    "semantic_search": ("Searched", "function"),
     "read_file": ("Read", "file"),
 }
 

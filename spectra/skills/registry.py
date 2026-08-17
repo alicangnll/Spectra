@@ -9,7 +9,6 @@ from ..core.config import SpectraConfig
 from ..core.logging import log_debug, log_error, log_info
 from .loader import SkillDefinition, discover_skills
 
-
 # Singleton instance
 _instance = None
 
@@ -32,7 +31,7 @@ class SkillRegistry:
         self._builtin_skills_dir = Path(__file__).parent / "builtins"
 
     @classmethod
-    def get_instance(cls) -> "SkillRegistry":
+    def get_instance(cls) -> SkillRegistry:
         """Get the singleton SkillRegistry instance."""
         global _instance
         if _instance is None:

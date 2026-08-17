@@ -6,7 +6,7 @@ FROM python:3.11-slim
 # Set metadata
 LABEL maintainer="alicangnll"
 LABEL description="Spectra - AI-Powered Reverse Engineering Agent"
-LABEL version="1.0.0"
+LABEL version="1.3.9"
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -36,9 +36,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy requirements first for better caching
 COPY requirements.txt .
 
-# Install Python dependencies
-RUN pip install --upgrade pip && \
-    pip install -r requirements.txt
+# Install Python dependencies. Qt bindings are stripped: this is a
+# headless CLI image — PySide6/PyQt5 are only needed for the plugin UIs
+# inside IDA Pro / Binary Ninja and add ~1GB to the image.
+RUN grep -v -E '^(PyQt5|PySide6)' requirements.txt > requirements-cli.txt && \
+    pip install --upgrade pip && \
+    pip install -r requirements-cli.txt
 
 # Copy the application
 COPY spectra/ ./spectra/

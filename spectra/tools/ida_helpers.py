@@ -8,7 +8,8 @@ from __future__ import annotations
 
 try:
     import idaapi
-    import idc
+    import idc  # noqa: F401 — availability probe
+
     IDA_AVAILABLE = True
 except ImportError:
     IDA_AVAILABLE = False

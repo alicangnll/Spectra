@@ -12,14 +12,13 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import subprocess
 import sys
 import tempfile
 from typing import Any
 
+from ..core.logging import log_debug, log_info
 from ..core.tool_infrastructure import ExternalTool, ToolSafety
-from ..core.logging import log_debug, log_error, log_info
 from ..tools.base import ParameterSchema, ToolDefinition
 
 
@@ -41,9 +40,11 @@ class ScapyTool(ExternalTool):
         try:
             # Try to import scapy
             import importlib
+
             spec = importlib.util.find_spec("scapy")
             if spec is not None:
                 from ..core.tool_infrastructure import ToolLocation
+
                 location = ToolLocation(path=spec.origin or "scapy", version=self._extract_version(""))
                 location.is_valid = True
                 self._location = location
@@ -60,6 +61,7 @@ class ScapyTool(ExternalTool):
         """Extract Scapy version."""
         try:
             from scapy import VERSION
+
             return VERSION
         except Exception:
             return "unknown"
@@ -101,7 +103,7 @@ def _run_scapy_script(script: str) -> str:
     _ensure_scapy()
 
     try:
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(script)
             script_path = f.name
 
@@ -129,13 +131,14 @@ def _run_scapy_script(script: str) -> str:
     finally:
         try:
             os.unlink(script_path)
-        except:
+        except Exception:
             pass
 
 
 # ============================================================================
 # Tool Functions
 # ============================================================================
+
 
 def scapy_craft_packet(protocol: str, parameters: dict) -> str:
     """Craft packet with Scapy.
@@ -170,13 +173,15 @@ def scapy_craft_packet(protocol: str, parameters: dict) -> str:
     scapy_class = protocol_map.get(protocol.lower(), "Raw")
 
     # Build packet
-    params_str = ", ".join(f'{k}="{v}"' if isinstance(v, str) else f'{k}={v}' for k, v in parameters.items())
+    params_str = ", ".join(f'{k}="{v}"' if isinstance(v, str) else f"{k}={v}" for k, v in parameters.items())
 
-    script_lines.extend([
-        f'pkt = {scapy_class}({params_str})',
-        'print(pkt)',
-        'print(pkt.summary())',
-    ])
+    script_lines.extend(
+        [
+            f"pkt = {scapy_class}({params_str})",
+            "print(pkt)",
+            "print(pkt.summary())",
+        ]
+    )
 
     return _run_scapy_script("\n".join(script_lines))
 
@@ -394,6 +399,7 @@ def scapy_packet_info(packet: str) -> str:
 # Tool Definitions
 # ============================================================================
 
+
 def create_scapy_tools() -> list[ToolDefinition]:
     """Create Scapy tool definitions.
 
@@ -406,37 +412,65 @@ def create_scapy_tools() -> list[ToolDefinition]:
             description="Craft custom packet with Scapy",
             category="network",
             parameters=[
-                ParameterSchema(name="protocol", type="string", description="Protocol (ethernet|ip|tcp|udp|icmp|arp|dns)", required=True),
-                ParameterSchema(name="parameters", type="string", description="Packet parameters as JSON", required=True),
+                ParameterSchema(
+                    name="protocol",
+                    type="string",
+                    description="Protocol (ethernet|ip|tcp|udp|icmp|arp|dns)",
+                    required=True,
+                ),
+                ParameterSchema(
+                    name="parameters", type="string", description="Packet parameters as JSON", required=True
+                ),
             ],
-            handler=lambda protocol, parameters, **kwargs: scapy_craft_packet(protocol, json.loads(parameters) if isinstance(parameters, str) else parameters),
+            handler=lambda protocol, parameters, **kwargs: scapy_craft_packet(
+                protocol, json.loads(parameters) if isinstance(parameters, str) else parameters
+            ),
         ),
-
         ToolDefinition(
             name="scapy_send_packet",
             description="Send crafted packet (requires approval)",
             category="network",
             parameters=[
                 ParameterSchema(name="packet", type="string", description="Packet description", required=True),
-                ParameterSchema(name="interface", type="string", description="Network interface (optional)", required=False, default=""),
-                ParameterSchema(name="count", type="integer", description="Number of times to send", required=False, default=1),
+                ParameterSchema(
+                    name="interface",
+                    type="string",
+                    description="Network interface (optional)",
+                    required=False,
+                    default="",
+                ),
+                ParameterSchema(
+                    name="count", type="integer", description="Number of times to send", required=False, default=1
+                ),
             ],
             handler=lambda packet, interface="", count=1, **kwargs: scapy_send_packet(packet, interface, count),
         ),
-
         ToolDefinition(
             name="scapy_sniff",
             description="Sniff packets with BPF filter (requires approval)",
             category="network",
             parameters=[
-                ParameterSchema(name="filter", type="string", description="BPF filter string", required=False, default=""),
-                ParameterSchema(name="count", type="integer", description="Number of packets to capture", required=False, default=10),
-                ParameterSchema(name="interface", type="string", description="Network interface (optional)", required=False, default=""),
-                ParameterSchema(name="timeout", type="integer", description="Capture timeout in seconds", required=False, default=30),
+                ParameterSchema(
+                    name="filter", type="string", description="BPF filter string", required=False, default=""
+                ),
+                ParameterSchema(
+                    name="count", type="integer", description="Number of packets to capture", required=False, default=10
+                ),
+                ParameterSchema(
+                    name="interface",
+                    type="string",
+                    description="Network interface (optional)",
+                    required=False,
+                    default="",
+                ),
+                ParameterSchema(
+                    name="timeout", type="integer", description="Capture timeout in seconds", required=False, default=30
+                ),
             ],
-            handler=lambda filter="", count=10, interface="", timeout=30, **kwargs: scapy_sniff(filter, count, interface, timeout),
+            handler=lambda filter="", count=10, interface="", timeout=30, **kwargs: scapy_sniff(
+                filter, count, interface, timeout
+            ),
         ),
-
         ToolDefinition(
             name="scapy_trace",
             description="Traceroute to target (requires approval)",
@@ -444,45 +478,59 @@ def create_scapy_tools() -> list[ToolDefinition]:
             parameters=[
                 ParameterSchema(name="target", type="string", description="Target host", required=True),
                 ParameterSchema(name="max_ttl", type="integer", description="Maximum TTL", required=False, default=30),
-                ParameterSchema(name="timeout", type="integer", description="Per-hop timeout", required=False, default=2),
+                ParameterSchema(
+                    name="timeout", type="integer", description="Per-hop timeout", required=False, default=2
+                ),
             ],
             handler=lambda target, max_ttl=30, timeout=2, **kwargs: scapy_trace(target, max_ttl, timeout),
         ),
-
         ToolDefinition(
             name="scapy_tcp_scan",
             description="TCP port scan (requires approval)",
             category="network",
             parameters=[
                 ParameterSchema(name="target", type="string", description="Target host", required=True),
-                ParameterSchema(name="ports", type="string", description="Port range (e.g., 1-100 or 22,80,443)", required=True),
-                ParameterSchema(name="timeout", type="integer", description="Timeout per port", required=False, default=2),
+                ParameterSchema(
+                    name="ports", type="string", description="Port range (e.g., 1-100 or 22,80,443)", required=True
+                ),
+                ParameterSchema(
+                    name="timeout", type="integer", description="Timeout per port", required=False, default=2
+                ),
             ],
             handler=lambda target, ports, timeout=2, **kwargs: scapy_tcp_scan(target, ports, timeout),
         ),
-
         ToolDefinition(
             name="scapy_arp_scan",
             description="ARP scan local network (requires approval)",
             category="network",
             parameters=[
-                ParameterSchema(name="network", type="string", description="Network in CIDR (e.g., 192.168.1.0/24)", required=True),
+                ParameterSchema(
+                    name="network", type="string", description="Network in CIDR (e.g., 192.168.1.0/24)", required=True
+                ),
             ],
             handler=lambda network, **kwargs: scapy_arp_scan(network),
         ),
-
         ToolDefinition(
             name="scapy_dns_query",
             description="Send DNS query",
             category="network",
             parameters=[
                 ParameterSchema(name="domain", type="string", description="Domain to query", required=True),
-                ParameterSchema(name="server", type="string", description="DNS server", required=False, default="8.8.8.8"),
-                ParameterSchema(name="record_type", type="string", description="DNS record type (A|AAAA|MX|TXT|CNAME)", required=False, default="A"),
+                ParameterSchema(
+                    name="server", type="string", description="DNS server", required=False, default="8.8.8.8"
+                ),
+                ParameterSchema(
+                    name="record_type",
+                    type="string",
+                    description="DNS record type (A|AAAA|MX|TXT|CNAME)",
+                    required=False,
+                    default="A",
+                ),
             ],
-            handler=lambda domain, server="8.8.8.8", record_type="A", **kwargs: scapy_dns_query(domain, server, record_type),
+            handler=lambda domain, server="8.8.8.8", record_type="A", **kwargs: scapy_dns_query(
+                domain, server, record_type
+            ),
         ),
-
         ToolDefinition(
             name="scapy_packet_info",
             description="Analyze packet hex dump",

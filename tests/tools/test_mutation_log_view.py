@@ -6,12 +6,14 @@ import unittest
 from unittest.mock import MagicMock
 
 from tests.qt_stubs import ensure_pyside6_stubs
+
 ensure_pyside6_stubs()
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_record(reversible: bool = True, description: str = "desc", tool_name: str = "tool") -> MagicMock:
     rec = MagicMock()
@@ -25,6 +27,7 @@ def _make_record(reversible: bool = True, description: str = "desc", tool_name: 
 def _make_panel():
     """Build a MutationLogPanel with all Qt calls mocked out."""
     from spectra.ui.mutation_log_view import MutationLogPanel
+
     panel = object.__new__(MutationLogPanel)
     panel._entries = []
     panel._count_label = MagicMock()
@@ -36,6 +39,7 @@ def _make_panel():
 # ---------------------------------------------------------------------------
 # _update_count — label text and button state
 # ---------------------------------------------------------------------------
+
 
 class TestUpdateCount(unittest.TestCase):
     def setUp(self):
@@ -88,6 +92,7 @@ class TestUpdateCount(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # remove_last
 # ---------------------------------------------------------------------------
+
 
 class TestRemoveLast(unittest.TestCase):
     def _panel_with_n(self, n: int, reversible: bool = True):
@@ -145,6 +150,7 @@ class TestRemoveLast(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # clear_all
 # ---------------------------------------------------------------------------
+
 
 class TestClearAll(unittest.TestCase):
     def _panel_with_n(self, n: int):

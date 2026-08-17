@@ -93,13 +93,35 @@ def _run_phase1_subagent(
         # If not, just silently skip exploration mode
         user_goal_lower = kb.user_goal.lower()
         _non_code_analysis_keywords = [
-            "docker", "script", "create", "write", "generate", "yaz",
-            "oluştur", "dosya", "file", "config", "setup", "install",
-            "komut", "script", "docker-compose"
+            "docker",
+            "script",
+            "create",
+            "write",
+            "generate",
+            "yaz",
+            "oluştur",
+            "dosya",
+            "file",
+            "config",
+            "setup",
+            "install",
+            "komut",
+            "script",
+            "docker-compose",
         ]
         _is_code_analysis = any(
             keyword in user_goal_lower
-            for keyword in ["analyze", "analiz", "bul", "find", "zafiyet", "vulnerability", "security", "exploit", "reverse"]
+            for keyword in [
+                "analyze",
+                "analiz",
+                "bul",
+                "find",
+                "zafiyet",
+                "vulnerability",
+                "security",
+                "exploit",
+                "reverse",
+            ]
         )
 
         if not _is_code_analysis:
@@ -145,8 +167,18 @@ def run_phase1_inline(
                 # Check if this was actually a code analysis task
                 user_goal_lower = state.knowledge_base.user_goal.lower()
                 _non_code_analysis_keywords = [
-                    "docker", "script", "create", "write", "generate", "yaz",
-                    "oluştur", "dosya", "file", "config", "setup", "install"
+                    "docker",
+                    "script",
+                    "create",
+                    "write",
+                    "generate",
+                    "yaz",
+                    "oluştur",
+                    "dosya",
+                    "file",
+                    "config",
+                    "setup",
+                    "install",
                 ]
                 _is_code_analysis = any(
                     keyword in user_goal_lower
@@ -155,7 +187,9 @@ def run_phase1_inline(
 
                 if not _is_code_analysis:
                     # This was not a code analysis task - silently skip
-                    log_info(f"Exploration turn limit reached for non-code-analysis task, skipping: {user_goal_lower[:60]!r}")
+                    log_info(
+                        f"Exploration turn limit reached for non-code-analysis task, skipping: {user_goal_lower[:60]!r}"
+                    )
                     loop._clear_exploration_state()
                     return
                 else:
@@ -443,9 +477,20 @@ def run_exploration_mode(
     if is_cli_mode:
         # Check if this is explicitly a binary/code analysis request
         _explicit_analysis_keywords = [
-            "analyze", "analyse", "analiz et", "reverse engineer", "disassemble",
-            "decompile", "binary", "zafiyet ara", "vulnerability", "exploit",
-            "find vulnerability", "güvenlik açığı", "memory corruption", "buffer overflow"
+            "analyze",
+            "analyse",
+            "analiz et",
+            "reverse engineer",
+            "disassemble",
+            "decompile",
+            "binary",
+            "zafiyet ara",
+            "vulnerability",
+            "exploit",
+            "find vulnerability",
+            "güvenlik açığı",
+            "memory corruption",
+            "buffer overflow",
         ]
         _is_explicit_analysis = any(keyword in user_message.lower() for keyword in _explicit_analysis_keywords)
 
@@ -458,10 +503,25 @@ def run_exploration_mode(
     # Detect if this task requires code exploration
     # Skip exploration mode for non-code-analysis tasks like file creation
     _non_exploration_keywords = [
-        "docker", "script", "create file", "write file", "generate",
-        "komut dosyası", "script yaz", "dosya oluştur", "docker-compose",
-        "yaz bir", "oluştur", "generate a", "create a", "write a",
-        "config", "setup", "install", "help", "show me"
+        "docker",
+        "script",
+        "create file",
+        "write file",
+        "generate",
+        "komut dosyası",
+        "script yaz",
+        "dosya oluştur",
+        "docker-compose",
+        "yaz bir",
+        "oluştur",
+        "generate a",
+        "create a",
+        "write a",
+        "config",
+        "setup",
+        "install",
+        "help",
+        "show me",
     ]
 
     _is_exploration_task = True
@@ -470,7 +530,16 @@ def run_exploration_mode(
         if keyword in user_lower:
             # This appears to be a file creation/generation task, not exploration
             # Check if it's asking to analyze existing code vs create new content
-            _analysis_keywords = ["analyze", "analyse", "analiz et", "bul", "find", "zafiyet", "vulnerability", "security"]
+            _analysis_keywords = [
+                "analyze",
+                "analyse",
+                "analiz et",
+                "bul",
+                "find",
+                "zafiyet",
+                "vulnerability",
+                "security",
+            ]
             if not any(akw in user_lower for akw in _analysis_keywords):
                 _is_exploration_task = False
                 break

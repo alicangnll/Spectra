@@ -5,16 +5,28 @@ Checks for updates from GitHub and provides one-click update functionality.
 
 from __future__ import annotations
 
+import hashlib
 import json
+import re
 import subprocess
 import tempfile
 import urllib.request
 import zipfile
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
 from ..core.config import SpectraConfig
 from ..core.logging import log_debug, log_error, log_info, log_warn
+
+# A publishable sha256 is 64 hex chars. "pending" / "" mean the release
+# pipeline has not stamped a checksum yet.
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+def _is_publishable_hash(value: str) -> bool:
+    """True when `value` is a real 64-hex sha256 (not "" / "pending")."""
+    return bool(_SHA256_RE.match((value or "").strip().lower()))
 
 
 @dataclass
@@ -28,6 +40,7 @@ class UpdateInfo:
     min_compatible_version: str
     update_required: bool
     is_newer: bool
+    sha256: str = ""
 
 
 class Updater:
@@ -39,7 +52,7 @@ class Updater:
     UPDATE_URL = "https://raw.githubusercontent.com/alicangnll/Spectra/main/update.json"
     BACKUP_DIR = ".spectra_backup"
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize updater."""
         self.config = SpectraConfig()
         self.current_version = self._get_current_version()
@@ -58,8 +71,8 @@ class Updater:
         if hasattr(self.config, "version"):
             return self.config.version
 
-        # Fallback to hardcoded version
-        return "1.2.2"
+        # Fallback to hardcoded version — keep in sync with update.json
+        return "1.3.9"
 
     def check_for_updates(self, timeout: int = 30, max_retries: int = 3) -> UpdateInfo | None:
         """Check for updates from GitHub.
@@ -87,7 +100,9 @@ class Updater:
                 except ImportError:
                     pass
 
-                request = urllib.request.Request(self.UPDATE_URL, headers={"User-Agent": f"Spectra/{self.current_version}"})
+                request = urllib.request.Request(
+                    self.UPDATE_URL, headers={"User-Agent": f"Spectra/{self.current_version}"}
+                )
 
                 with urllib.request.urlopen(request, timeout=timeout) as response:
                     data = json.loads(response.read().decode())
@@ -97,6 +112,7 @@ class Updater:
                 changelog = data.get("changelog", [])
                 min_compatible = data.get("min_compatible_version", "1.0.0")
                 update_required = data.get("update_required", False)
+                sha256 = str(data.get("checksums", {}).get("sha256", "") or "")
 
                 is_newer = self._compare_versions(latest_version, self.current_version) > 0
 
@@ -108,6 +124,7 @@ class Updater:
                     min_compatible_version=min_compatible,
                     update_required=update_required,
                     is_newer=is_newer,
+                    sha256=sha256,
                 )
 
                 if is_newer:
@@ -155,6 +172,27 @@ class Updater:
                 return None
 
         return None
+
+    @staticmethod
+    def verify_checksum(path: Path, expected_sha256: str) -> bool:
+        """Verify the sha256 checksum of a downloaded file.
+
+        Returns True when the file matches. An empty or "pending" expected
+        hash returns True (nothing to verify against — callers log a warning
+        for that case separately via ``_is_publishable_hash``).
+        """
+        if not _is_publishable_hash(expected_sha256):
+            return True
+        h = hashlib.sha256()
+        with open(path, "rb") as f:
+            for chunk in iter(lambda: f.read(65536), b""):
+                h.update(chunk)
+        actual = h.hexdigest()
+        if actual != expected_sha256.lower():
+            log_error(f"Checksum mismatch for {path.name}: expected {expected_sha256}, got {actual}")
+            return False
+        log_debug(f"Checksum verified for {path.name}")
+        return True
 
     def download_update(
         self,
@@ -210,6 +248,19 @@ class Updater:
                             log_debug(f"Download progress: {progress:.1f}%")
 
             log_info(f"Downloaded to {download_path}")
+
+            # Integrity gate: refuse to hand back a package that does not
+            # match the published checksum. A missing/"pending" checksum is
+            # tolerated (warned) so pre-release feeds keep working.
+            expected = getattr(update_info, "sha256", "")
+            if _is_publishable_hash(expected):
+                if not self.verify_checksum(download_path, expected):
+                    download_path.unlink(missing_ok=True)
+                    log_error("Update download failed integrity check — file discarded")
+                    return None
+            else:
+                log_warn("Update package has no published sha256 checksum — skipping integrity verification")
+
             return download_path
 
         except Exception as e:
@@ -293,6 +344,7 @@ class Updater:
             git_dir = source_dir / ".git"
             if git_dir.exists():
                 import shutil as _shutil
+
                 git_bin = _shutil.which("git")
                 if git_bin is None:
                     log_warn("git not found in PATH — skipping git pull, using zip-extract method")
@@ -345,6 +397,7 @@ class Updater:
 
             # Copy top-level files
             import shutil
+
             for fname in ("spectra_plugin.py", "update.json"):
                 src = extracted_root / fname
                 if src.exists():

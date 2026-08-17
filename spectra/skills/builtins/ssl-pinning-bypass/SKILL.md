@@ -203,7 +203,7 @@ session = frida.get_usb_device().attach("com.app.package")
 script = session.create_script("""
     // SSL pinning bypass script
 """)
-script.on('message', on_message)
+script.on("message", on_message)
 script.load()
 ```
 

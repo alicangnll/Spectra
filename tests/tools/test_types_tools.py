@@ -15,10 +15,10 @@ install_ida_mocks()
 import spectra.ida.tools.types_tools as types_tools
 from spectra.core.errors import ToolError
 
-
 # ---------------------------------------------------------------------------
 # _require_ida_enum
 # ---------------------------------------------------------------------------
+
 
 class TestRequireIdaEnum(unittest.TestCase):
     def test_raises_when_ida_enum_and_idc_none(self):
@@ -45,6 +45,7 @@ class TestRequireIdaEnum(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # create_typedef
 # ---------------------------------------------------------------------------
+
 
 class TestCreateTypedef(unittest.TestCase):
     def test_idc_not_available_returns_error(self):
@@ -84,6 +85,7 @@ class TestCreateTypedef(unittest.TestCase):
 # import_c_header
 # ---------------------------------------------------------------------------
 
+
 class TestImportCHeader(unittest.TestCase):
     def test_idc_not_available(self):
         orig = types_tools.idc
@@ -121,6 +123,7 @@ class TestImportCHeader(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # set_function_prototype
 # ---------------------------------------------------------------------------
+
 
 class TestSetFunctionPrototype(unittest.TestCase):
     def test_idc_not_available(self):
@@ -160,6 +163,7 @@ class TestSetFunctionPrototype(unittest.TestCase):
 # apply_type_to_variable
 # ---------------------------------------------------------------------------
 
+
 class TestApplyTypeToVariable(unittest.TestCase):
     def test_hexrays_not_available(self):
         orig = types_tools._HAS_HEXRAYS
@@ -187,6 +191,7 @@ class TestApplyTypeToVariable(unittest.TestCase):
 # create_struct (IDA 9.x path — when _HAS_IDA_STRUCT is False)
 # ---------------------------------------------------------------------------
 
+
 class TestCreateStructIda9Path(unittest.TestCase):
     def test_ida_typeinf_not_available(self):
         orig_s = types_tools._HAS_IDA_STRUCT
@@ -204,6 +209,7 @@ class TestCreateStructIda9Path(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # modify_struct (IDA 9.x path)
 # ---------------------------------------------------------------------------
+
 
 class TestModifyStructIda9Path(unittest.TestCase):
     def test_ida_typeinf_not_available(self):
@@ -223,6 +229,7 @@ class TestModifyStructIda9Path(unittest.TestCase):
 # get_struct_info (IDA 9.x path)
 # ---------------------------------------------------------------------------
 
+
 class TestGetStructInfoIda9Path(unittest.TestCase):
     def test_ida_typeinf_not_available(self):
         orig_s = types_tools._HAS_IDA_STRUCT
@@ -240,6 +247,7 @@ class TestGetStructInfoIda9Path(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # list_structs (IDA 9.x path)
 # ---------------------------------------------------------------------------
+
 
 class TestListStructsIda9Path(unittest.TestCase):
     def test_ida_typeinf_not_available(self):
@@ -259,6 +267,7 @@ class TestListStructsIda9Path(unittest.TestCase):
 # apply_struct_to_address (IDA 9.x path)
 # ---------------------------------------------------------------------------
 
+
 class TestApplyStructToAddressIda9Path(unittest.TestCase):
     def test_ida_typeinf_not_available(self):
         orig_s = types_tools._HAS_IDA_STRUCT
@@ -277,6 +286,7 @@ class TestApplyStructToAddressIda9Path(unittest.TestCase):
 # propagate_type (IDA 9.x path)
 # ---------------------------------------------------------------------------
 
+
 class TestPropagateTypeIda9Path(unittest.TestCase):
     def test_ida_typeinf_not_available(self):
         orig_s = types_tools._HAS_IDA_STRUCT
@@ -294,6 +304,7 @@ class TestPropagateTypeIda9Path(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # get_type_libraries
 # ---------------------------------------------------------------------------
+
 
 class TestGetTypeLibraries(unittest.TestCase):
     def test_idati_returns_none(self):
@@ -324,6 +335,7 @@ class TestGetTypeLibraries(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # import_type_from_library
 # ---------------------------------------------------------------------------
+
 
 class TestImportTypeFromLibrary(unittest.TestCase):
     def test_type_already_exists_locally(self):
@@ -357,6 +369,7 @@ class TestImportTypeFromLibrary(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # suggest_struct_from_accesses
 # ---------------------------------------------------------------------------
+
 
 class TestSuggestStructFromAccesses(unittest.TestCase):
     def test_hexrays_not_available(self):

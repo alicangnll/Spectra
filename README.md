@@ -4,7 +4,7 @@
   <img src="img/logo.png" alt="Spectra Logo" width="200"/>
 </div>
 
-> **AI-Powered Reverse Engineering Agent** — An intelligent assistant that lives inside IDA Pro, Binary Ninja, and VSCode. Forked from [Rikugan](https://github.com/buzzer-re/Rikugan).
+> **AI-Powered Reverse Engineering Agent** — An intelligent assistant that lives inside IDA Pro, Binary Ninja, and your terminal. Forked from [Rikugan](https://github.com/buzzer-re/Rikugan).
 
 [Documentation](docs/USAGE.md) | [Architecture](docs/ARCHITECTURE.md) | [🇹🇷 Türkçe](docs_tr/README.md) | [Issues](https://github.com/alicangnll/Spectra/issues)
 
@@ -12,12 +12,12 @@
 
 ## Project Overview
 
-Spectra is an **AI agent embedded in reverse engineering tools**. An assistant that works directly inside IDA Pro, Binary Ninja, and VSCode with support for multiple LLM providers.
+Spectra is an **AI agent embedded in reverse engineering tools**. An assistant that works directly inside IDA Pro and Binary Ninja, in your terminal, and on Android APKs via JADX — with support for multiple LLM providers.
 
 **Forked from Rikugan** — Spectra is built on this powerful foundation and adds the following enhancements:
 - **170+ tools** (IDA Pro + Binary Ninja)
-- **39 built-in skills** (12 in Rikugan)
-- **4 platforms** — IDA Pro, Binary Ninja, VSCode, JADX CLI
+- **60+ built-in skills** (12 in Rikugan)
+- **4 platforms** — IDA Pro, Binary Ninja, interactive CLI, JADX
 - **Advanced security analysis** — Exploitation, malware, firmware, mobile
 - **JADX integration** — Android APK reverse engineering
 
@@ -29,7 +29,7 @@ Spectra is an **AI agent embedded in reverse engineering tools**. An assistant t
 
 | Feature | Rikugan | Spectra |
 |---------|---------|---------|
-| **Skills** | 12 built-in | 39 built-in |
+| **Skills** | 12 built-in | 60+ built-in |
 | **Tools** | 60+ | 170+ |
 | **Platforms** | IDA, Binary Ninja | IDA, Binary Ninja, VSCode, JADX |
 | **Mobile Exploitation** | ❌ | ✅ iOS/Android PAC/MTE bypass |
@@ -58,8 +58,8 @@ Spectra is an **AI agent embedded in reverse engineering tools**. An assistant t
 
 ### Added Features (Spectra)
 
-- **39 security skills** — Exploitation, malware, firmware, mobile
-- **VSCode extension** — Use outside RE tools
+- **60+ security skills** — Exploitation, malware, firmware, mobile
+- **Interactive CLI shell** — Use outside RE tools (`spectra-cli`)
 - **JADX CLI** — Android APK analysis
 - **Xref Visualizer** — Interactive call graphs
 - **Smart Function Naming** — AI-powered function naming
@@ -96,8 +96,9 @@ Spectra is an **AI agent embedded in reverse engineering tools**. An assistant t
 |----------|--------|-------|
 | **IDA Pro 9.0+** | ✅ Full | Requires Hex-Rays decompiler |
 | **Binary Ninja 3164+** | ✅ Full | UI mode |
-| **VSCode** | ✅ Full | Extension available |
+| **Terminal (CLI)** | ✅ Full | `spectra-cli` interactive shell |
 | **JADX** | ✅ Full | APK analysis CLI |
+| **VSCode** | 🚧 Planned | Extension not yet released — see Roadmap |
 
 ---
 
@@ -194,7 +195,7 @@ Select the entry that matches your `python3` version (e.g. type `1` for 3.13).
 
 ```bash
 # Install for the selected Python version (e.g. 3.13)
-python3 -m pip install --user anthropic>=0.39.0
+python3 -m pip install --user "anthropic>=0.39.0"
 
 # Verify it is installed
 python3 -c "import anthropic; print(anthropic.__version__)"
@@ -205,12 +206,14 @@ python3 -c "import anthropic; print(anthropic.__version__)"
 Restart IDA Pro and open the Python console:
 ```python
 import anthropic
+
 print(anthropic.__version__)  # should print the installed version
 ```
 
 If this still fails, check which site-packages path IDA's Python uses:
 ```python
 import sys
+
 for p in sys.path:
     print(p)
 ```
@@ -243,7 +246,7 @@ python spectra_cli.py dir_loc /path/to/target
 ```
 
 **Features:**
-- **39 built-in skills** — Access all security skills from CLI
+- **60+ built-in skills** — Access all security skills from CLI
 - **170+ tools** — File operations, shell commands, code analysis
 - **SSH integration** — Remote command execution, file transfer (SCP)
 - **Session management** — Save/load analysis sessions
@@ -328,7 +331,7 @@ System:
 - IL read/write/transform
 - Python scripting with approval
 
-### 📚 39 Built-in Skills
+### 📚 Built-in Skills
 
 **Exploitation & Security:**
 - `memory-corruption` — UAF, OOB, PAC, ASLR, CFI, CET, MTE bypass
@@ -446,7 +449,7 @@ python spectra_jadx.py interactive app.apk
 |----------|---------|--------------|
 | **IDA Pro** | `Ctrl+Shift+I` | Edit → Plugins → Spectra |
 | **Binary Ninja** | `Ctrl+Shift+I` | Tools → Spectra → Open Chat |
-| **VSCode** | `Ctrl+Shift+I` | Command Palette → "Spectra: Open Chat" |
+| **CLI** | `spectra-cli` | Terminal — see "CLI Shell Interface" above |
 
 ### API Key Configuration
 
@@ -585,6 +588,7 @@ python3 -m pytest tests/ -v
 - [ ] ML-based pattern recognition for deobfuscation
 - [ ] Symbolic execution for automatic exploit generation
 - [ ] Advanced kernel analysis capabilities
+- [ ] VSCode extension (chat panel wrapping the Spectra agent)
 
 **v1.4.x (Medium term):**
 - [ ] Multi-binary analysis workflow

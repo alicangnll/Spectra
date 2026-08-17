@@ -3086,6 +3086,7 @@ User: Analyze all functions in 0x401000-0x402000 range
 from typing import Annotated
 from spectra.tools.base import tool
 
+
 @tool(category="custom")
 def my_custom_tool(param: Annotated[str, "Parameter description"]) -> str:
     """Tool description for the LLM."""
@@ -3097,6 +3098,7 @@ def my_custom_tool(param: Annotated[str, "Parameter description"]) -> str:
 ```python
 # In spectra/ida/tools/registry.py or spectra/binja/tools/registry.py
 from spectra.tools import my_custom_module
+
 _TOOL_MODULES = (..., my_custom_module)
 ```
 

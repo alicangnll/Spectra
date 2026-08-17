@@ -13,15 +13,17 @@ from typing import Any
 # Try to import IDA API
 try:
     import idaapi
-    import idc
     import idautils
+    import idc
+
     IDA_AVAILABLE = True
 except ImportError:
     IDA_AVAILABLE = False
 
 # Try to import Binary Ninja API
 try:
-    import binaryninja
+    import binaryninja  # noqa: F401 — availability probe
+
     BINJA_AVAILABLE = True
 except ImportError:
     BINJA_AVAILABLE = False
@@ -29,30 +31,26 @@ except ImportError:
 
 # Kernel driver IOCTL codes and patterns
 IOCTL_PATTERNS = {
-    "CTL_CODE": {
-        "pattern": r"CTL_CODE\s*\(",
-        "severity": "info",
-        "description": "IOCTL code definition macro"
-    },
+    "CTL_CODE": {"pattern": r"CTL_CODE\s*\(", "severity": "info", "description": "IOCTL code definition macro"},
     "METHOD_NEITHER": {
         "pattern": r"METHOD_NEITHER",
         "severity": "high",
-        "description": "Dangerous I/O method - user pointers passed directly"
+        "description": "Dangerous I/O method - user pointers passed directly",
     },
     "METHOD_BUFFERED": {
         "pattern": r"METHOD_BUFFERED",
         "severity": "medium",
-        "description": "Buffered I/O - safer but still validate input"
+        "description": "Buffered I/O - safer but still validate input",
     },
     "METHOD_IN_DIRECT": {
         "pattern": r"METHOD_IN_DIRECT",
         "severity": "medium",
-        "description": "Direct input I/O - validate buffer sizes"
+        "description": "Direct input I/O - validate buffer sizes",
     },
     "METHOD_OUT_DIRECT": {
         "pattern": r"METHOD_OUT_DIRECT",
         "severity": "medium",
-        "description": "Direct output I/O - validate buffer sizes"
+        "description": "Direct output I/O - validate buffer sizes",
     },
 }
 
@@ -90,37 +88,29 @@ VULN_PATTERNS = {
     "memcpy": {
         "pattern": r"memcpy\s*\(",
         "severity": "high",
-        "description": "Unbounded memory copy - potential overflow"
+        "description": "Unbounded memory copy - potential overflow",
     },
     "strcpy": {
         "pattern": r"strcpy\s*\(",
         "severity": "critical",
-        "description": "Unsafe string copy - always overflow risk"
+        "description": "Unsafe string copy - always overflow risk",
     },
     "wcsncpy": {
         "pattern": r"wcsncpy\s*\(",
         "severity": "medium",
-        "description": "Wide char copy - check length parameter"
+        "description": "Wide char copy - check length parameter",
     },
     "RtlCopyMemory": {
         "pattern": r"RtlCopyMemory\s*\(",
         "severity": "high",
-        "description": "Kernel memcpy - validate size"
+        "description": "Kernel memcpy - validate size",
     },
-    "memmove": {
-        "pattern": r"memmove\s*\(",
-        "severity": "medium",
-        "description": "Memory move - check overlap"
-    },
-    "sprintf": {
-        "pattern": r"sprintf\s*\(",
-        "severity": "critical",
-        "description": "Unsafe sprintf - buffer overflow"
-    },
+    "memmove": {"pattern": r"memmove\s*\(", "severity": "medium", "description": "Memory move - check overlap"},
+    "sprintf": {"pattern": r"sprintf\s*\(", "severity": "critical", "description": "Unsafe sprintf - buffer overflow"},
     "swprintf": {
         "pattern": r"swprintf\s*\(",
         "severity": "critical",
-        "description": "Unsafe wide sprintf - buffer overflow"
+        "description": "Unsafe wide sprintf - buffer overflow",
     },
 }
 
@@ -167,41 +157,49 @@ def _analyze_ida_kernel() -> dict[str, Any]:
                     op1 = idaapi.print_operand(instr_ea, 0)
                     op2 = idaapi.print_operand(instr_ea, 1)
                     disasm = f"{mnem}"
-                    if op1: disasm += f" {op1}"
-                    if op2: disasm += f", {op2}"
+                    if op1:
+                        disasm += f" {op1}"
+                    if op2:
+                        disasm += f", {op2}"
                 func_text += disasm.lower() + "\n"
 
             for pattern_name, pattern_info in IOCTL_PATTERNS.items():
                 if re.search(pattern_info["pattern"], func_text, re.IGNORECASE):
-                    results["ioctl_handlers"].append({
-                        "address": func_ea,
-                        "function": func_name,
-                        "pattern": pattern_name,
-                        "severity": pattern_info["severity"],
-                        "description": pattern_info["description"],
-                    })
+                    results["ioctl_handlers"].append(
+                        {
+                            "address": func_ea,
+                            "function": func_name,
+                            "pattern": pattern_name,
+                            "severity": pattern_info["severity"],
+                            "description": pattern_info["description"],
+                        }
+                    )
 
     # Find driver exports
-    import_list = []
+    _import_list = []
     try:
         for imp_ea in idautils.Imports():
             imp_name = idc.get_name(imp_ea)
             for export_name, export_info in DRIVER_EXPORTS.items():
                 if export_name.lower() in imp_name.lower():
-                    results["driver_exports"].append({
-                        "address": imp_ea,
-                        "name": imp_name,
-                        "severity": export_info["severity"],
-                        "description": export_info["description"],
-                    })
+                    results["driver_exports"].append(
+                        {
+                            "address": imp_ea,
+                            "name": imp_name,
+                            "severity": export_info["severity"],
+                            "description": export_info["description"],
+                        }
+                    )
             for api_name, api_info in DANGEROUS_KERNEL_APIS.items():
                 if api_name.lower() in imp_name.lower():
-                    results["dangerous_apis"].append({
-                        "address": imp_ea,
-                        "name": imp_name,
-                        "severity": api_info["severity"],
-                        "description": api_info["description"],
-                    })
+                    results["dangerous_apis"].append(
+                        {
+                            "address": imp_ea,
+                            "name": imp_name,
+                            "severity": api_info["severity"],
+                            "description": api_info["description"],
+                        }
+                    )
     except Exception:
         pass
 
@@ -212,6 +210,7 @@ def _analyze_ida_kernel() -> dict[str, Any]:
         # Get function pseudocode if available
         try:
             import ida_hexrays
+
             if ida_hexrays.init_hexrays_plugin():
                 cfunc = ida_hexrays.decompile(func_ea)
                 if cfunc:
@@ -234,19 +233,23 @@ def _analyze_ida_kernel() -> dict[str, Any]:
                     op1 = idaapi.print_operand(instr_ea, 0)
                     op2 = idaapi.print_operand(instr_ea, 1)
                     disasm = f"{mnem}"
-                    if op1: disasm += f" {op1}"
-                    if op2: disasm += f", {op2}"
+                    if op1:
+                        disasm += f" {op1}"
+                    if op2:
+                        disasm += f", {op2}"
                 func_text += disasm + "\n"
 
         for vuln_name, vuln_info in VULN_PATTERNS.items():
             if re.search(vuln_info["pattern"], func_text, re.IGNORECASE):
-                results["vulnerabilities"].append({
-                    "address": func_ea,
-                    "function": func_name,
-                    "pattern": vuln_name,
-                    "severity": vuln_info["severity"],
-                    "description": vuln_info["description"],
-                })
+                results["vulnerabilities"].append(
+                    {
+                        "address": func_ea,
+                        "function": func_name,
+                        "pattern": vuln_name,
+                        "severity": vuln_info["severity"],
+                        "description": vuln_info["description"],
+                    }
+                )
 
     # Search for device names in strings
     for seg_ea in idautils.Segments():
@@ -254,10 +257,12 @@ def _analyze_ida_kernel() -> dict[str, Any]:
             for str_ea in idautils.Strings(seg_ea):
                 string = str(str_ea)
                 if "\\Device\\" in string or "\\DosDevices\\" in string:
-                    results["device_names"].append({
-                        "address": str_ea,
-                        "name": string.strip(),
-                    })
+                    results["device_names"].append(
+                        {
+                            "address": str_ea,
+                            "name": string.strip(),
+                        }
+                    )
 
     return results
 
@@ -294,44 +299,52 @@ def _analyze_binja_kernel(bv) -> dict[str, Any]:
                 for instr in func.instructions:
                     disasm = str(instr)
                     if re.search(pattern_info["pattern"], disasm, re.IGNORECASE):
-                        results["ioctl_handlers"].append({
-                            "address": hex(func.start),
-                            "function": func.name,
-                            "pattern": pattern_name,
-                            "severity": pattern_info["severity"],
-                            "description": pattern_info["description"],
-                        })
+                        results["ioctl_handlers"].append(
+                            {
+                                "address": hex(func.start),
+                                "function": func.name,
+                                "pattern": pattern_name,
+                                "severity": pattern_info["severity"],
+                                "description": pattern_info["description"],
+                            }
+                        )
                         break
 
     # Find driver exports and dangerous APIs
     for func in bv.functions:
         for export_name, export_info in DRIVER_EXPORTS.items():
             if export_name.lower() in func.name.lower():
-                results["driver_exports"].append({
-                    "address": hex(func.start),
-                    "name": func.name,
-                    "severity": export_info["severity"],
-                    "description": export_info["description"],
-                })
+                results["driver_exports"].append(
+                    {
+                        "address": hex(func.start),
+                        "name": func.name,
+                        "severity": export_info["severity"],
+                        "description": export_info["description"],
+                    }
+                )
 
         for api_name, api_info in DANGEROUS_KERNEL_APIS.items():
             if api_name.lower() in func.name.lower():
-                results["dangerous_apis"].append({
-                    "address": hex(func.start),
-                    "name": func.name,
-                    "severity": api_info["severity"],
-                    "description": api_info["description"],
-                })
+                results["dangerous_apis"].append(
+                    {
+                        "address": hex(func.start),
+                        "name": func.name,
+                        "severity": api_info["severity"],
+                        "description": api_info["description"],
+                    }
+                )
 
     # Search for device names
     for func in bv.functions:
         for string in bv.get_strings(func.start):
             value = string.value
             if "\\Device\\" in value or "\\DosDevices\\" in value:
-                results["device_names"].append({
-                    "address": hex(string.start),
-                    "name": value,
-                })
+                results["device_names"].append(
+                    {
+                        "address": hex(string.start),
+                        "name": value,
+                    }
+                )
 
     return results
 
@@ -383,8 +396,7 @@ def format_kernel_report(results: dict[str, Any]) -> str:
                 api["severity"], "[?]"
             )
             report_lines.append(
-                f"- {severity_icon} `{api['name']}` at `{api['address']:X}`\n"
-                f"  - *{api['description']}*\n"
+                f"- {severity_icon} `{api['name']}` at `{api['address']:X}`\n  - *{api['description']}*\n"
             )
 
     # Vulnerabilities
@@ -400,17 +412,14 @@ def format_kernel_report(results: dict[str, Any]) -> str:
             )
 
     # Summary
-    total_issues = (
-        len(results["ioctl_handlers"])
-        + len(results["dangerous_apis"])
-        + len(results["vulnerabilities"])
-    )
+    total_issues = len(results["ioctl_handlers"]) + len(results["dangerous_apis"]) + len(results["vulnerabilities"])
     critical_count = sum(
-        1 for x in results["ioctl_handlers"] + results["dangerous_apis"] + results["vulnerabilities"]
+        1
+        for x in results["ioctl_handlers"] + results["dangerous_apis"] + results["vulnerabilities"]
         if x.get("severity") == "critical"
     )
 
-    report_lines.append(f"\n### Summary\n")
+    report_lines.append("\n### Summary\n")
     report_lines.append(f"- **Total findings:** {total_issues}\n")
     report_lines.append(f"- **Critical issues:** {critical_count}\n")
 

@@ -15,8 +15,8 @@ import os
 import sys
 import threading
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 # File watching state
 _watcher_thread: threading.Thread | None = None
@@ -25,7 +25,7 @@ _watcher_stop_event = threading.Event()
 
 # File modification tracking
 _file_hashes: dict[str, str] = {}
-_last_reload_time = 0
+_last_reload_time = 0.0
 _reload_debounce_seconds = 2.0  # Wait 2 seconds after last change before reloading
 
 # Reload callbacks
@@ -57,6 +57,7 @@ def _get_spectra_source_files() -> list[str]:
     try:
         # Find spectra package directory
         import spectra
+
         package_dir = Path(spectra.__file__).parent
 
         # Find all Python files
@@ -102,7 +103,7 @@ def _check_for_changes() -> list[str]:
 
 def _reload_spectra() -> None:
     """Reload Spectra modules and notify callbacks."""
-    from .logging import log_info, log_warning, log_error
+    from .logging import log_error, log_info, log_warning
 
     try:
         log_info("Reloading Spectra due to source changes...")
@@ -112,10 +113,7 @@ def _reload_spectra() -> None:
             importlib.reload(sys.modules["spectra"])
 
         # Reload all spectra submodules
-        modules_to_reload = [
-            name for name in sys.modules
-            if name.startswith("spectra.") and not name.startswith("__")
-        ]
+        modules_to_reload = [name for name in sys.modules if name.startswith("spectra.") and not name.startswith("__")]
 
         for module_name in sorted(modules_to_reload, key=lambda x: x.count(".")):
             try:
@@ -170,6 +168,7 @@ def _file_watcher_loop() -> None:
 
         except Exception as e:
             from .logging import log_error
+
             log_error(f"File watcher error: {e}")
             _watcher_stop_event.wait(5)  # Wait longer on error
 
@@ -194,11 +193,7 @@ def start_file_watcher() -> bool:
     _watcher_running = True
     _watcher_stop_event.clear()
 
-    _watcher_thread = threading.Thread(
-        target=_file_watcher_loop,
-        name="SpectraFileWatcher",
-        daemon=True
-    )
+    _watcher_thread = threading.Thread(target=_file_watcher_loop, name="SpectraFileWatcher", daemon=True)
     _watcher_thread.start()
 
     return True

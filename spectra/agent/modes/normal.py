@@ -19,7 +19,7 @@ def run_normal_loop(
     tools_schema: list,
 ) -> Generator[TurnEvent, None, None]:
     """Run the standard agentic while loop (non-plan, non-exploration)."""
-    max_turns = 1000
+    max_turns = getattr(loop, "max_turns", 1000)
     turn = 0
     while True:
         loop._check_cancelled()

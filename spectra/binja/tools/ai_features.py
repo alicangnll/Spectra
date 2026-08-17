@@ -9,7 +9,7 @@ from .compat import require_bv
 
 
 @tool(category="ai", description="Search functions by semantic meaning")
-def search_functions(
+def semantic_search(
     query: Annotated[str, "Natural language query (e.g., 'crypto functions', 'file operations')"],
     limit: Annotated[int, "Maximum number of results"] = 10,
 ) -> str:
@@ -53,15 +53,17 @@ def search_functions(
                 reasons.append(f"found '{keyword}' in disassembly")
 
         if score > 0:
-            results.append({
-                "function": func,
-                "score": score,
-                "reasons": reasons,
-            })
+            results.append(
+                {
+                    "function": func,
+                    "score": score,
+                    "reasons": reasons,
+                }
+            )
 
     results.sort(key=lambda x: x["score"], reverse=True)
 
-    report = f"## Semantic Search Results\n"
+    report = "## Semantic Search Results\n"
     report += f"**Query:** {query}\n"
     report += f"**Results:** {len(results)}\n\n"
 
@@ -127,10 +129,12 @@ def find_similar(
             similarity += 20
 
         if similarity > 0:
-            results.append({
-                "function": func,
-                "similarity": similarity,
-            })
+            results.append(
+                {
+                    "function": func,
+                    "similarity": similarity,
+                }
+            )
 
     results.sort(key=lambda x: x["similarity"], reverse=True)
 
@@ -188,10 +192,10 @@ def document_function(
             report += f"- `{caller.function.name}` at {caller.address}\n"
 
     # Get callees
-    callees = []
+    _callees = []
     for block in func.basic_blocks:
         for instr in block.instructions:
-            for xref in instr.get_il_expressions():
+            for _xref in instr.get_il_expressions():
                 # This is simplified - actual implementation would check for calls
                 pass
 
@@ -200,11 +204,11 @@ def document_function(
     for block in func.basic_blocks:
         for instr in block.instructions:
             for operand in instr.operands:
-                if hasattr(operand, 'value') and isinstance(operand.value, str):
+                if hasattr(operand, "value") and isinstance(operand.value, str):
                     strings.append(operand.value)
 
     if strings:
-        report += f"\n### Referenced Strings\n"
+        report += "\n### Referenced Strings\n"
         for string in strings[:5]:
             report += f"- `{string[:80]}`\n"
 

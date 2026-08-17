@@ -39,12 +39,14 @@ def export_analysis(
     snapshot = export_snapshot_ida(analyst=analyst, summary=summary)
     filepath = save_snapshot(snapshot)
 
-    return f"Analysis snapshot exported successfully!\n\n" \
-           f"**File:** {filepath}\n" \
-           f"**Findings:** {len(snapshot.findings)}\n" \
-           f"**Annotations:** {len(snapshot.annotations)}\n" \
-           f"**Analyst:** {analyst}\n" \
-           f"**Date:** {snapshot.timestamp[:10]}\n"
+    return (
+        f"Analysis snapshot exported successfully!\n\n"
+        f"**File:** {filepath}\n"
+        f"**Findings:** {len(snapshot.findings)}\n"
+        f"**Annotations:** {len(snapshot.annotations)}\n"
+        f"**Analyst:** {analyst}\n"
+        f"**Date:** {snapshot.timestamp[:10]}\n"
+    )
 
 
 @tool(category="collaboration", mutating=False, description="List all shared analysis snapshots")
@@ -71,7 +73,7 @@ def list_shared_analyses() -> str:
         report += f"- **Date:** {snap['timestamp'][:10]}\n"
         report += f"- **Findings:** {snap['finding_count']}\n"
         report += f"- **Annotations:** {snap['annotation_count']}\n"
-        if snap.get('summary'):
+        if snap.get("summary"):
             report += f"- **Summary:** {snap['summary'][:100]}...\n"
         report += f"- **File:** `{snap['filepath']}`\n\n"
 
@@ -100,9 +102,9 @@ def generate_team_report(
         snapshots = []
         for snap_data in snapshots_data[:5]:  # Limit to 5
             try:
-                snap = load_snapshot(snap_data['filepath'])
+                snap = load_snapshot(snap_data["filepath"])
                 snapshots.append(snap)
-            except Exception as e:
+            except Exception:
                 continue
 
         if not snapshots:
@@ -137,7 +139,7 @@ def merge_analyses(
         if not snapshots_data:
             return "No snapshots found to merge."
 
-        paths = [s['filepath'] for s in snapshots_data[:5]]
+        paths = [s["filepath"] for s in snapshots_data[:5]]
     else:
         paths = [p.strip() for p in snapshot_paths.split(",")]
 
@@ -154,11 +156,13 @@ def merge_analyses(
 
     merged = merge_snapshots(snapshots)
 
-    return f"## Merged Analysis Report\n\n" \
-           f"**Analysts:** {merged.analyst}\n" \
-           f"**Total Findings:** {len(merged.findings)}\n" \
-           f"**Total Annotations:** {len(merged.annotations)}\n\n" \
-           f"{format_collaboration_report(snapshots)}"
+    return (
+        f"## Merged Analysis Report\n\n"
+        f"**Analysts:** {merged.analyst}\n"
+        f"**Total Findings:** {len(merged.findings)}\n"
+        f"**Total Annotations:** {len(merged.annotations)}\n\n"
+        f"{format_collaboration_report(snapshots)}"
+    )
 
 
 @tool(category="collaboration", mutating=False, description="Add a finding to the current analysis")
@@ -195,15 +199,18 @@ def add_finding(
     # Add as IDA comment for persistence
     try:
         import idc
+
         comment = f"[FINDING:{finding.type}:{finding.severity}] {finding.title}\n{finding.description}"
         idc.set_cmt(address, comment, 0)  # 0 = function comment
     except Exception:
         pass
 
-    return f"Finding added successfully!\n\n" \
-           f"**Title:** {title}\n" \
-           f"**Address:** `0x{address:X}`\n" \
-           f"**Severity:** {severity}\n" \
-           f"**Category:** {category}\n" \
-           f"**Description:** {description}\n\n" \
-           f"Use `export_analysis` to include this finding in a shared snapshot."
+    return (
+        f"Finding added successfully!\n\n"
+        f"**Title:** {title}\n"
+        f"**Address:** `0x{address:X}`\n"
+        f"**Severity:** {severity}\n"
+        f"**Category:** {category}\n"
+        f"**Description:** {description}\n\n"
+        f"Use `export_analysis` to include this finding in a shared snapshot."
+    )

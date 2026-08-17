@@ -53,7 +53,7 @@ def _validate_mcp_server(server: MCPServerConfig, source: str) -> bool:
         command=server.command,
         args=server.args,
         env=server.env if server.env else {},
-        timeout=server.timeout
+        timeout=server.timeout,
     )
 
     if not is_allowed:

@@ -56,7 +56,7 @@ def _detect_binding() -> str:
 
             # Try to find if Qt5 is already loaded in the process
             # dyld image cache can tell us what's loaded
-            dyld = ctypes.CDLL(ctypes.util.find_library("dyld"))
+            _dyld = ctypes.CDLL(ctypes.util.find_library("dyld"))
             # _dyld_image_count and _dyld_get_image_name are available
             # but simpler: just check if we're running under IDA by checking sys.executable
             # or try to detect Qt5 via module check
@@ -76,25 +76,27 @@ def _detect_binding() -> str:
     # Default: try PySide6 -> PyQt5 -> PySide2.
     try:
         import PySide6  # noqa: F401
+
         return "PySide6"
     except ImportError:
         pass
 
     try:
         import PyQt5  # noqa: F401
+
         return "PyQt5"
     except ImportError:
         pass
 
     try:
         import PySide2  # noqa: F401
+
         return "PySide2"
     except ImportError:
         pass
 
     raise ImportError(
-        "Spectra requires a Qt binding (PySide6, PyQt5, or PySide2).\n"
-        "Please install PySide6 using: pip install PySide6"
+        "Spectra requires a Qt binding (PySide6, PyQt5, or PySide2).\nPlease install PySide6 using: pip install PySide6"
     )
 
 
@@ -118,8 +120,8 @@ if QT_BINDING == "PySide6":
         QApplication,
         QButtonGroup,
         QCheckBox,
-        QComboBox,
         QClipboard,
+        QComboBox,
         QDialog,
         QDialogButtonBox,
         QDoubleSpinBox,
@@ -156,17 +158,21 @@ if QT_BINDING == "PySide6":
         QWidget,
     )
 elif QT_BINDING == "PySide2":
-    from PySide2.QtCore import QObject, Qt, QTimer  # noqa: F401
-    from PySide2.QtCore import Signal  # noqa: F401
-    from PySide2.QtGui import (  # noqa: F401
+    from PySide2.QtCore import (
+        QObject,
+        Qt,
+        QTimer,
+        Signal,
+    )
+    from PySide2.QtGui import (
+        QClipboard,
         QColor,
         QFont,
         QIntValidator,
         QSyntaxHighlighter,
         QTextCharFormat,
-        QClipboard,
     )
-    from PySide2.QtWidgets import (  # noqa: F401
+    from PySide2.QtWidgets import (
         QAbstractItemView,
         QApplication,
         QButtonGroup,
@@ -211,12 +217,12 @@ else:
     from PyQt5.QtCore import QObject, Qt, QTimer  # noqa: F401
     from PyQt5.QtCore import pyqtSignal as Signal  # noqa: F401
     from PyQt5.QtGui import (  # noqa: F401
+        QClipboard,
         QColor,
         QFont,
         QIntValidator,
         QSyntaxHighlighter,
         QTextCharFormat,
-        QClipboard,
     )
     from PyQt5.QtWidgets import (  # noqa: F401
         QAbstractItemView,
@@ -320,11 +326,13 @@ def get_dpi_scale_factor() -> float:
     # Check for environment variable override first
     try:
         import os
+
         env_scale = os.environ.get("SPECTRA_DPI_SCALE")
         if env_scale:
             _dpi_scale_factor = float(env_scale)
             if _dpi_scale_factor > 0:
                 import sys
+
                 print(f"[Spectra DPI] Using SPECTRA_DPI_SCALE override: {_dpi_scale_factor}", file=sys.stderr)
                 return _dpi_scale_factor
     except Exception:
@@ -336,8 +344,8 @@ def get_dpi_scale_factor() -> float:
     try:
         # Try to get the primary screen's DPI scale factor
         if QT_BINDING == "PySide6":
-            from PySide6.QtGui import QScreen
             from PySide6.QtWidgets import QApplication
+
             app = QApplication.instance()
             if app:
                 screen = app.primaryScreen()
@@ -348,13 +356,17 @@ def get_dpi_scale_factor() -> float:
                     # Debug logging
                     try:
                         import sys
-                        print(f"[Spectra DPI] Detected scale factor: {_dpi_scale_factor} (logical DPI: {screen.logicalDotsPerInch()})", file=sys.stderr)
+
+                        print(
+                            f"[Spectra DPI] Detected scale factor: {_dpi_scale_factor} (logical DPI: {screen.logicalDotsPerInch()})",
+                            file=sys.stderr,
+                        )
                     except Exception:
                         pass
                     return _dpi_scale_factor
         else:  # PyQt5
-            from PyQt5.QtGui import QScreen
             from PyQt5.QtWidgets import QApplication
+
             app = QApplication.instance()
             if app:
                 screen = app.primaryScreen()
@@ -362,7 +374,11 @@ def get_dpi_scale_factor() -> float:
                     _dpi_scale_factor = screen.logicalDotsPerInch() / 96.0
                     try:
                         import sys
-                        print(f"[Spectra DPI] Detected scale factor: {_dpi_scale_factor} (logical DPI: {screen.logicalDotsPerInch()})", file=sys.stderr)
+
+                        print(
+                            f"[Spectra DPI] Detected scale factor: {_dpi_scale_factor} (logical DPI: {screen.logicalDotsPerInch()})",
+                            file=sys.stderr,
+                        )
                     except Exception:
                         pass
                     return _dpi_scale_factor
@@ -376,7 +392,7 @@ def get_dpi_scale_factor() -> float:
             import ctypes.wintypes
 
             # Get the process DPI awareness
-            shcore = ctypes.windll.shcore
+            _shcore = ctypes.windll.shcore
             # Try to get the DPI scale factor from Windows
             hdc = ctypes.windll.user32.GetDC(0)
             if hdc:
@@ -386,7 +402,11 @@ def get_dpi_scale_factor() -> float:
                     _dpi_scale_factor = logical_dpi / 96.0
                     try:
                         import sys
-                        print(f"[Spectra DPI] Windows fallback scale factor: {_dpi_scale_factor} (DPI: {logical_dpi})", file=sys.stderr)
+
+                        print(
+                            f"[Spectra DPI] Windows fallback scale factor: {_dpi_scale_factor} (DPI: {logical_dpi})",
+                            file=sys.stderr,
+                        )
                     except Exception:
                         pass
                     return _dpi_scale_factor
@@ -397,7 +417,8 @@ def get_dpi_scale_factor() -> float:
     _dpi_scale_factor = 1.0
     try:
         import sys
-        print(f"[Spectra DPI] Using default scale factor: 1.0", file=sys.stderr)
+
+        print("[Spectra DPI] Using default scale factor: 1.0", file=sys.stderr)
     except Exception:
         pass
     return _dpi_scale_factor

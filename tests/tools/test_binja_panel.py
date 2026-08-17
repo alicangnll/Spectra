@@ -7,7 +7,8 @@ import types
 import unittest
 from unittest.mock import MagicMock
 
-from tests.qt_stubs import ensure_pyside6_stubs, _qt_class
+from tests.qt_stubs import _qt_class, ensure_pyside6_stubs
+
 ensure_pyside6_stubs()
 
 # Stub out binaryninja and the heavy spectra modules panel.py imports
@@ -21,12 +22,12 @@ _session_mod = types.ModuleType("spectra.binja.ui.session_controller")
 _session_mod.BinaryNinjaSessionController = MagicMock()
 sys.modules["spectra.binja.ui.session_controller"] = _session_mod
 
-from spectra.binja.ui.panel import SpectraPanel  # noqa: E402
-
+from spectra.binja.ui.panel import SpectraPanel
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_panel() -> SpectraPanel:
     """Create a SpectraPanel bypassing __init__ and inject a mock _core."""
@@ -40,6 +41,7 @@ def _make_panel() -> SpectraPanel:
 # ---------------------------------------------------------------------------
 # explicit delegation methods
 # ---------------------------------------------------------------------------
+
 
 class TestSpectraPanelDelegation(unittest.TestCase):
     def test_prefill_delegates_to_core(self):
@@ -68,6 +70,7 @@ class TestSpectraPanelDelegation(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # mount — layout integration logic
 # ---------------------------------------------------------------------------
+
 
 class TestSpectraPanelMount(unittest.TestCase):
     def test_mount_adds_to_existing_layout_when_not_in_it(self):

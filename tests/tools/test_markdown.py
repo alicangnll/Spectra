@@ -145,7 +145,7 @@ class TestInlineFormatting(unittest.TestCase):
 
     def test_link(self):
         result = _inline_formatting("[text](http://example.com)")
-        self.assertIn('<a', result)
+        self.assertIn("<a", result)
         self.assertIn("href", result)
         self.assertIn("text", result)
         self.assertIn("http://example.com", result)
@@ -160,7 +160,9 @@ class TestInlineCodeSpans(unittest.TestCase):
         result = _inline("use `foo()` here")
         self.assertIn("<span", result)
         self.assertIn("foo()", result)
-        self.assertIn("font-family:monospace", result)
+        # Monospace font stack is applied to inline code spans
+        self.assertIn("monospace", result)
+        self.assertIn("font-family", result)
 
     def test_bold_inside_code_not_applied(self):
         result = _inline("`**not bold**`")

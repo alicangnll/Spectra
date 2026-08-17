@@ -15,13 +15,13 @@ from typing import Annotated
 
 from ...tools.base import tool
 from ...tools.vuln_analysis_advanced import (
-    taint_analysis,
-    xref_vuln_scan,
-    buffer_size_analysis,
-    call_graph_attack_surface,
-    type_overflow_detection,
     DANGEROUS_FUNCTIONS,
     TAINT_SOURCES,
+    buffer_size_analysis,
+    call_graph_attack_surface,
+    taint_analysis,
+    type_overflow_detection,
+    xref_vuln_scan,
 )
 
 
@@ -47,7 +47,7 @@ def binja_taint_analysis(
     """
     try:
         import binaryninja
-        from binaryninja import Function, BinaryView
+        from binaryninja import BinaryView, Function
     except ImportError:
         return "Error: Binary Ninja API not available"
 
@@ -86,31 +86,39 @@ def binja_taint_analysis(
     for caller in func.callers:
         caller_name = caller.name if caller.name else f"sub_{caller.start:X}"
         if caller_name in DANGEROUS_FUNCTIONS:
-            dangerous_calls.append({
-                "function": caller_name,
-                "address": f"0x{caller.start:X}",
-                "risk": _get_risk_level(caller_name),
-            })
+            dangerous_calls.append(
+                {
+                    "function": caller_name,
+                    "address": f"0x{caller.start:X}",
+                    "risk": _get_risk_level(caller_name),
+                }
+            )
         elif caller_name in TAINT_SOURCES:
-            source_calls.append({
-                "function": caller_name,
-                "address": f"0x{caller.start:X}",
-            })
+            source_calls.append(
+                {
+                    "function": caller_name,
+                    "address": f"0x{caller.start:X}",
+                }
+            )
 
     # Also check callee functions
     for callee in func.callees:
         callee_name = callee.name if callee.name else f"sub_{callee.start:X}"
         if callee_name in DANGEROUS_FUNCTIONS:
-            dangerous_calls.append({
-                "function": callee_name,
-                "address": f"0x{callee.start:X}",
-                "risk": _get_risk_level(callee_name),
-            })
+            dangerous_calls.append(
+                {
+                    "function": callee_name,
+                    "address": f"0x{callee.start:X}",
+                    "risk": _get_risk_level(callee_name),
+                }
+            )
         elif callee_name in TAINT_SOURCES:
-            source_calls.append({
-                "function": callee_name,
-                "address": f"0x{callee.start:X}",
-            })
+            source_calls.append(
+                {
+                    "function": callee_name,
+                    "address": f"0x{callee.start:X}",
+                }
+            )
 
     report = f"""## Taint Analysis for Binary Ninja Function
 
@@ -125,13 +133,13 @@ def binja_taint_analysis(
 """
 
     if source_calls:
-        report += "| Function | Address | Description |\\n"
-        report += "|----------|---------|-------------|\\n"
+        report += "| Function | Address | Description |\n"
+        report += "|----------|---------|-------------|\n"
         for src in source_calls:
             desc = TAINT_SOURCES.get(src["function"], "Unknown")
-            report += f"| {src['function']} | {src['address']} | {desc} |\\n"
+            report += f"| {src['function']} | {src['address']} | {desc} |\n"
     else:
-        report += "No obvious taint sources found in this function.\\n"
+        report += "No obvious taint sources found in this function.\n"
 
     report += f"""
 
@@ -142,40 +150,40 @@ def binja_taint_analysis(
 """
 
     if dangerous_calls:
-        report += "| Function | Address | Risk Level | Description |\\n"
-        report += "|----------|---------|------------|-------------|\\n"
+        report += "| Function | Address | Risk Level | Description |\n"
+        report += "|----------|---------|------------|-------------|\n"
         for sink in dangerous_calls:
             desc = DANGEROUS_FUNCTIONS.get(sink["function"], "Unknown")
-            report += f"| {sink['function']} | {sink['address']} | {sink['risk']} | {desc} |\\n"
+            report += f"| {sink['function']} | {sink['address']} | {sink['risk']} | {desc} |\n"
     else:
-        report += "No dangerous function calls found in this function.\\n"
+        report += "No dangerous function calls found in this function.\n"
 
-    report += f"""
+    report += """
 
 ### Analysis
 
 """
 
     if source_calls and dangerous_calls:
-        report += "**⚠️ POTENTIAL VULNERABILITY DETECTED**\\n\\n"
+        report += "**⚠️ POTENTIAL VULNERABILITY DETECTED**\n\n"
         report += f"Function has both data sources ({len(source_calls)}) "
-        report += f"and dangerous sinks ({len(dangerous_calls)}).\\n\\n"
-        report += "**Recommended Action:** Manually trace data flow from sources to sinks.\\n"
+        report += f"and dangerous sinks ({len(dangerous_calls)}).\n\n"
+        report += "**Recommended Action:** Manually trace data flow from sources to sinks.\n"
     elif source_calls:
-        report += "**ℹ️ INFO:** Function has data sources but no obvious dangerous sinks.\\n"
-        report += "Data may be passed to callees - analyze those functions.\\n"
+        report += "**ℹ️ INFO:** Function has data sources but no obvious dangerous sinks.\n"
+        report += "Data may be passed to callees - analyze those functions.\n"
     elif dangerous_calls:
-        report += "**ℹ️ INFO:** Function has dangerous sinks but no obvious sources.\\n"
-        report += "Data may come from parameters - analyze callers.\\n"
+        report += "**ℹ️ INFO:** Function has dangerous sinks but no obvious sources.\n"
+        report += "Data may come from parameters - analyze callers.\n"
     else:
-        report += "**✓ SAFE:** No obvious taint issues in this function.\\n"
+        report += "**✓ SAFE:** No obvious taint issues in this function.\n"
 
     report += f"""
 
 ### Decompiled Code (excerpt)
 
 ```c
-{pseudocode[:2000] if pseudocode else '(Decompilation not available)'}
+{pseudocode[:2000] if pseudocode else "(Decompilation not available)"}
 {"..." if len(pseudocode) > 2000 else ""}
 ```
 
@@ -247,14 +255,19 @@ def binja_xref_vuln_scan(
             total_calls += call_count
             risk = _get_risk_level(func_name)
             desc = DANGEROUS_FUNCTIONS[func_name]
-            report += f"| `{func_name}` | {call_count} | {risk} | {desc[:50]}... |\\n"
+            report += f"| `{func_name}` | {call_count} | {risk} | {desc[:50]}... |\n"
 
             if risk in ["CRITICAL", "HIGH"]:
-                high_risk.append({
-                    "name": func_name,
-                    "count": call_count,
-                    "callers": [{"addr": f"0x{c.start:X}", "function": c.name if c.name else f"sub_{c.start:X}"} for c in callers[:5]],
-                })
+                high_risk.append(
+                    {
+                        "name": func_name,
+                        "count": call_count,
+                        "callers": [
+                            {"addr": f"0x{c.start:X}", "function": c.name if c.name else f"sub_{c.start:X}"}
+                            for c in callers[:5]
+                        ],
+                    }
+                )
 
     report += f"""
 
@@ -270,13 +283,13 @@ Focus on these functions first:
 """
 
     for item in high_risk[:10]:
-        report += f"#### `{item['name']}` ({item['count']} calls)\\n\\n"
-        report += "Sample callers:\\n"
-        for caller in item['callers'][:3]:
-            report += f"- {caller['function']} @ {caller['addr']}\\n"
-        report += "\\n"
+        report += f"#### `{item['name']}` ({item['count']} calls)\n\n"
+        report += "Sample callers:\n"
+        for caller in item["callers"][:3]:
+            report += f"- {caller['function']} @ {caller['addr']}\n"
+        report += "\n"
 
-    report += f"""
+    report += """
 
 ### Detailed Analysis
 
@@ -292,8 +305,8 @@ For each high-risk call:
 """
 
     for item in high_risk[:5]:
-        for caller in item['callers'][:2]:
-            report += f"- `{item['name']}`: {caller['function']} @ {caller['addr']}\\n"
+        for caller in item["callers"][:2]:
+            report += f"- `{item['name']}`: {caller['function']} @ {caller['addr']}\n"
 
     return report
 
@@ -340,8 +353,8 @@ def binja_buffer_analysis(
 
     # Get stack frame info
     stack_info = {}
-    stack_vars = func.stack_layout if hasattr(func, 'stack_layout') else []
-    stack_info['vars_count'] = len(stack_vars)
+    stack_vars = func.stack_layout if hasattr(func, "stack_layout") else []
+    stack_info["vars_count"] = len(stack_vars)
 
     # Get HLIL for analysis
     pseudocode = ""
@@ -355,66 +368,70 @@ def binja_buffer_analysis(
 
     # Look for common patterns in pseudocode
     # Stack buffers: char name[N];
-    for match in re.finditer(r'(char|int|short|long|byte|void)\s+(\w+)\[(\d+)\]', pseudocode):
+    for match in re.finditer(r"(char|int|short|long|byte|void)\s+(\w+)\[(\d+)\]", pseudocode):
         buf_type = match.group(1)
         buf_name = match.group(2)
         buf_size = int(match.group(3))
-        stack_buffers.append({
-            "name": buf_name,
-            "type": buf_type,
-            "size": buf_size,
-            "bytes": buf_size * (4 if buf_type in ["int", "long"] else 1),
-        })
+        stack_buffers.append(
+            {
+                "name": buf_name,
+                "type": buf_type,
+                "size": buf_size,
+                "bytes": buf_size * (4 if buf_type in ["int", "long"] else 1),
+            }
+        )
 
     # Heap allocations: malloc(N)
-    for match in re.finditer(r'(\w+)\s*=\s*(malloc|calloc|realloc)\s*\(', pseudocode):
+    for match in re.finditer(r"(\w+)\s*=\s*(malloc|calloc|realloc)\s*\(", pseudocode):
         var_name = match.group(1)
         alloc_func = match.group(2)
-        heap_allocs.append({
-            "variable": var_name,
-            "function": alloc_func,
-        })
+        heap_allocs.append(
+            {
+                "variable": var_name,
+                "function": alloc_func,
+            }
+        )
 
     report = f"""## Buffer Analysis for Binary Ninja Function
 
 **Function:** {func_name} (0x{address:X})
-**Stack Variables:** {stack_info.get('vars_count', 'N/A')} stack vars
+**Stack Variables:** {stack_info.get("vars_count", "N/A")} stack vars
 
 ### Stack Buffers Found
 
 """
 
     if stack_buffers:
-        report += "| Variable | Type | Size (elements) | Size (bytes) | Risk |\\n"
-        report += "|----------|------|-----------------|--------------|------|\\n"
+        report += "| Variable | Type | Size (elements) | Size (bytes) | Risk |\n"
+        report += "|----------|------|-----------------|--------------|------|\n"
         for buf in stack_buffers:
-            byte_size = buf['bytes']
+            byte_size = buf["bytes"]
             risk = "HIGH" if byte_size < 256 else "MEDIUM"
-            report += f"| {buf['name']} | {buf['type']} | {buf['size']} | {byte_size} | {risk} |\\n"
+            report += f"| {buf['name']} | {buf['type']} | {buf['size']} | {byte_size} | {risk} |\n"
     else:
-        report += "No obvious stack buffers detected in pseudocode.\\n"
+        report += "No obvious stack buffers detected in pseudocode.\n"
 
-    report += f"""
+    report += """
 
 ### Heap Allocations Found
 
 """
 
     if heap_allocs:
-        report += "| Variable | Function | Risk |\\n"
-        report += "|----------|----------|------|\\n"
+        report += "| Variable | Function | Risk |\n"
+        report += "|----------|----------|------|\n"
         for alloc in heap_allocs:
-            risk = "HIGH" if alloc['function'] == "malloc" else "MEDIUM"
-            report += f"| {alloc['variable']} | {alloc['function']}() | {risk} |\\n"
+            risk = "HIGH" if alloc["function"] == "malloc" else "MEDIUM"
+            report += f"| {alloc['variable']} | {alloc['function']}() | {risk} |\n"
     else:
-        report += "No heap allocations detected.\\n"
+        report += "No heap allocations detected.\n"
 
     report += f"""
 
 ### Decompiled Code (excerpt)
 
 ```c
-{pseudocode[:1500] if pseudocode else '(Decompilation not available)'}
+{pseudocode[:1500] if pseudocode else "(Decompilation not available)"}
 {"..." if len(pseudocode) > 1500 else ""}
 ```
 
@@ -424,11 +441,11 @@ def binja_buffer_analysis(
 
     total_bufs = len(stack_buffers) + len(heap_allocs)
     if total_bufs == 0:
-        report += "**✓ LOW RISK:** No buffers detected in this function.\\n"
+        report += "**✓ LOW RISK:** No buffers detected in this function.\n"
     elif total_bufs <= 3:
-        report += f"**⚠️ MEDIUM RISK:** {total_bufs} buffers detected. Manual review needed.\\n"
+        report += f"**⚠️ MEDIUM RISK:** {total_bufs} buffers detected. Manual review needed.\n"
     else:
-        report += f"**⚠️ HIGH RISK:** {total_bufs} buffers detected. Detailed analysis recommended.\\n"
+        report += f"**⚠️ HIGH RISK:** {total_bufs} buffers detected. Detailed analysis recommended.\n"
 
     report += """
 
@@ -446,8 +463,8 @@ For each buffer:
 """
 
     for buf in stack_buffers[:3]:
-        if buf['bytes'] < 128:
-            report += f"- **{buf['name']}**: Small buffer ({buf['bytes']} bytes) - HIGH overflow risk\\n"
+        if buf["bytes"] < 128:
+            report += f"- **{buf['name']}**: Small buffer ({buf['bytes']} bytes) - HIGH overflow risk\n"
 
     return report
 
@@ -511,11 +528,13 @@ def binja_call_graph_surface(
     for func_name, data in call_graph.items():
         for callee in data["calls"]:
             if callee in DANGEROUS_FUNCTIONS:
-                dangerous_paths.append({
-                    "path": f"{entry_func} → ... → {func_name} → {callee}",
-                    "depth": data["depth"],
-                    "risk": _get_risk_level(callee),
-                })
+                dangerous_paths.append(
+                    {
+                        "path": f"{entry_func} → ... → {func_name} → {callee}",
+                        "depth": data["depth"],
+                        "risk": _get_risk_level(callee),
+                    }
+                )
 
     report = f"""## Call Graph Attack Surface
 
@@ -534,17 +553,17 @@ def binja_call_graph_surface(
 """
 
     if dangerous_paths:
-        report += "| Risk | Path | Depth |\\n"
-        report += "|------|------|-------|\\n"
+        report += "| Risk | Path | Depth |\n"
+        report += "|------|------|-------|\n"
         for path in sorted(dangerous_paths, key=lambda x: x["depth"])[:20]:
-            report += f"| {path['risk']} | {path['path']} | {path['depth']} |\\n"
+            report += f"| {path['risk']} | {path['path']} | {path['depth']} |\n"
 
         if len(dangerous_paths) > 20:
-            report += f"| ... | ... and {len(dangerous_paths) - 20} more | ... |\\n"
+            report += f"| ... | ... and {len(dangerous_paths) - 20} more | ... |\n"
     else:
-        report += "No dangerous functions reachable from entry point.\\n"
+        report += "No dangerous functions reachable from entry point.\n"
 
-    report += f"""
+    report += """
 
 ### Call Tree (First 3 Levels)
 
@@ -556,35 +575,35 @@ def binja_call_graph_surface(
 
         indent = "  " * depth
         data = call_graph[func_name]
-        output = f"{indent}• {func_name} (0x{data['ea']:X})\\n"
+        output = f"{indent}• {func_name} (0x{data['ea']:X})\n"
 
         for callee in data["calls"][:5]:
             output += print_tree(callee, depth + 1, max_show)
 
         if len(data["calls"]) > 5:
-            output += f"{indent}  ... and {len(data['calls']) - 5} more\\n"
+            output += f"{indent}  ... and {len(data['calls']) - 5} more\n"
 
         return output
 
     report += print_tree(entry_func)
 
-    report += f"""
+    report += """
 
 ### Attack Surface Assessment
 
 """
 
     if len(dangerous_paths) > 5:
-        report += "**⚠️ HIGH ATTACK SURFACE**\\n\\n"
-        report += f"Entry point reaches {len(dangerous_paths)} dangerous functions.\\n"
-        report += "Prioritize analysis of high-risk paths.\\n"
+        report += "**⚠️ HIGH ATTACK SURFACE**\n\n"
+        report += f"Entry point reaches {len(dangerous_paths)} dangerous functions.\n"
+        report += "Prioritize analysis of high-risk paths.\n"
     elif len(dangerous_paths) > 0:
-        report += "**⚠️ MEDIUM ATTACK SURFACE**\\n\\n"
-        report += f"Entry point reaches {len(dangerous_paths)} dangerous functions.\\n"
-        report += "Review each path for exploitable vulnerabilities.\\n"
+        report += "**⚠️ MEDIUM ATTACK SURFACE**\n\n"
+        report += f"Entry point reaches {len(dangerous_paths)} dangerous functions.\n"
+        report += "Review each path for exploitable vulnerabilities.\n"
     else:
-        report += "**✓ LOW ATTACK SURFACE**\\n\\n"
-        report += "No obvious dangerous functions reachable.\\n"
+        report += "**✓ LOW ATTACK SURFACE**\n\n"
+        report += "No obvious dangerous functions reachable.\n"
 
     report += """
 
@@ -657,29 +676,35 @@ def binja_type_overflow_check(
     issues = []
 
     # Pattern 1: Signed comparisons with size
-    if re.search(r'if\s*\(\s*\w+\s*<\s*(sizeof|buffer|limit)', pseudocode):
-        if re.search(r'(int|signed)\s+\w+', pseudocode):
-            issues.append({
-                "type": "SIGNED_UNSIGNED",
-                "severity": "HIGH",
-                "description": "Possible signed/unsigned comparison issue",
-            })
+    if re.search(r"if\s*\(\s*\w+\s*<\s*(sizeof|buffer|limit)", pseudocode):
+        if re.search(r"(int|signed)\s+\w+", pseudocode):
+            issues.append(
+                {
+                    "type": "SIGNED_UNSIGNED",
+                    "severity": "HIGH",
+                    "description": "Possible signed/unsigned comparison issue",
+                }
+            )
 
     # Pattern 2: Size calculations
-    if re.search(r'\w+\s*\*\s*(sizeof|\d+)', pseudocode):
-        issues.append({
-            "type": "INTEGER_OVERFLOW",
-            "severity": "MEDIUM",
-            "description": "Potential integer overflow in size calculation",
-        })
+    if re.search(r"\w+\s*\*\s*(sizeof|\d+)", pseudocode):
+        issues.append(
+            {
+                "type": "INTEGER_OVERFLOW",
+                "severity": "MEDIUM",
+                "description": "Potential integer overflow in size calculation",
+            }
+        )
 
     # Pattern 3: Array indexing
-    if re.search(r'\w+\s*\[\s*\w+\s*\]', pseudocode):
-        issues.append({
-            "type": "ARRAY_INDEX",
-            "severity": "MEDIUM",
-            "description": "Array access with variable index - validate range",
-        })
+    if re.search(r"\w+\s*\[\s*\w+\s*\]", pseudocode):
+        issues.append(
+            {
+                "type": "ARRAY_INDEX",
+                "severity": "MEDIUM",
+                "description": "Array access with variable index - validate range",
+            }
+        )
 
     report = f"""## Type-based Overflow Detection
 
@@ -690,19 +715,19 @@ def binja_type_overflow_check(
 """
 
     if issues:
-        report += "| Type | Severity | Description |\\n"
-        report += "|------|----------|-------------|\\n"
+        report += "| Type | Severity | Description |\n"
+        report += "|------|----------|-------------|\n"
         for issue in issues:
-            report += f"| {issue['type']} | {issue['severity']} | {issue['description']} |\\n"
+            report += f"| {issue['type']} | {issue['severity']} | {issue['description']} |\n"
     else:
-        report += "No obvious type issues detected in pseudocode.\\n"
+        report += "No obvious type issues detected in pseudocode.\n"
 
     report += f"""
 
 ### Decompiled Code
 
 ```c
-{pseudocode[:1500] if pseudocode else '(Decompilation not available)'}
+{pseudocode[:1500] if pseudocode else "(Decompilation not available)"}
 {"..." if len(pseudocode) > 1500 else ""}
 ```
 
@@ -745,11 +770,11 @@ For this function, manually check:
 """
 
     if issues:
-        report += "**⚠️ TYPE ISSUES DETECTED**\\n\\n"
-        report += "Manual review recommended for listed issues.\\n"
+        report += "**⚠️ TYPE ISSUES DETECTED**\n\n"
+        report += "Manual review recommended for listed issues.\n"
     else:
-        report += "**✓ NO OBVIOUS TYPE ISSUES**\\n\\n"
-        report += "Still recommend manual review of type usage.\\n"
+        report += "**✓ NO OBVIOUS TYPE ISSUES**\n\n"
+        report += "Still recommend manual review of type usage.\n"
 
     return report
 

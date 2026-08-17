@@ -53,7 +53,7 @@ def get_ssl_bypass(
 
     techniques = get_bypass_techniques(frameworks)
 
-    report = f"## SSL Pinning Bypass Techniques\n\n"
+    report = "## SSL Pinning Bypass Techniques\n\n"
     report += f"**Target Frameworks:** {', '.join(frameworks)}\n\n"
 
     if techniques["frida"]:

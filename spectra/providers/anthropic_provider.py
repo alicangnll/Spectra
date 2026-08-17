@@ -105,8 +105,8 @@ class AnthropicProvider(LLMProvider):
         api_key: str = "",
         api_base: str = "",
         model: str = "claude-sonnet-4-20250514",
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         if api_key:
             token, self._auth_type = resolve_anthropic_auth(api_key)
         else:
@@ -116,7 +116,7 @@ class AnthropicProvider(LLMProvider):
             token, self._auth_type = resolve_auth_cached()
         super().__init__(api_key=token, api_base=api_base, model=model)
 
-    def _get_client(self):
+    def _get_client(self) -> Any:
         if self._client is None:
             try:
                 anthropic = importlib.import_module("anthropic")
@@ -139,6 +139,7 @@ class AnthropicProvider(LLMProvider):
             # Increased timeout for large responses when analyzing many files
             # Use environment variable SPECTRA_API_TIMEOUT to override (in seconds)
             import os
+
             timeout = float(os.environ.get("SPECTRA_API_TIMEOUT", "600"))
             kwargs["timeout"] = timeout  # Default 10min (was 2min)
             if self._auth_type == "oauth":
@@ -209,6 +210,24 @@ class AnthropicProvider(LLMProvider):
     @staticmethod
     def _builtin_models() -> list[ModelInfo]:
         return [
+            ModelInfo(
+                "claude-sonnet-5",
+                "Claude Sonnet 5",
+                "anthropic",
+                1000000,
+                64000,
+                True,
+                True,
+            ),
+            ModelInfo(
+                "claude-opus-5",
+                "Claude Opus 5",
+                "anthropic",
+                200000,
+                32000,
+                True,
+                True,
+            ),
             ModelInfo(
                 "claude-sonnet-4-6",
                 "Claude Sonnet 4.6",
@@ -315,7 +334,7 @@ class AnthropicProvider(LLMProvider):
             )
         return anthropic_tools
 
-    def _normalize_response(self, response) -> Message:
+    def _normalize_response(self, response: Any) -> Message:
         """Convert Anthropic response to internal Message."""
         content_text = ""
         tool_calls = []

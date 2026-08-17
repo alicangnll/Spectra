@@ -8,6 +8,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from tests.mocks.ida_mock import install_ida_mocks
+
 install_ida_mocks()
 
 from spectra.agent.turn import TurnEvent, TurnEventType
@@ -86,7 +87,10 @@ class TestTurnEventFactories(unittest.TestCase):
 
     def test_exploration_finding(self):
         e = TurnEvent.exploration_finding(
-            "function_purpose", "Main entry point", address=0x401000, relevance="high",
+            "function_purpose",
+            "Main entry point",
+            address=0x401000,
+            relevance="high",
         )
         self.assertEqual(e.type, TurnEventType.EXPLORATION_FINDING)
         self.assertEqual(e.text, "Main entry point")
@@ -112,7 +116,9 @@ class TestTurnEventFactories(unittest.TestCase):
 
     def test_save_approval_request(self):
         e = TurnEvent.save_approval_request(
-            patch_count=3, total_bytes=12, all_verified=True,
+            patch_count=3,
+            total_bytes=12,
+            all_verified=True,
             patches_detail=[{"address": "0x1000", "description": "test"}],
         )
         self.assertEqual(e.type, TurnEventType.SAVE_APPROVAL_REQUEST)
@@ -169,15 +175,29 @@ class TestTurnEventTypeEnum(unittest.TestCase):
 
     def test_all_event_types_present(self):
         expected = {
-            "text_delta", "text_done",
-            "tool_call_start", "tool_call_args_delta", "tool_call_done",
-            "tool_result", "turn_start", "turn_end",
-            "error", "cancelled", "usage_update", "user_question",
-            "plan_generated", "plan_step_start", "plan_step_done",
+            "text_delta",
+            "text_done",
+            "tool_call_start",
+            "tool_call_args_delta",
+            "tool_call_done",
+            "tool_result",
+            "turn_start",
+            "turn_end",
+            "error",
+            "cancelled",
+            "usage_update",
+            "user_question",
+            "plan_generated",
+            "plan_step_start",
+            "plan_step_done",
             "tool_approval_request",
-            "exploration_phase_change", "exploration_finding",
-            "patch_applied", "patch_verified",
-            "save_approval_request", "save_completed", "save_discarded",
+            "exploration_phase_change",
+            "exploration_finding",
+            "patch_applied",
+            "patch_verified",
+            "save_approval_request",
+            "save_completed",
+            "save_discarded",
             "mutation_recorded",
         }
         actual = {e.value for e in TurnEventType}

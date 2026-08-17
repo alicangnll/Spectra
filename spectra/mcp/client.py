@@ -123,7 +123,7 @@ class MCPClient:
             command=self.config.command,
             args=self.config.args,
             env=self.config.env if self.config.env else {},
-            timeout=timeout
+            timeout=timeout,
         )
 
         if not is_allowed:

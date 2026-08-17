@@ -147,7 +147,7 @@ class FunctionNamer:
         r"key": "key",
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._custom_patterns: dict[str, FunctionPattern] = {}
 
     def add_custom_pattern(self, pattern: str, func_type: FunctionPattern) -> None:

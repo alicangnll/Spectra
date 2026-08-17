@@ -88,17 +88,58 @@ These are automatically discovered from Codex configuration:
 
 ## 3. Adding MCP Servers
 
-### 3.1 Accessing MCP Settings
+### 3.1 Meet the Prerequisites First
 
-1. **Open Spectra** in IDA Pro or Binary Ninja
-2. Click the **⚙ Settings** button
-3. Navigate to the **MCP** tab
+Before adding MCP servers, make sure the following tools are installed:
 
-### 3.2 Adding a Spectra MCP Server
+#### For Node.js-based Servers:
 
-#### Step 1: Click "+ Add Server"
+```bash
+# Check that Node.js is installed
+node --version
+npm --version
 
-You'll see the MCP server category selection dialog:
+# If Node.js is not installed:
+# macOS (Homebrew):
+brew install node
+
+# Linux (Ubuntu/Debian):
+sudo apt update && sudo apt install nodejs npm
+
+# Windows:
+# Download it from https://nodejs.org/en/download/
+```
+
+#### For Python-based Servers:
+
+```bash
+# Check that Python is installed
+python --version
+pip --version
+
+# If Python is not installed:
+# macOS:
+brew install python3
+
+# Linux:
+sudo apt install python3 python3-pip
+
+# Windows:
+# Download it from https://www.python.org/downloads/
+```
+
+### 3.2 Accessing MCP Settings
+
+1. **Open IDA Pro** and load a file
+2. Position the Spectra panel so that it is visible
+3. Click the **⚙ Settings** button at the bottom of the panel
+4. In the **Spectra Settings** window that opens, click the **MCP** tab
+
+### 3.3 Adding a Spectra MCP Server - Step by Step
+
+#### Step 1: Click the "+ Add Server" Button
+
+The MCP server category selection dialog will appear:
 
 ```
 ┌─────────────────────────────────────────┐
@@ -123,9 +164,9 @@ You'll see the MCP server category selection dialog:
 └─────────────────────────────────────────┘
 ```
 
-#### Step 2: Select "Spectra MCP Servers"
+#### Step 2: Select "Spectra MCP Servers" and Click "Next"
 
-#### Step 3: Fill in Server Details
+#### Step 3: Fill in the Server Details
 
 The MCP Server configuration dialog will appear:
 
@@ -143,15 +184,172 @@ The MCP Server configuration dialog will appear:
 └─────────────────────────────────────────┘
 ```
 
-#### Step 4: Configure Server Parameters
+#### Step 4: Fill in the Fields
 
-| Field | Description | Example |
-|-------|-------------|---------|
-| **Server Name** | Unique identifier for the server | `filesystem`, `postgres`, `web-scraper` |
-| **Command** | Executable command to start the server | `npx`, `uvx`, `python`, `/path/to/server` |
-| **Arguments** | Command-line arguments for the server | `-y @modelcontextprotocol/server-filesystem` |
-| **Environment** | Optional environment variables (KEY=value format) | `ALLOWED_PATHS=/tmp,/home/user/projects` |
-| **Timeout** | Seconds to wait for server response | `30.0` |
+What each field means and how it is used:
+
+| Field | Description | Example | Required |
+|------|----------|-------|---------|
+| **Server Name** | Unique identifier for the server | `filesystem`, `postgres-db` | ✅ Yes |
+| **Command** | The executable that starts the server | `npx`, `uvx`, `python3` | ✅ Yes |
+| **Arguments** | Command-line arguments | `-y @modelcontextprotocol/server-filesystem` | ❌ No |
+| **Environment Variables** | Variables in KEY=value format | `ALLOWED_PATHS=/tmp,/home/user` | ❌ No |
+| **Timeout** | How long to wait for the server, in seconds | `30.0` | ❌ No (default: 30) |
+
+#### Step 5: Click the "Add" Button
+
+The server will be added to the **Spectra MCP Servers** list.
+
+### 3.4 Popular MCP Servers - Installation Examples
+
+#### Example 1: Filesystem Server (Most Popular)
+
+**What it does:** Lets Spectra read from and write to the file system
+
+**Setup:**
+
+| Field | Value |
+|------|-------|
+| **Server Name** | `filesystem` |
+| **Command** | `npx` |
+| **Arguments** | `-y @modelcontextprotocol/server-filesystem` |
+| **Environment Variables** | `ALLOWED_PATHS=/tmp,/home/user/Documents,/Users/user/Desktop` |
+| **Timeout** | `30` |
+
+**Alternative Setup (Python-based):**
+
+```bash
+# First install the Python server
+pip install mcp-server-filesystem
+
+# Then configure it in Spectra as follows:
+# Command: python3
+# Arguments: -m mcp_server_filesystem
+# Environment: ALLOWED_PATHS=/tmp,/home/user
+```
+
+#### Example 2: PostgreSQL Database Server
+
+**What it does:** Lets Spectra query PostgreSQL databases
+
+**Install First:**
+
+```bash
+# Install the Python server
+pip install mcp-server-postgres
+```
+
+**Spectra Configuration:**
+
+| Field | Value |
+|------|-------|
+| **Server Name** | `postgres-prod` |
+| **Command** | `uvx` |
+| **Arguments** | `--from mcp-server-postgres mcp_server_postgres.server` |
+| **Environment Variables** | `POSTGRES_CONNECTION_STRING=postgresql://user:pass@localhost:5432/dbname` |
+| **Timeout** | `45` |
+
+#### Example 3: GitHub Integration Server
+
+**What it does:** Lets Spectra read and analyze GitHub repositories
+
+**Spectra Configuration:**
+
+| Field | Value |
+|------|-------|
+| **Server Name** | `github-repos` |
+| **Command** | `npx` |
+| **Arguments** | `-y @modelcontextprotocol/server-github` |
+| **Environment Variables** | `GITHUB_TOKEN=ghp_your_token_here` |
+| **Timeout** | `60` |
+
+**Note:** To get a GitHub token:
+1. GitHub.com → Settings → Developer settings → Personal access tokens
+2. Select "Generate new token (classic)"
+3. Grant the `repo` and `read:org` permissions
+
+#### Example 4: SQLite Database Server
+
+**What it does:** Lets Spectra query SQLite databases
+
+**Install First:**
+
+```bash
+pip install mcp-server-sqlite
+```
+
+**Spectra Configuration:**
+
+| Field | Value |
+|------|-------|
+| **Server Name** | `sqlite-local` |
+| **Command** | `python3` |
+| **Arguments** | `-m mcp_server_sqlite` |
+| **Environment Variables** | `SQLITE_DB_PATH=/path/to/database.db` |
+| **Timeout** | `30` |
+
+#### Example 5: Web Search Server (Brave Search)
+
+**What it does:** Lets Spectra search the web for information
+
+**Install First:**
+
+```bash
+# Get a Brave Search API key
+# https://api.search.brave.com/app/keys
+```
+
+**Spectra Configuration:**
+
+| Field | Value |
+|------|-------|
+| **Server Name** | `brave-search` |
+| **Command** | `npx` |
+| **Arguments** | `-y @modelcontextprotocol/server-brave-search` |
+| **Environment Variables** | `BRAVE_API_KEY=your_brave_api_key_here` |
+| **Timeout** | `30` |
+
+### 3.5 Community MCP Servers
+
+Popular community servers and their use cases:
+
+| Server | Platform | Installation | Use Case |
+|--------|----------|---------|----------|
+| **mcp-server-sqlite** | Python | `pip install mcp-server-sqlite` | SQLite database queries |
+| **mcp-server-kubernetes** | Python | `pip install mcp-server-kubernetes` | Kubernetes cluster management |
+| **mcp-server-aws** | Python | `pip install mcp-server-aws` | AWS service integration |
+| **mcp-server-git** | Node.js | `npm install -g mcp-server-git` | Git repository operations |
+| **mcp-server-puppeteer** | Node.js | `npx @modelcontextprotocol/server-puppeteer` | Web automation |
+
+### 3.6 Custom MCP Servers
+
+If you want to write your own MCP server:
+
+```python
+# my_mcp_server.py
+import mcp.server import Server
+
+server = Server("my-custom-server")
+
+@server.tool()
+def analyze_binary(file_path: str) -> str:
+    """Analyzes the binary file"""
+    # Your analysis code
+    return "Analysis result"
+
+if __name__ == "__main__":
+    server.run()
+```
+
+**Configuration in Spectra:**
+
+| Field | Value |
+|------|-------|
+| **Server Name** | `my-custom` |
+| **Command** | `python3` |
+| **Arguments** | `/path/to/my_mcp_server.py` |
+| **Environment Variables** | (if needed) |
+| **Timeout** | `30` |
 
 ---
 

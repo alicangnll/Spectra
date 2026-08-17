@@ -11,11 +11,10 @@ from __future__ import annotations
 
 import os
 import re
-import subprocess
 from typing import Any
 
+from ..core.logging import log_debug, log_info
 from ..core.tool_infrastructure import ExternalTool, ToolSafety
-from ..core.logging import log_debug, log_error, log_info
 from ..tools.base import ParameterSchema, ToolDefinition
 
 
@@ -68,7 +67,10 @@ def _ensure_honggfuzz() -> str:
 # Tool Functions
 # ============================================================================
 
-def honggfuzz_run(target: str, input_dir: str, output_dir: str, args: str = "", duration: int = 3600, threads: int = 1) -> str:
+
+def honggfuzz_run(
+    target: str, input_dir: str, output_dir: str, args: str = "", duration: int = 3600, threads: int = 1
+) -> str:
     """Run Honggfuzz on target.
 
     Args:
@@ -100,11 +102,16 @@ def honggfuzz_run(target: str, input_dir: str, output_dir: str, args: str = "", 
     # Build Honggfuzz command
     cmd = [
         hfuzz_path,
-        "--input", input_dir,
-        "--output", output_dir,
-        "--iterations", "0",  # Run indefinitely
-        "--threads", str(threads),
-        "--timeout", "1000",  # Per-input timeout
+        "--input",
+        input_dir,
+        "--output",
+        output_dir,
+        "--iterations",
+        "0",  # Run indefinitely
+        "--threads",
+        str(threads),
+        "--timeout",
+        "1000",  # Per-input timeout
         "--verbose",
     ]
 
@@ -166,7 +173,7 @@ def honggfuzz_crashes(output_dir: str) -> str:
     if os.path.isfile(stats_file):
         output.append("\n=== Fuzzer Stats ===")
         try:
-            with open(stats_file, 'r') as f:
+            with open(stats_file) as f:
                 output.append(f.read()[:500])
         except Exception:
             pass
@@ -185,7 +192,7 @@ def honggfuzz_cov(target: str, input_dir: str, args: str = "") -> str:
     Returns:
         Coverage information
     """
-    hfuzz_path = _ensure_honggfuzz()
+    _hfuzz_path = _ensure_honggfuzz()
 
     if not os.path.isfile(target):
         return f"Error: Target not found: {target}"
@@ -233,8 +240,10 @@ def honggfuzz_minimize(target: str, input_dir: str, output_dir: str) -> str:
 
     cmd = [
         hfuzz_path,
-        "--input", input_dir,
-        "--output", output_dir,
+        "--input",
+        input_dir,
+        "--output",
+        output_dir,
         "--minimize",
         target,
     ]
@@ -272,8 +281,10 @@ def honggfuzz_dict(target: str, input_dir: str, dict_file: str, output_dir: str 
 
     cmd = [
         hfuzz_path,
-        "--input", input_dir,
-        "--dict", dict_file,
+        "--input",
+        input_dir,
+        "--dict",
+        dict_file,
     ]
 
     if output_dir:
@@ -288,7 +299,7 @@ def honggfuzz_dict(target: str, input_dir: str, dict_file: str, output_dir: str 
         "Dictionary format (one entry per line):",
         "  keyword1",
         "  keyword2",
-        "  \"string with spaces\"",
+        '  "string with spaces"',
         "",
         "Run this command in a terminal.",
     ]
@@ -317,10 +328,13 @@ def honggfuzz_persistent(target: str, input_dir: str, output_dir: str, persisten
 
     cmd = [
         hfuzz_path,
-        "--input", input_dir,
-        "--output", output_dir,
+        "--input",
+        input_dir,
+        "--output",
+        output_dir,
         "--persistent",
-        "--persistent_addr", persistent_addr,
+        "--persistent_addr",
+        persistent_addr,
         target,
     ]
 
@@ -346,6 +360,7 @@ def honggfuzz_persistent(target: str, input_dir: str, output_dir: str, persisten
 # Tool Definitions
 # ============================================================================
 
+
 def create_honggfuzz_tools() -> list[ToolDefinition]:
     """Create Honggfuzz tool definitions.
 
@@ -359,25 +374,45 @@ def create_honggfuzz_tools() -> list[ToolDefinition]:
             category="fuzzing",
             parameters=[
                 ParameterSchema(name="target", type="string", description="Target binary path", required=True),
-                ParameterSchema(name="input_dir", type="string", description="Input directory with corpus", required=True),
-                ParameterSchema(name="output_dir", type="string", description="Output directory for results", required=True),
-                ParameterSchema(name="args", type="string", description="Target arguments (use @@FILE for input)", required=False, default=""),
-                ParameterSchema(name="duration", type="integer", description="Fuzzing duration in seconds", required=False, default=3600),
-                ParameterSchema(name="threads", type="integer", description="Number of threads", required=False, default=1),
+                ParameterSchema(
+                    name="input_dir", type="string", description="Input directory with corpus", required=True
+                ),
+                ParameterSchema(
+                    name="output_dir", type="string", description="Output directory for results", required=True
+                ),
+                ParameterSchema(
+                    name="args",
+                    type="string",
+                    description="Target arguments (use @@FILE for input)",
+                    required=False,
+                    default="",
+                ),
+                ParameterSchema(
+                    name="duration",
+                    type="integer",
+                    description="Fuzzing duration in seconds",
+                    required=False,
+                    default=3600,
+                ),
+                ParameterSchema(
+                    name="threads", type="integer", description="Number of threads", required=False, default=1
+                ),
             ],
-            handler=lambda target, input_dir, output_dir, args="", duration=3600, threads=1, **kwargs: honggfuzz_run(target, input_dir, output_dir, args, duration, threads),
+            handler=lambda target, input_dir, output_dir, args="", duration=3600, threads=1, **kwargs: honggfuzz_run(
+                target, input_dir, output_dir, args, duration, threads
+            ),
         ),
-
         ToolDefinition(
             name="honggfuzz_crashes",
             description="Get crash information from Honggfuzz output",
             category="fuzzing",
             parameters=[
-                ParameterSchema(name="output_dir", type="string", description="Honggfuzz output directory", required=True),
+                ParameterSchema(
+                    name="output_dir", type="string", description="Honggfuzz output directory", required=True
+                ),
             ],
             handler=lambda output_dir, **kwargs: honggfuzz_crashes(output_dir),
         ),
-
         ToolDefinition(
             name="honggfuzz_cov",
             description="Check code coverage information",
@@ -389,7 +424,6 @@ def create_honggfuzz_tools() -> list[ToolDefinition]:
             ],
             handler=lambda target, input_dir, args="", **kwargs: honggfuzz_cov(target, input_dir, args),
         ),
-
         ToolDefinition(
             name="honggfuzz_minimize",
             description="Minimize corpus",
@@ -397,11 +431,12 @@ def create_honggfuzz_tools() -> list[ToolDefinition]:
             parameters=[
                 ParameterSchema(name="target", type="string", description="Target binary", required=True),
                 ParameterSchema(name="input_dir", type="string", description="Input corpus directory", required=True),
-                ParameterSchema(name="output_dir", type="string", description="Output directory for minimized corpus", required=True),
+                ParameterSchema(
+                    name="output_dir", type="string", description="Output directory for minimized corpus", required=True
+                ),
             ],
             handler=lambda target, input_dir, output_dir, **kwargs: honggfuzz_minimize(target, input_dir, output_dir),
         ),
-
         ToolDefinition(
             name="honggfuzz_dict",
             description="Run fuzzer with dictionary",
@@ -410,11 +445,18 @@ def create_honggfuzz_tools() -> list[ToolDefinition]:
                 ParameterSchema(name="target", type="string", description="Target binary", required=True),
                 ParameterSchema(name="input_dir", type="string", description="Input corpus directory", required=True),
                 ParameterSchema(name="dict_file", type="string", description="Dictionary file path", required=True),
-                ParameterSchema(name="output_dir", type="string", description="Optional output directory", required=False, default=""),
+                ParameterSchema(
+                    name="output_dir",
+                    type="string",
+                    description="Optional output directory",
+                    required=False,
+                    default="",
+                ),
             ],
-            handler=lambda target, input_dir, dict_file, output_dir="", **kwargs: honggfuzz_dict(target, input_dir, dict_file, output_dir),
+            handler=lambda target, input_dir, dict_file, output_dir="", **kwargs: honggfuzz_dict(
+                target, input_dir, dict_file, output_dir
+            ),
         ),
-
         ToolDefinition(
             name="honggfuzz_persistent",
             description="Run in persistent mode",
@@ -423,9 +465,16 @@ def create_honggfuzz_tools() -> list[ToolDefinition]:
                 ParameterSchema(name="target", type="string", description="Target binary", required=True),
                 ParameterSchema(name="input_dir", type="string", description="Input corpus directory", required=True),
                 ParameterSchema(name="output_dir", type="string", description="Output directory", required=True),
-                ParameterSchema(name="persistent_addr", type="string", description="Persistent function address (hex)", required=True),
+                ParameterSchema(
+                    name="persistent_addr",
+                    type="string",
+                    description="Persistent function address (hex)",
+                    required=True,
+                ),
             ],
-            handler=lambda target, input_dir, output_dir, persistent_addr, **kwargs: honggfuzz_persistent(target, input_dir, output_dir, persistent_addr),
+            handler=lambda target, input_dir, output_dir, persistent_addr, **kwargs: honggfuzz_persistent(
+                target, input_dir, output_dir, persistent_addr
+            ),
         ),
     ]
 

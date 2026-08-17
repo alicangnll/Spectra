@@ -5,24 +5,23 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ...core.config import SpectraConfig
-from ...core.logging import log_debug, log_warn, log_error
+from ...core.logging import log_debug, log_warn
 from ...mcp.config import MCPServerConfig
-from ...mcp.security import MCPSecurityValidator, get_security_validator
+from ...mcp.security import get_security_validator
 from ..qt_compat import (
     QCheckBox,
+    QDialog,
+    QDoubleSpinBox,
+    QFormLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QPushButton,
     QScrollArea,
     QVBoxLayout,
     QWidget,
-    QDialog,
-    QFormLayout,
-    QMessageBox,
-    QSpinBox,
-    QDoubleSpinBox,
 )
 
 if TYPE_CHECKING:
@@ -206,7 +205,7 @@ class MCPTab(QWidget):
                         QMessageBox.warning(
                             self,
                             "Duplicate Name",
-                            f"An MCP server named '{server_data['name']}' already exists in Spectra."
+                            f"An MCP server named '{server_data['name']}' already exists in Spectra.",
                         )
                         return
 
@@ -232,7 +231,7 @@ class MCPTab(QWidget):
                         "Not Implemented",
                         f"Adding MCP servers to {category.upper()} is not yet supported.\n"
                         "Currently, you can only add servers to Spectra MCP Servers.\n\n"
-                        f"External MCP servers from {category.capitalize()} are auto-detected."
+                        f"External MCP servers from {category.capitalize()} are auto-detected.",
                     )
 
     def _refresh_spectra_group(self) -> None:
@@ -281,11 +280,11 @@ class AddMCPServerDialog(QDialog):
         form.addRow("Command:", self._command_edit)
 
         self._args_edit = QLineEdit()
-        self._args_edit.setPlaceholderText('e.g., -y @modelcontextprotocol/server-filesystem')
+        self._args_edit.setPlaceholderText("e.g., -y @modelcontextprotocol/server-filesystem")
         form.addRow("Arguments:", self._args_edit)
 
         self._env_edit = QLineEdit()
-        self._env_edit.setPlaceholderText('e.g., KEY1=value1,KEY2=value2')
+        self._env_edit.setPlaceholderText("e.g., KEY1=value1,KEY2=value2")
         form.addRow("Environment:", self._env_edit)
 
         self._timeout_spin = QDoubleSpinBox()
@@ -332,19 +331,22 @@ class AddMCPServerDialog(QDialog):
         args_text = self._args_edit.text().strip()
         if args_text:
             import shlex
+
             try:
                 args = shlex.split(args_text)
             except ValueError:
-                QMessageBox.warning(self, "Invalid Arguments", "Arguments could not be parsed. Use quotes for arguments with spaces.")
+                QMessageBox.warning(
+                    self, "Invalid Arguments", "Arguments could not be parsed. Use quotes for arguments with spaces."
+                )
                 return None
 
         # Parse environment variables
         env = {}
         env_text = self._env_edit.text().strip()
         if env_text:
-            for pair in env_text.split(','):
-                if '=' in pair:
-                    key, value = pair.split('=', 1)
+            for pair in env_text.split(","):
+                if "=" in pair:
+                    key, value = pair.split("=", 1)
                     env[key.strip()] = value.strip()
                 else:
                     QMessageBox.warning(self, "Invalid Environment", f"Invalid environment variable format: {pair}")
@@ -353,11 +355,7 @@ class AddMCPServerDialog(QDialog):
         # SECURITY VALIDATION - Check the command and arguments for security issues
         validator = get_security_validator(strict_mode=True)
         is_allowed, warnings = validator.validate_server_config(
-            name=name,
-            command=command,
-            args=args,
-            env=env,
-            timeout=self._timeout_spin.value()
+            name=name, command=command, args=args, env=env, timeout=self._timeout_spin.value()
         )
 
         # Build security warning message
@@ -424,7 +422,7 @@ class MCPCategoryDialog(QDialog):
         layout.addSpacing(10)
 
         # Category options
-        from ..qt_compat import QRadioButton, QButtonGroup
+        from ..qt_compat import QButtonGroup, QRadioButton
 
         self._button_group = QButtonGroup(self)
         self._radio_buttons = {}
@@ -478,4 +476,3 @@ class MCPCategoryDialog(QDialog):
             if radio.isChecked():
                 return value
         return "spectra"  # Default fallback
-

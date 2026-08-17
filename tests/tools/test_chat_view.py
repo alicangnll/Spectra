@@ -8,6 +8,7 @@ import unittest
 from unittest.mock import MagicMock
 
 from tests.qt_stubs import ensure_pyside6_stubs
+
 ensure_pyside6_stubs()
 
 # Stub all heavy submodules that chat_view imports.
@@ -20,8 +21,11 @@ for _mod_name in [
     _stub = types.ModuleType(_mod_name)
     # Add commonly-needed attrs
     for _attr in [
-        "PlanView", "TurnEvent",
-        "TurnEventType", "Message", "Role",
+        "PlanView",
+        "TurnEvent",
+        "TurnEventType",
+        "Message",
+        "Role",
     ]:
         setattr(_stub, _attr, MagicMock())
     sys.modules[_mod_name] = _stub
@@ -35,13 +39,13 @@ for _mod_name in [
 ]:
     sys.modules.pop(_mod_name, None)
 
-from spectra.ui.chat_view import _is_hidden_system_user_message, _TOOL_GROUP_MIN_CALLS  # noqa: E402
-from spectra.ui.bulk_renamer import BulkRenamerWidget  # noqa: E402
-
+from spectra.ui.bulk_renamer import BulkRenamerWidget
+from spectra.ui.chat_view import _TOOL_GROUP_MIN_CALLS, _is_hidden_system_user_message
 
 # ---------------------------------------------------------------------------
 # _is_hidden_system_user_message
 # ---------------------------------------------------------------------------
+
 
 class TestIsHiddenSystemUserMessage(unittest.TestCase):
     def test_empty_string_returns_false(self):
@@ -72,6 +76,7 @@ class TestIsHiddenSystemUserMessage(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
+
 
 class TestChatViewConstants(unittest.TestCase):
     def test_tool_group_min_calls_is_positive(self):

@@ -7,22 +7,23 @@ and code explanation capabilities using embedding-based analysis.
 from __future__ import annotations
 
 import re
-from collections import defaultdict
 from typing import Any
 
 # Try to import IDA API
 try:
-    import idaapi
-    import idc
-    import idautils
     import ida_xref
+    import idaapi
+    import idautils
+    import idc
+
     IDA_AVAILABLE = True
 except ImportError:
     IDA_AVAILABLE = False
 
 # Try to import Binary Ninja API
 try:
-    import binaryninja
+    import binaryninja  # noqa: F401 — availability probe
+
     BINJA_AVAILABLE = True
 except ImportError:
     BINJA_AVAILABLE = False
@@ -46,7 +47,6 @@ ALGORITHM_SIGNATURES = {
         "keywords": ["merge", "divide", "conquer"],
         "complexity": "O(n log n)",
     },
-
     # Hash functions
     "md5": {
         "patterns": [r"MD5", r"md5", r"0x67452301"],
@@ -68,7 +68,6 @@ ALGORITHM_SIGNATURES = {
         "keywords": ["crc32", "0xedb88320"],
         "complexity": "O(n)",
     },
-
     # Encryption
     "aes": {
         "patterns": [r"AES", r"aes", r"Rijndael", r"sbox", r"mixcolumns"],
@@ -85,7 +84,6 @@ ALGORITHM_SIGNATURES = {
         "keywords": ["xor", "obfuscate"],
         "complexity": "O(n)",
     },
-
     # Compression
     "gzip": {
         "patterns": [r"gzip", r"deflate", r"0x1f8b"],
@@ -102,7 +100,6 @@ ALGORITHM_SIGNATURES = {
         "keywords": ["zlib", "adler", "deflate"],
         "complexity": "O(n)",
     },
-
     # Data structures
     "linked_list": {
         "patterns": [r"next.*ptr", r"->next", r"\.next", r"head.*node"],
@@ -204,8 +201,10 @@ def _get_disasm_text(ea: int) -> str:
         op1 = idaapi.print_operand(ea, 0)
         op2 = idaapi.print_operand(ea, 1)
         result = mnem
-        if op1: result += f" {op1}"
-        if op2: result += f", {op2}"
+        if op1:
+            result += f" {op1}"
+        if op2:
+            result += f", {op2}"
         return result
     except Exception:
         return f"loc_{ea:x}"
@@ -255,7 +254,7 @@ def _extract_function_features_ida(func_ea: int) -> dict[str, Any]:
         # Fallback
         func = idaapi.get_func(func_ea)
         func_end = func.end_ea if func else func_ea
-        for instr_ea in idautils.Heads(func_ea, func_end):
+        for _instr_ea in idautils.Heads(func_ea, func_end):
             instr_count += 1
 
     # Get imports used by function
@@ -265,7 +264,7 @@ def _extract_function_features_ida(func_ea: int) -> dict[str, Any]:
         # Check for call xrefs (XREF_FAR = 0x2 in IDA 9.x)
         # Note: XREF_NEAR may not exist, use getattr or numeric value
         xref_far = ida_xref.XREF_FAR
-        xref_near = getattr(ida_xref, 'XREF_NEAR', 4)  # Fallback to numeric value
+        xref_near = getattr(ida_xref, "XREF_NEAR", 4)  # Fallback to numeric value
         if xref.type in (xref_far, xref_near):
             # Check if called function is import
             for imp_xref in idautils.XrefsFrom(xref.frm):
@@ -280,6 +279,7 @@ def _extract_function_features_ida(func_ea: int) -> dict[str, Any]:
     func_text = ""
     try:
         import ida_hexrays
+
         if ida_hexrays.init_hexrays_plugin():
             cfunc = ida_hexrays.decompile(func_ea)
             if cfunc:
@@ -388,11 +388,13 @@ def _semantic_search_ida(query: str, limit: int = 10) -> list[dict[str, Any]]:
 
         # Add to results if score > 0
         if score > 0:
-            results.append({
-                "function": features,
-                "score": score,
-                "reason": _get_match_reason(query, features),
-            })
+            results.append(
+                {
+                    "function": features,
+                    "score": score,
+                    "reason": _get_match_reason(query, features),
+                }
+            )
 
     # Sort by score and return top results
     results.sort(key=lambda x: x["score"], reverse=True)
@@ -417,10 +419,10 @@ def _get_match_reason(query: str, features: dict[str, Any]) -> str:
 
     matching_strings = [s for s in features["strings"] if any(kw in s.lower() for kw in query_lower.split())]
     if matching_strings:
-        reasons.append(f"strings match")
+        reasons.append("strings match")
 
     if features["name"] and any(kw in features["name"].lower() for kw in query_lower.split()):
-        reasons.append(f"name match")
+        reasons.append("name match")
 
     return "; ".join(reasons) if reasons else "semantic similarity"
 
@@ -443,7 +445,10 @@ def _find_similar_functions_ida(func_ea: int, limit: int = 10) -> list[dict[str,
         similarity = 0
 
         # Algorithm match
-        if target_features["detected_algorithm"] and target_features["detected_algorithm"] == other_features["detected_algorithm"]:
+        if (
+            target_features["detected_algorithm"]
+            and target_features["detected_algorithm"] == other_features["detected_algorithm"]
+        ):
             similarity += 30
 
         # Category match
@@ -471,10 +476,12 @@ def _find_similar_functions_ida(func_ea: int, limit: int = 10) -> list[dict[str,
 
         # Add to results if similarity > 0
         if similarity > 10:
-            results.append({
-                "function": other_features,
-                "similarity": similarity,
-            })
+            results.append(
+                {
+                    "function": other_features,
+                    "similarity": similarity,
+                }
+            )
 
     results.sort(key=lambda x: x["similarity"], reverse=True)
     return results[:limit]
@@ -502,31 +509,31 @@ def _generate_function_documentation(func_ea: int) -> str:
             doc_lines.append(f"**Complexity:** {algo_info['complexity']}\n")
 
     # Size metrics
-    doc_lines.append(f"\n### Metrics\n")
+    doc_lines.append("\n### Metrics\n")
     doc_lines.append(f"- **Instructions:** {features['instruction_count']}\n")
     doc_lines.append(f"- **Basic Blocks:** {features['basic_blocks']}\n")
     doc_lines.append(f"- **Calls:** {len(features['calls'])} functions\n")
 
     # Calls
     if features["calls"]:
-        doc_lines.append(f"\n### Function Calls\n")
+        doc_lines.append("\n### Function Calls\n")
         for call in features["calls"][:10]:
             doc_lines.append(f"- `{call}`\n")
 
     # Imports
     if features["imports"]:
-        doc_lines.append(f"\n### External APIs Used\n")
+        doc_lines.append("\n### External APIs Used\n")
         for imp in features["imports"][:15]:
             doc_lines.append(f"- `{imp}`\n")
 
     # Strings
     if features["strings"]:
-        doc_lines.append(f"\n### Referenced Strings\n")
+        doc_lines.append("\n### Referenced Strings\n")
         for string in features["strings"][:5]:
             doc_lines.append(f"- `{string[:80]}`\n")
 
     # Behavior summary
-    doc_lines.append(f"\n### Behavior Summary\n")
+    doc_lines.append("\n### Behavior Summary\n")
 
     summary_parts = []
 
@@ -548,7 +555,9 @@ def _generate_function_documentation(func_ea: int) -> str:
         summary_parts.append(f"Implements {features['detected_algorithm'].replace('_', ' ')} algorithm")
 
     if features["imports"]:
-        high_level_apis = [imp for imp in features["imports"] if any(kw in imp for kw in ["Create", "Open", "Connect", "Send", "Recv"])]
+        high_level_apis = [
+            imp for imp in features["imports"] if any(kw in imp for kw in ["Create", "Open", "Connect", "Send", "Recv"])
+        ]
         if high_level_apis:
             summary_parts.append(f"Uses high-level APIs: {', '.join(high_level_apis[:3])}")
 
@@ -558,7 +567,7 @@ def _generate_function_documentation(func_ea: int) -> str:
         doc_lines.append(f"Function with {features['instruction_count']} instructions.\n")
 
     # Potential issues
-    doc_lines.append(f"\n### Analysis Notes\n")
+    doc_lines.append("\n### Analysis Notes\n")
 
     if features["instruction_count"] > 500:
         doc_lines.append("- ⚠️ Large function - may benefit from refactoring\n")
@@ -566,7 +575,9 @@ def _generate_function_documentation(func_ea: int) -> str:
     if features["basic_blocks"] > 20:
         doc_lines.append("- ⚠️ High complexity - consider control flow analysis\n")
 
-    unsafe_calls = [call for call in features["calls"] if any(kw in call.lower() for kw in ["strcpy", "sprintf", "gets"])]
+    unsafe_calls = [
+        call for call in features["calls"] if any(kw in call.lower() for kw in ["strcpy", "sprintf", "gets"])
+    ]
     if unsafe_calls:
         doc_lines.append(f"- ⚠️ Uses potentially unsafe functions: {', '.join(unsafe_calls)}\n")
 
@@ -588,7 +599,7 @@ def semantic_search(query: str, limit: int = 10) -> str:
     else:
         return "Error: IDA Pro API not available"
 
-    report_lines = [f"## Semantic Search Results\n"]
+    report_lines = ["## Semantic Search Results\n"]
     report_lines.append(f"**Query:** {query}\n")
     report_lines.append(f"**Results:** {len(results)}\n")
 

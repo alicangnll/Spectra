@@ -10,11 +10,11 @@ from typing import Annotated
 
 from ...tools.base import tool
 from ...tools.novel_hunter import (
+    NovelVulnerabilityHunterCore,
+    VulnerabilityFinding,
     analyze_novel_vulnerabilities,
     check_novelty_indicators,
     generate_exploit_template,
-    NovelVulnerabilityHunterCore,
-    VulnerabilityFinding,
 )
 
 
@@ -93,9 +93,9 @@ def check_function_novelty(
     Returns a novelty score and detailed analysis of indicators found.
     """
     try:
-        import ida_hexrays
         import ida_bytes
         import ida_funcs
+        import ida_hexrays
         import ida_ua
     except ImportError:
         return "Error: IDA API not available"
@@ -126,7 +126,7 @@ def check_function_novelty(
             combined_text = f"# Disassembly\n{disasm_text}\n\n# Pseudocode\n{pseudocode}"
         else:
             combined_text = disasm_text
-    except:
+    except Exception:
         combined_text = disasm_text
 
     # Use the shared checker
@@ -149,7 +149,9 @@ def check_function_novelty(
 
 @tool(category="exploit", description="Generate exploit for vulnerability at current address")
 def generate_exploit_for_address(
-    vuln_type: Annotated[str, "Type of vulnerability (stack_overflow, heap_overflow, use_after_free, command_injection, etc.)"],
+    vuln_type: Annotated[
+        str, "Type of vulnerability (stack_overflow, heap_overflow, use_after_free, command_injection, etc.)"
+    ],
     ea: Annotated[int, "Address of the vulnerability"] = 0,
     description: Annotated[str, "Description of the vulnerability"] = "",
 ) -> str:
@@ -171,9 +173,9 @@ def generate_exploit_for_address(
         Complete, ready-to-use Python exploit code.
     """
     try:
+        import ida_funcs
         import ida_hexrays
         import ida_name
-        import ida_funcs
     except ImportError:
         return "Error: IDA API not available"
 
@@ -208,17 +210,29 @@ def find_custom_allocators() -> str:
         List of potential custom allocator functions with analysis.
     """
     try:
+        import ida_bytes
         import ida_funcs
         import ida_name
-        import ida_bytes
         import ida_ua
     except ImportError:
         return "Error: IDA API not available"
 
     allocator_patterns = [
-        "alloc", "malloc", "calloc", "realloc", "free",
-        "pool", "arena", "region", "bump", "cache",
-        "mem_", "memory", "buffer", "heap", "stack"
+        "alloc",
+        "malloc",
+        "calloc",
+        "realloc",
+        "free",
+        "pool",
+        "arena",
+        "region",
+        "bump",
+        "cache",
+        "mem_",
+        "memory",
+        "buffer",
+        "heap",
+        "stack",
     ]
 
     findings = []
@@ -231,12 +245,14 @@ def find_custom_allocators() -> str:
         if any(pattern in func_name.lower() for pattern in allocator_patterns):
             func = ida_funcs.get_func(ea)
             if func:
-                findings.append({
-                    "address": f"0x{ea:X}",
-                    "name": func_name,
-                    "size": func.end_ea - func.start_ea,
-                    "type": "allocator_candidate"
-                })
+                findings.append(
+                    {
+                        "address": f"0x{ea:X}",
+                        "name": func_name,
+                        "size": func.end_ea - func.start_ea,
+                        "type": "allocator_candidate",
+                    }
+                )
 
     if not findings:
         return "No custom allocator candidates found. The binary likely uses standard library allocators."
@@ -255,7 +271,9 @@ def find_custom_allocators() -> str:
     if len(findings) > 50:
         report += f"| ... | ... and {len(findings) - 50} more | ... |\n"
 
-    report += "\n**Recommendation:** Use `analyze_decompiled_novel_vulns` on each candidate to identify vulnerabilities."
+    report += (
+        "\n**Recommendation:** Use `analyze_decompiled_novel_vulns` on each candidate to identify vulnerabilities."
+    )
 
     return report
 
@@ -277,10 +295,10 @@ def deep_novel_analysis(
     Returns comprehensive analysis with exploit code if applicable.
     """
     try:
-        import ida_hexrays
         import ida_funcs
-        import ida_ua
         import ida_gdl
+        import ida_hexrays
+        import ida_ua
     except ImportError:
         return "Error: IDA API not available"
 
@@ -299,10 +317,7 @@ def deep_novel_analysis(
         return f"Error decompiling: {e}"
 
     # Use the shared analyzer
-    analysis_result = analyze_novel_vulnerabilities(
-        code=pseudocode,
-        focus_area="deep analysis"
-    )
+    analysis_result = analyze_novel_vulnerabilities(code=pseudocode, focus_area="deep analysis")
 
     # Add control flow information
     try:
@@ -314,7 +329,7 @@ def deep_novel_analysis(
 
         # Count instructions
         insn_count = 0
-        for head in ida_heads(func.start_ea, func.end_ea):
+        for _head in ida_heads(func.start_ea, func.end_ea):
             insn_count += 1
         flow_info += f"**Instructions:** {insn_count}\n"
 
@@ -327,7 +342,7 @@ def deep_novel_analysis(
 
 {analysis_result}
 """
-    except:
+    except Exception:
         return f"""## Deep Novel Vulnerability Analysis
 
 **Function:** {func_name} (0x{ea:X})
@@ -341,6 +356,8 @@ def deep_novel_analysis(
 # Helper function for iterating over instructions (similar to idautils.Heads)
 def ida_heads(start_ea, end_ea):
     """Iterator over instruction addresses in range."""
+    import ida_ua
+
     ea = start_ea
     while ea < end_ea:
         yield ea

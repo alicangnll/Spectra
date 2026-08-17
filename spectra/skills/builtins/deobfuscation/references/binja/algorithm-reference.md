@@ -70,7 +70,8 @@ BN's advantage: MLIL abstracts stack variables into named vars. The state variab
 - For non-trivial identities, use `execute_python` with Z3:
   ```python
   import z3
-  x = z3.BitVec('x', 32)
+
+  x = z3.BitVec("x", 32)
   solver = z3.Solver()
   solver.add(z3.Not((x * (x - 1)) & 1 == 0))
   if solver.check() == z3.unsat:

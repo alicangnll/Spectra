@@ -150,7 +150,7 @@ def suggest_function_name(
                     str_val = ida_bytes.get_strlit_contents(xref.to)
                     if str_val:
                         xref_data["strings"].append(str_val.decode("utf-8", errors="ignore"))
-                except:
+                except Exception:
                     pass
 
     # Extract features and get suggestions

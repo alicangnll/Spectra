@@ -14,11 +14,10 @@ from __future__ import annotations
 import os
 import re
 import subprocess
-import json
 from typing import Any
 
+from ..core.logging import log_debug, log_info
 from ..core.tool_infrastructure import ExternalTool
-from ..core.logging import log_debug, log_error, log_info
 from ..tools.base import ParameterSchema, ToolDefinition
 
 
@@ -78,6 +77,7 @@ def _ensure_wireshark() -> str:
 # ============================================================================
 # Tool Functions
 # ============================================================================
+
 
 def wireshark_parse(pcap: str, display_filter: str = "", output_format: str = "text") -> str:
     """Parse PCAP file with optional display filter.
@@ -421,6 +421,7 @@ def wireshark_follow_stream(pcap: str, stream_index: int, proto: str = "tcp") ->
 # Tool Definitions
 # ============================================================================
 
+
 def create_wireshark_tools() -> list[ToolDefinition]:
     """Create Wireshark tool definitions.
 
@@ -434,24 +435,50 @@ def create_wireshark_tools() -> list[ToolDefinition]:
             category="network",
             parameters=[
                 ParameterSchema(name="pcap", type="string", description="Path to PCAP file", required=True),
-                ParameterSchema(name="display_filter", type="string", description="Wireshark display filter (optional)", required=False, default=""),
-                ParameterSchema(name="output_format", type="string", description="Output format (text|json|tabs)", required=False, default="text", enum=["text", "json", "tabs"]),
+                ParameterSchema(
+                    name="display_filter",
+                    type="string",
+                    description="Wireshark display filter (optional)",
+                    required=False,
+                    default="",
+                ),
+                ParameterSchema(
+                    name="output_format",
+                    type="string",
+                    description="Output format (text|json|tabs)",
+                    required=False,
+                    default="text",
+                    enum=["text", "json", "tabs"],
+                ),
             ],
-            handler=lambda pcap, display_filter="", output_format="text", **kwargs: wireshark_parse(pcap, display_filter, output_format),
+            handler=lambda pcap, display_filter="", output_format="text", **kwargs: wireshark_parse(
+                pcap, display_filter, output_format
+            ),
         ),
-
         ToolDefinition(
             name="wireshark_extract_fields",
             description="Extract specific fields from packets",
             category="network",
             parameters=[
                 ParameterSchema(name="pcap", type="string", description="Path to PCAP file", required=True),
-                ParameterSchema(name="fields", type="string", description="Comma-separated field names (e.g., ip.src,tcp.dstport)", required=True),
-                ParameterSchema(name="display_filter", type="string", description="Display filter (optional)", required=False, default=""),
+                ParameterSchema(
+                    name="fields",
+                    type="string",
+                    description="Comma-separated field names (e.g., ip.src,tcp.dstport)",
+                    required=True,
+                ),
+                ParameterSchema(
+                    name="display_filter",
+                    type="string",
+                    description="Display filter (optional)",
+                    required=False,
+                    default="",
+                ),
             ],
-            handler=lambda pcap, fields, display_filter="", **kwargs: wireshark_extract_fields(pcap, fields.split(","), display_filter),
+            handler=lambda pcap, fields, display_filter="", **kwargs: wireshark_extract_fields(
+                pcap, fields.split(","), display_filter
+            ),
         ),
-
         ToolDefinition(
             name="wireshark_statistics",
             description="Get PCAP statistics",
@@ -461,7 +488,6 @@ def create_wireshark_tools() -> list[ToolDefinition]:
             ],
             handler=lambda pcap, **kwargs: wireshark_statistics(pcap),
         ),
-
         ToolDefinition(
             name="wireshark_protocols",
             description="Get protocol hierarchy from PCAP",
@@ -471,29 +497,40 @@ def create_wireshark_tools() -> list[ToolDefinition]:
             ],
             handler=lambda pcap, **kwargs: wireshark_protocols(pcap),
         ),
-
         ToolDefinition(
             name="wireshark_conversations",
             description="Get conversations from PCAP",
             category="network",
             parameters=[
                 ParameterSchema(name="pcap", type="string", description="Path to PCAP file", required=True),
-                ParameterSchema(name="proto", type="string", description="Protocol (tcp|udp)", required=False, default="tcp", enum=["tcp", "udp"]),
+                ParameterSchema(
+                    name="proto",
+                    type="string",
+                    description="Protocol (tcp|udp)",
+                    required=False,
+                    default="tcp",
+                    enum=["tcp", "udp"],
+                ),
             ],
             handler=lambda pcap, proto="tcp", **kwargs: wireshark_conversations(pcap, proto),
         ),
-
         ToolDefinition(
             name="wireshark_endpoints",
             description="Get endpoints from PCAP",
             category="network",
             parameters=[
                 ParameterSchema(name="pcap", type="string", description="Path to PCAP file", required=True),
-                ParameterSchema(name="proto", type="string", description="Protocol (tcp|udp)", required=False, default="tcp", enum=["tcp", "udp"]),
+                ParameterSchema(
+                    name="proto",
+                    type="string",
+                    description="Protocol (tcp|udp)",
+                    required=False,
+                    default="tcp",
+                    enum=["tcp", "udp"],
+                ),
             ],
             handler=lambda pcap, proto="tcp", **kwargs: wireshark_endpoints(pcap, proto),
         ),
-
         ToolDefinition(
             name="wireshark_http_objects",
             description="Export HTTP objects from PCAP",
@@ -503,17 +540,27 @@ def create_wireshark_tools() -> list[ToolDefinition]:
             ],
             handler=lambda pcap, **kwargs: wireshark_http_objects(pcap),
         ),
-
         ToolDefinition(
             name="wireshark_follow_stream",
             description="Follow TCP/UDP stream",
             category="network",
             parameters=[
                 ParameterSchema(name="pcap", type="string", description="Path to PCAP file", required=True),
-                ParameterSchema(name="stream_index", type="integer", description="Stream index to follow", required=True),
-                ParameterSchema(name="proto", type="string", description="Protocol (tcp|udp)", required=False, default="tcp", enum=["tcp", "udp"]),
+                ParameterSchema(
+                    name="stream_index", type="integer", description="Stream index to follow", required=True
+                ),
+                ParameterSchema(
+                    name="proto",
+                    type="string",
+                    description="Protocol (tcp|udp)",
+                    required=False,
+                    default="tcp",
+                    enum=["tcp", "udp"],
+                ),
             ],
-            handler=lambda pcap, stream_index, proto="tcp", **kwargs: wireshark_follow_stream(pcap, stream_index, proto),
+            handler=lambda pcap, stream_index, proto="tcp", **kwargs: wireshark_follow_stream(
+                pcap, stream_index, proto
+            ),
         ),
     ]
 

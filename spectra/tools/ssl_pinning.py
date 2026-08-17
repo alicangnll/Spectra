@@ -12,8 +12,9 @@ from typing import Any
 # Try to import IDA API
 try:
     import idaapi
-    import idc
     import idautils
+    import idc
+
     IDA_AVAILABLE = True
 except ImportError:
     IDA_AVAILABLE = False
@@ -23,7 +24,8 @@ from .ida_helpers import get_disasm_text
 
 # Try to import Binary Ninja API
 try:
-    import binaryninja
+    import binaryninja  # noqa: F401 — availability probe
+
     BINJA_AVAILABLE = True
 except ImportError:
     BINJA_AVAILABLE = False
@@ -56,7 +58,7 @@ SSL_PINNING_PATTERNS = {
         ],
         "bypass": [
             "Modify network_security_config.xml",
-            "Add <base-config cleartextTrafficPermitted=\"true\">",
+            'Add <base-config cleartextTrafficPermitted="true">',
             "Disable certificate validation",
         ],
         "severity": "low",
@@ -92,7 +94,6 @@ SSL_PINNING_PATTERNS = {
         ],
         "severity": "high",
     },
-
     # iOS
     "ns_url_session": {
         "language": "ios",
@@ -140,7 +141,6 @@ SSL_PINNING_PATTERNS = {
         ],
         "severity": "medium",
     },
-
     # Cross-platform / Desktop
     "curl": {
         "language": "cpp",
@@ -201,7 +201,6 @@ SSL_PINNING_PATTERNS = {
         ],
         "severity": "high",
     },
-
     # Certificate Pinning Services
     "certificate_transparency": {
         "language": "general",
@@ -253,17 +252,25 @@ def _detect_ssl_pinning_ida() -> dict[str, Any]:
 
             # Check for SSL/TLS related strings
             ssl_keywords = [
-                "ssl", "tls", "certificate", "pinning", "trustmanager",
-                "x509", "certificatepinner", "afsecuritypolicy",
+                "ssl",
+                "tls",
+                "certificate",
+                "pinning",
+                "trustmanager",
+                "x509",
+                "certificatepinner",
+                "afsecuritypolicy",
             ]
 
             for keyword in ssl_keywords:
                 if keyword in string:
-                    results["strings"].append({
-                        "address": str_ea,
-                        "value": string.strip(),
-                        "keyword": keyword,
-                    })
+                    results["strings"].append(
+                        {
+                            "address": str_ea,
+                            "value": string.strip(),
+                            "keyword": keyword,
+                        }
+                    )
                     break
 
     # Search for SSL pinning patterns in functions
@@ -276,12 +283,14 @@ def _detect_ssl_pinning_ida() -> dict[str, Any]:
                 if re.search(pattern, func_name, re.IGNORECASE):
                     if pattern_name not in results["frameworks"]:
                         results["frameworks"].append(pattern_name)
-                    results["functions"].append({
-                        "address": func_ea,
-                        "name": func_name,
-                        "framework": pattern_name,
-                        "language": pattern_info["language"],
-                    })
+                    results["functions"].append(
+                        {
+                            "address": func_ea,
+                            "name": func_name,
+                            "framework": pattern_name,
+                            "language": pattern_info["language"],
+                        }
+                    )
                     break
 
         # Get function pseudocode/disassembly for pattern matching
@@ -299,12 +308,14 @@ def _detect_ssl_pinning_ida() -> dict[str, Any]:
                     if re.search(pattern, func_text, re.IGNORECASE):
                         if pattern_name not in results["frameworks"]:
                             results["frameworks"].append(pattern_name)
-                        results["detected"].append({
-                            "address": func_ea,
-                            "function": func_name,
-                            "framework": pattern_name,
-                            "pattern": pattern,
-                        })
+                        results["detected"].append(
+                            {
+                                "address": func_ea,
+                                "function": func_name,
+                                "framework": pattern_name,
+                                "pattern": pattern,
+                            }
+                        )
                         break
         except Exception:
             pass
@@ -329,17 +340,25 @@ def _detect_ssl_pinning_binja(bv) -> dict[str, Any]:
         value = string.value.lower()
 
         ssl_keywords = [
-            "ssl", "tls", "certificate", "pinning", "trustmanager",
-            "x509", "certificatepinner", "afsecuritypolicy",
+            "ssl",
+            "tls",
+            "certificate",
+            "pinning",
+            "trustmanager",
+            "x509",
+            "certificatepinner",
+            "afsecuritypolicy",
         ]
 
         for keyword in ssl_keywords:
             if keyword in value:
-                results["strings"].append({
-                    "address": hex(string.start),
-                    "value": value,
-                    "keyword": keyword,
-                })
+                results["strings"].append(
+                    {
+                        "address": hex(string.start),
+                        "value": value,
+                        "keyword": keyword,
+                    }
+                )
                 break
 
     # Search for SSL pinning patterns in functions
@@ -351,12 +370,14 @@ def _detect_ssl_pinning_binja(bv) -> dict[str, Any]:
                 if re.search(pattern, func_name_lower, re.IGNORECASE):
                     if pattern_name not in results["frameworks"]:
                         results["frameworks"].append(pattern_name)
-                    results["functions"].append({
-                        "address": hex(func.start),
-                        "name": func.name,
-                        "framework": pattern_name,
-                        "language": pattern_info["language"],
-                    })
+                    results["functions"].append(
+                        {
+                            "address": hex(func.start),
+                            "name": func.name,
+                            "framework": pattern_name,
+                            "language": pattern_info["language"],
+                        }
+                    )
                     break
 
         # Check in disassembly
@@ -367,12 +388,14 @@ def _detect_ssl_pinning_binja(bv) -> dict[str, Any]:
                 if re.search(pattern, func_text, re.IGNORECASE):
                     if pattern_name not in results["frameworks"]:
                         results["frameworks"].append(pattern_name)
-                    results["detected"].append({
-                        "address": hex(func.start),
-                        "function": func.name,
-                        "framework": pattern_name,
-                        "pattern": pattern,
-                    })
+                    results["detected"].append(
+                        {
+                            "address": hex(func.start),
+                            "function": func.name,
+                            "framework": pattern_name,
+                            "pattern": pattern,
+                        }
+                    )
                     break
 
     return results
@@ -404,35 +427,45 @@ def get_bypass_techniques(frameworks: list[str]) -> dict[str, Any]:
             bypass_lower = bypass.lower()
 
             if "frida" in bypass_lower:
-                techniques["frida"].append({
-                    "framework": framework,
-                    "language": language,
-                    "technique": bypass,
-                })
+                techniques["frida"].append(
+                    {
+                        "framework": framework,
+                        "language": language,
+                        "technique": bypass,
+                    }
+                )
             elif "objection" in bypass_lower:
-                techniques["objection"].append({
-                    "framework": framework,
-                    "language": language,
-                    "technique": bypass,
-                })
+                techniques["objection"].append(
+                    {
+                        "framework": framework,
+                        "language": language,
+                        "technique": bypass,
+                    }
+                )
             elif "hook" in bypass_lower:
-                techniques["hook"].append({
-                    "framework": framework,
-                    "language": language,
-                    "technique": bypass,
-                })
+                techniques["hook"].append(
+                    {
+                        "framework": framework,
+                        "language": language,
+                        "technique": bypass,
+                    }
+                )
             elif "modify" in bypass_lower or "patch" in bypass_lower:
-                techniques["patch"].append({
-                    "framework": framework,
-                    "language": language,
-                    "technique": bypass,
-                })
+                techniques["patch"].append(
+                    {
+                        "framework": framework,
+                        "language": language,
+                        "technique": bypass,
+                    }
+                )
             elif "config" in bypass_lower or "xml" in bypass_lower:
-                techniques["config"].append({
-                    "framework": framework,
-                    "language": language,
-                    "technique": bypass,
-                })
+                techniques["config"].append(
+                    {
+                        "framework": framework,
+                        "language": language,
+                        "technique": bypass,
+                    }
+                )
 
     return techniques
 

@@ -291,8 +291,8 @@ done
 4. **Race Conditions**
    ```python
    # VULNERABLE PATTERN:
-   if not user_exists(username):          # Check
-       create_user(username)              # Act
+   if not user_exists(username):  # Check
+       create_user(username)  # Act
 
    # Thread 1: Check passes
    # Thread 2: Check passes (same username)

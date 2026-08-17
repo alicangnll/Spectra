@@ -7,7 +7,6 @@ import types
 import unittest
 from unittest.mock import MagicMock, patch
 
-
 # ---------------------------------------------------------------------------
 # Stubs — must be installed before importing the module
 # ---------------------------------------------------------------------------
@@ -32,12 +31,12 @@ _fn_utils_mod.get_function_at = MagicMock(return_value=None)  # type: ignore[att
 _fn_utils_mod.get_function_name = MagicMock(return_value="")  # type: ignore[attr-defined]
 sys.modules.setdefault("spectra.binja.tools.fn_utils", _fn_utils_mod)
 
-from spectra.binja import bootstrap as bnj  # noqa: E402
-
+from spectra.binja import bootstrap as bnj
 
 # ---------------------------------------------------------------------------
 # Helpers to manage module-level state
 # ---------------------------------------------------------------------------
+
 
 def _reset_globals():
     bnj._PANEL = None
@@ -49,6 +48,7 @@ def _reset_globals():
 # ---------------------------------------------------------------------------
 # _navigate_cb
 # ---------------------------------------------------------------------------
+
 
 class TestNavigateCb(unittest.TestCase):
     def setUp(self):
@@ -101,22 +101,27 @@ class TestNavigateCb(unittest.TestCase):
 # _update_context
 # ---------------------------------------------------------------------------
 
+
 class TestUpdateContext(unittest.TestCase):
     def setUp(self):
         _reset_globals()
 
     def test_sets_last_bv(self):
         mock_bv = MagicMock()
-        with patch.object(bnj, "set_binary_ninja_context", MagicMock()), \
-             patch.object(bnj, "_get_sidebar_panel", return_value=None):
+        with (
+            patch.object(bnj, "set_binary_ninja_context", MagicMock()),
+            patch.object(bnj, "_get_sidebar_panel", return_value=None),
+        ):
             bnj._update_context(mock_bv, 0x1234)
         self.assertIs(bnj._LAST_BV, mock_bv)
 
     def test_calls_set_binary_ninja_context(self):
         mock_bv = MagicMock()
         mock_set_ctx = MagicMock()
-        with patch.object(bnj, "set_binary_ninja_context", mock_set_ctx), \
-             patch.object(bnj, "_get_sidebar_panel", return_value=None):
+        with (
+            patch.object(bnj, "set_binary_ninja_context", mock_set_ctx),
+            patch.object(bnj, "_get_sidebar_panel", return_value=None),
+        ):
             bnj._update_context(mock_bv, 0x100)
         mock_set_ctx.assert_called_once()
 
@@ -126,9 +131,11 @@ class TestUpdateContext(unittest.TestCase):
         bnj._LAST_BV = mock_old_bv
         mock_panel = MagicMock()
         mock_panel.on_database_changed = MagicMock()
-        with patch.object(bnj, "set_binary_ninja_context", MagicMock()), \
-             patch.object(bnj, "_get_sidebar_panel", return_value=mock_panel), \
-             patch.object(bnj, "get_database_path", return_value="/path/to.bndb"):
+        with (
+            patch.object(bnj, "set_binary_ninja_context", MagicMock()),
+            patch.object(bnj, "_get_sidebar_panel", return_value=mock_panel),
+            patch.object(bnj, "get_database_path", return_value="/path/to.bndb"),
+        ):
             bnj._update_context(mock_new_bv)
         mock_panel.on_database_changed.assert_called_once_with("/path/to.bndb")
 
@@ -136,8 +143,10 @@ class TestUpdateContext(unittest.TestCase):
         mock_bv = MagicMock()
         bnj._LAST_BV = mock_bv
         mock_panel = MagicMock()
-        with patch.object(bnj, "set_binary_ninja_context", MagicMock()), \
-             patch.object(bnj, "_get_sidebar_panel", return_value=mock_panel):
+        with (
+            patch.object(bnj, "set_binary_ninja_context", MagicMock()),
+            patch.object(bnj, "_get_sidebar_panel", return_value=mock_panel),
+        ):
             bnj._update_context(mock_bv)
         mock_panel.on_database_changed.assert_not_called()
 
@@ -145,6 +154,7 @@ class TestUpdateContext(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # _active_sidebar
 # ---------------------------------------------------------------------------
+
 
 class TestActiveSidebar(unittest.TestCase):
     def test_returns_none_when_bnui_is_none(self):
@@ -179,6 +189,7 @@ class TestActiveSidebar(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # _get_sidebar_panel
 # ---------------------------------------------------------------------------
+
 
 class TestGetSidebarPanel(unittest.TestCase):
     def test_returns_none_when_no_sidebar(self):
@@ -216,6 +227,7 @@ class TestGetSidebarPanel(unittest.TestCase):
 # _action_callback
 # ---------------------------------------------------------------------------
 
+
 class TestActionCallback(unittest.TestCase):
     def setUp(self):
         _reset_globals()
@@ -225,9 +237,11 @@ class TestActionCallback(unittest.TestCase):
         mock_bv = MagicMock()
         mock_panel = MagicMock()
         cb = bnj._action_callback(handler, auto_submit=False)
-        with patch.object(bnj, "_update_context"), \
-             patch.object(bnj, "_ensure_panel", return_value=mock_panel), \
-             patch.object(bnj, "build_context", return_value={"func": "main"}):
+        with (
+            patch.object(bnj, "_update_context"),
+            patch.object(bnj, "_ensure_panel", return_value=mock_panel),
+            patch.object(bnj, "build_context", return_value={"func": "main"}),
+        ):
             cb(mock_bv, 0x1000)
         handler.assert_called_once_with({"func": "main"})
 
@@ -235,9 +249,11 @@ class TestActionCallback(unittest.TestCase):
         handler = MagicMock(return_value="explain this")
         mock_panel = MagicMock()
         cb = bnj._action_callback(handler, auto_submit=True)
-        with patch.object(bnj, "_update_context"), \
-             patch.object(bnj, "_ensure_panel", return_value=mock_panel), \
-             patch.object(bnj, "build_context", return_value={}):
+        with (
+            patch.object(bnj, "_update_context"),
+            patch.object(bnj, "_ensure_panel", return_value=mock_panel),
+            patch.object(bnj, "build_context", return_value={}),
+        ):
             cb(MagicMock(), 0x1000)
         mock_panel.prefill_input.assert_called_once_with("explain this", auto_submit=True)
 
@@ -245,9 +261,11 @@ class TestActionCallback(unittest.TestCase):
         handler = MagicMock(return_value="")
         mock_panel = MagicMock()
         cb = bnj._action_callback(handler, auto_submit=False)
-        with patch.object(bnj, "_update_context"), \
-             patch.object(bnj, "_ensure_panel", return_value=mock_panel), \
-             patch.object(bnj, "build_context", return_value={}):
+        with (
+            patch.object(bnj, "_update_context"),
+            patch.object(bnj, "_ensure_panel", return_value=mock_panel),
+            patch.object(bnj, "build_context", return_value={}),
+        ):
             cb(MagicMock(), 0x1000)
         mock_panel.prefill_input.assert_not_called()
 
@@ -255,9 +273,11 @@ class TestActionCallback(unittest.TestCase):
         handler = MagicMock(return_value=None)
         mock_panel = MagicMock()
         cb = bnj._action_callback(handler, auto_submit=False)
-        with patch.object(bnj, "_update_context"), \
-             patch.object(bnj, "_ensure_panel", return_value=mock_panel), \
-             patch.object(bnj, "build_context", return_value={}):
+        with (
+            patch.object(bnj, "_update_context"),
+            patch.object(bnj, "_ensure_panel", return_value=mock_panel),
+            patch.object(bnj, "build_context", return_value={}),
+        ):
             cb(MagicMock(), 0x1000)
         mock_panel.prefill_input.assert_not_called()
 
@@ -265,6 +285,7 @@ class TestActionCallback(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # register_plugin / _register_sidebar idempotency
 # ---------------------------------------------------------------------------
+
 
 class TestRegistrationIdempotency(unittest.TestCase):
     def setUp(self):

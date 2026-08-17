@@ -10,8 +10,8 @@ Provides tools for:
 from __future__ import annotations
 
 import subprocess
-from typing import Annotated
 from pathlib import Path
+from typing import Annotated
 
 from ...tools.base import tool
 
@@ -45,12 +45,7 @@ def ssh_connect(
         cmd.append(host)
         cmd.extend(["echo", "Connection successful"])
 
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=15
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
 
         if result.returncode == 0:
             return f"✓ SSH connection successful to {host}"
@@ -98,12 +93,7 @@ def ssh_exec(
 
         cmd.extend([host, command])
 
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=timeout
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
 
         output = []
         if result.stdout:
@@ -166,7 +156,7 @@ def ssh_upload(
             cmd,
             capture_output=True,
             text=True,
-            timeout=300  # 5 minutes for file transfer
+            timeout=300,  # 5 minutes for file transfer
         )
 
         if result.returncode == 0:
@@ -221,7 +211,7 @@ def ssh_download(
             cmd,
             capture_output=True,
             text=True,
-            timeout=300  # 5 minutes for file transfer
+            timeout=300,  # 5 minutes for file transfer
         )
 
         if result.returncode == 0:
@@ -257,10 +247,4 @@ def ssh_list(
         ssh_list("user@server", "/tmp")
         ssh_list("root@192.168.1.1", "/var/log")
     """
-    return ssh_exec(
-        host=host,
-        command=f"ls -la '{remote_path}'",
-        port=port,
-        identity_file=identity_file,
-        timeout=30
-    )
+    return ssh_exec(host=host, command=f"ls -la '{remote_path}'", port=port, identity_file=identity_file, timeout=30)

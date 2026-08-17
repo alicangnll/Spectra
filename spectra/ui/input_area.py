@@ -179,10 +179,12 @@ class InputArea(QPlainTextEdit):
                 return
 
         # Handle Ctrl+C for cancel when no text is selected
-        if (event.key() == Qt.Key.Key_C and
-            event.modifiers() & Qt.KeyboardModifier.ControlModifier and
-            not event.modifiers() & Qt.KeyboardModifier.ShiftModifier and
-            not event.modifiers() & Qt.KeyboardModifier.AltModifier):
+        if (
+            event.key() == Qt.Key.Key_C
+            and event.modifiers() & Qt.KeyboardModifier.ControlModifier
+            and not event.modifiers() & Qt.KeyboardModifier.ShiftModifier
+            and not event.modifiers() & Qt.KeyboardModifier.AltModifier
+        ):
             # Only intercept Ctrl+C if there's no text selection
             # Otherwise, let it perform the default copy operation
             cursor = self.textCursor()

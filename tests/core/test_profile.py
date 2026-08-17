@@ -8,14 +8,15 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from tests.mocks.ida_mock import install_ida_mocks
+
 install_ida_mocks()
 
 from spectra.core.profile import (
-    AnalysisProfile,
+    BUILTIN_PROFILES,
     DEFAULT_PROFILE,
     IOC_FILTER_CATEGORIES,
     PRIVATE_PROFILE,
-    BUILTIN_PROFILES,
+    AnalysisProfile,
     get_profile,
     list_profiles,
 )
@@ -52,9 +53,7 @@ class TestToFromDict(unittest.TestCase):
     def test_round_trip(self):
         """to_dict/from_dict round-trip preserves all fields."""
         ioc_filters = {"hashes": True, "ipv4": True, "domains": False}
-        custom_rules = [
-            {"name": "test-rule", "pattern": "secret", "is_regex": False, "replacement": "[REDACTED]"}
-        ]
+        custom_rules = [{"name": "test-rule", "pattern": "secret", "is_regex": False, "replacement": "[REDACTED]"}]
         profile = AnalysisProfile(
             name="test",
             description="Test profile",

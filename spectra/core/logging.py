@@ -46,13 +46,15 @@ def get_logger() -> logging.Logger:
     # Host output handler (WARNING and above to avoid cluttering AI output)
     host_handler = HostOutputHandler()
     host_handler.setLevel(logging.WARNING)
+
     # Add ANSI codes for bold and color (Magenta for INFO, Red for ERROR, Yellow for WARNING)
     # Format: [Spectra] LEVEL: message with bold/magenta color
     class ColorFormatter(logging.Formatter):
         """Custom formatter with ANSI color codes."""
-        def format(self, record):
+
+        def format(self, record: logging.LogRecord) -> str:
             # Base format
-            result = super().format(record)
+            _result = super().format(record)
             # Add color and bold based on level
             if record.levelno == logging.INFO:
                 # Bold Magenta for INFO

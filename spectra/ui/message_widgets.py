@@ -6,8 +6,9 @@ import random
 import re as _re
 from typing import ClassVar
 
-from .markdown import md_to_html, _is_ascii_art_diagram
+from .markdown import md_to_html
 from .qt_compat import (
+    QApplication,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -19,8 +20,6 @@ from .qt_compat import (
     QVBoxLayout,
     QWidget,
     qt_flags,
-    QApplication,
-    QClipboard,
 )
 
 _THINKING_PHRASES = [
@@ -316,9 +315,7 @@ class CodeBlockWidget(QFrame):
     def __init__(self, lang: str, code: str, parent: QWidget = None):
         super().__init__(parent)
         self.setObjectName("code_block")
-        self.setStyleSheet(
-            "QFrame#code_block { background: #151518; border: 1px solid #282830; border-radius: 6px; }"
-        )
+        self.setStyleSheet("QFrame#code_block { background: #151518; border: 1px solid #282830; border-radius: 6px; }")
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -330,7 +327,9 @@ class CodeBlockWidget(QFrame):
 
         if lang:
             self._lang_label = QLabel(lang)
-            self._lang_label.setStyleSheet("color: #777780; font-size: 10px; font-weight: bold; font-family: monospace;")
+            self._lang_label.setStyleSheet(
+                "color: #777780; font-size: 10px; font-weight: bold; font-family: monospace;"
+            )
             header.addWidget(self._lang_label)
         else:
             header.addStretch()
@@ -362,8 +361,7 @@ class CodeBlockWidget(QFrame):
             )
         )
         self._code_label.setStyleSheet(
-            "color: #d4d4d4; font-size: 12px; font-family: monospace; "
-            "padding: 8px; background: transparent;"
+            "color: #d4d4d4; font-size: 12px; font-family: monospace; padding: 8px; background: transparent;"
         )
         layout.addWidget(self._code_label)
 
@@ -457,13 +455,14 @@ class AssistantMessageWidget(QFrame):
             # Split HTML by block placeholders and interleave content
             # Support both BLOCK (code) and DIAGRAM (ASCII art) placeholders
             import re as _re
+
             placeholder_pattern = _re.compile(r"\x00(BLOCK|DIAGRAM)(\d+)\x00")
 
             last_end = 0
             for match in placeholder_pattern.finditer(html_content):
                 # Render content before this placeholder
                 if match.start() > last_end:
-                    content_before = html_content[last_end:match.start()]
+                    content_before = html_content[last_end : match.start()]
                     if content_before.strip():
                         label = self._create_html_label(content_before)
                         self._content_layout.insertWidget(self._content_layout.count() - 1, label)
@@ -530,12 +529,14 @@ class AssistantMessageWidget(QFrame):
         else:
             # External link
             from ..core.logging import log_debug
+
             log_debug(f"Hovering external link: {url}")
 
     def _show_address_tooltip(self, address_str: str) -> None:
         """Show tooltip with address information."""
         try:
             import re
+
             from ..core.host import is_ida
             from ..core.logging import log_debug
 
@@ -543,7 +544,7 @@ class AssistantMessageWidget(QFrame):
             clean_addr = address_str.strip()
             match = re.search(
                 r"0[xX]([0-9a-fA-F]+)|:([0-9a-fA-F]{8})|([0-9a-fA-F]+)h?|(?:sub|loc|off|seg|str|byte|word|dword|qword|asc)_([0-9a-fA-F]+)",
-                clean_addr
+                clean_addr,
             )
 
             if match:
@@ -563,6 +564,7 @@ class AssistantMessageWidget(QFrame):
                         try:
                             # Try to get function name
                             from ..core import host
+
                             if host._idaapi:
                                 func = host._idaapi.get_func(address)
                                 if func:
@@ -580,9 +582,11 @@ class AssistantMessageWidget(QFrame):
                     # Note: QLabel doesn't expose the hovered link position easily,
                     # so we set tooltip on the whole label
                     from ..core.logging import log_debug
+
                     log_debug(f"Address hover: {tooltip_text}")
         except Exception as e:
             from ..core.logging import log_debug
+
             log_debug(f"Failed to show address tooltip: {e}")
 
     def _show_function_tooltip(self, func_name: str) -> None:
@@ -596,6 +600,7 @@ class AssistantMessageWidget(QFrame):
             if is_ida():
                 try:
                     from ..core import host
+
                     if host._idaapi:
                         # Try to get function address
                         func_addr = host._idaapi.get_name_ea_simple(func_name)
@@ -606,10 +611,10 @@ class AssistantMessageWidget(QFrame):
                 except Exception:
                     pass  # Keep default tooltip
 
-            from ..core.logging import log_debug
             log_debug(f"Function hover: {tooltip_text}")
         except Exception as e:
             from ..core.logging import log_debug
+
             log_debug(f"Failed to show function tooltip: {e}")
 
     def _on_link_clicked(self, url: str) -> None:
@@ -628,17 +633,20 @@ class AssistantMessageWidget(QFrame):
             self._jump_to_finding(address_str)
         else:
             # External link - open in browser
-            from ..core.logging import log_debug
             import webbrowser
+
+            from ..core.logging import log_debug
+
             log_debug(f"Opening external link: {url}")
             webbrowser.open(url)
 
     def _jump_to_address(self, address_str: str) -> None:
         """Jump to address in IDA."""
         try:
-            from ..core.host import navigate_to_address
-            from ..core.logging import log_info, log_debug
             import re
+
+            from ..core.host import navigate_to_address
+            from ..core.logging import log_debug, log_info
 
             # Remove common prefixes/suffixes
             clean_addr = address_str.strip()
@@ -647,7 +655,7 @@ class AssistantMessageWidget(QFrame):
             # 0x401000, 0X401000, :00401000, 401000h, sub_401000, loc_401000
             match = re.search(
                 r"0[xX]([0-9a-fA-F]+)|:([0-9a-fA-F]{8})|([0-9a-fA-F]+)h?|(?:sub|loc|off|seg|str|byte|word|dword|qword|asc)_([0-9a-fA-F]+)",
-                clean_addr
+                clean_addr,
             )
 
             if match:
@@ -675,13 +683,14 @@ class AssistantMessageWidget(QFrame):
 
         except Exception as e:
             from ..core.logging import log_error
+
             log_error(f"Failed to jump to address {address_str}: {e}")
 
     def _jump_to_function(self, func_name: str) -> None:
         """Jump to function by name in IDA."""
         try:
             from ..core.host import is_ida, navigate_to_address
-            from ..core.logging import log_info, log_debug, log_error, log_warning
+            from ..core.logging import log_debug, log_error, log_info, log_warning
 
             if not is_ida():
                 log_debug(f"Not running in IDA, cannot jump to function: {func_name}")
@@ -701,6 +710,7 @@ class AssistantMessageWidget(QFrame):
             # Method 1: Try ida_name.get_name_ea (most compatible)
             try:
                 import ida_name
+
                 func_addr = ida_name.get_name_ea(0, func_name)
                 if func_addr != host._idaapi.BADADDR:
                     log_info(f"Found function '{func_name}' at 0x{func_addr:X} using ida_name")
@@ -710,8 +720,9 @@ class AssistantMessageWidget(QFrame):
             # Method 2: Try idautils.Functions() if method 1 failed
             if func_addr is None or func_addr == host._idaapi.BADADDR:
                 try:
-                    import idautils
                     import ida_name
+                    import idautils
+
                     for func_ea in idautils.Functions():
                         current_name = ida_name.get_name(func_ea)
                         if current_name == func_name:
@@ -725,14 +736,17 @@ class AssistantMessageWidget(QFrame):
             # Method 3: Case-insensitive search
             if func_addr is None or func_addr == host._idaapi.BADADDR:
                 try:
-                    import idautils
                     import ida_name
+                    import idautils
+
                     for func_ea in idautils.Functions():
                         current_name = ida_name.get_name(func_ea)
                         if current_name and current_name.lower() == func_name.lower():
                             func_addr = func_ea
                             found_name = current_name
-                            log_info(f"Found function '{current_name}' at 0x{func_addr:X} using case-insensitive search")
+                            log_info(
+                                f"Found function '{current_name}' at 0x{func_addr:X} using case-insensitive search"
+                            )
                             break
                 except Exception as e:
                     log_debug(f"Case-insensitive search failed: {e}")
@@ -748,23 +762,25 @@ class AssistantMessageWidget(QFrame):
 
         except Exception as e:
             from ..core.logging import log_error
+
             log_error(f"Failed to jump to function {func_name}: {e}")
             import traceback
+
             log_error(f"Traceback: {traceback.format_exc()}")
 
     def _jump_to_finding(self, address_str: str) -> None:
         """Jump to finding and display bookmark details."""
         try:
-            from ..core.host import navigate_to_address, is_ida
-            from ..core.logging import log_info, log_debug, log_error
-            from ..tools.findings_bookmark import get_findings_manager
             import re
+
+            from ..core.host import is_ida, navigate_to_address
+            from ..core.logging import log_debug, log_error, log_info
+            from ..tools.findings_bookmark import get_findings_manager
 
             # Parse address
             clean_addr = address_str.strip()
             match = re.search(
-                r"0[xX]([0-9a-fA-F]+)|:([0-9a-fA-F]{8})|([0-9a-fA-F]+)h?|(?:sub|loc)_([0-9a-fA-F]+)",
-                clean_addr
+                r"0[xX]([0-9a-fA-F]+)|:([0-9a-fA-F]{8})|([0-9a-fA-F]+)h?|(?:sub|loc)_([0-9a-fA-F]+)", clean_addr
             )
 
             if match:
@@ -787,6 +803,7 @@ class AssistantMessageWidget(QFrame):
                         if finding:
                             # Log finding details
                             from ..tools.findings_bookmark import FINDING_CATEGORIES
+
                             category_info = FINDING_CATEGORIES.get(finding.category, {})
                             category_name = category_info.get("name", finding.category)
                             category_icon = category_info.get("icon", "[FINDING]")
@@ -814,6 +831,7 @@ class AssistantMessageWidget(QFrame):
 
         except Exception as e:
             from ..core.logging import log_error
+
             log_error(f"Failed to jump to finding {address_str}: {e}")
 
     def append_text(self, delta: str) -> None:
@@ -972,8 +990,11 @@ class UserQuestionWidget(QFrame):
                     "QPushButton:pressed { background: #1a3a5e; }"
                     "QPushButton:disabled { color: #808080; background: #1e2a3a; border-color: #444; }"
                 )
-                # Store lambda as instance variable to prevent GC issues with Shiboken
-                slot = lambda checked, o=opt: self._on_option(o)
+
+                # Store slot as instance variable to prevent GC issues with Shiboken
+                def slot(checked, o=opt):
+                    self._on_option(o)
+
                 self._option_slots.append(slot)
                 btn.clicked.connect(slot)
                 self._option_buttons.append(btn)

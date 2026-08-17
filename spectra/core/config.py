@@ -11,7 +11,6 @@ if TYPE_CHECKING:
     from .profile import AnalysisProfile
 
 from ..constants import (
-    CONFIG_DIR_NAME,
     CONFIG_FILE_NAME,
     CONFIG_SCHEMA_VERSION,
     DEFAULT_CONTEXT_WINDOW,

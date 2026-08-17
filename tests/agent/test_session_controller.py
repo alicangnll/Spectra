@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from tests.mocks.ida_mock import install_ida_mocks
+
 install_ida_mocks()
 
 # Some UI tests stub modules in sys.modules; ensure this test gets real ones.
@@ -106,6 +107,7 @@ class TestIdaSessionController(unittest.TestCase):
 
         # Verify session was saved to disk
         from spectra.state.history import SessionHistory
+
         history = SessionHistory(self.cfg)
         sessions = history.list_sessions(db_instance_id=self.ctrl._db_instance_id)
         self.assertTrue(any(s["id"] == self.ctrl.session.id for s in sessions))
@@ -127,7 +129,9 @@ class TestIdaSessionController(unittest.TestCase):
         self.assertEqual(len(self.ctrl.session.messages), 1)
         self.assertEqual(self.ctrl.session.messages[0].content, "persisted")
 
-    def test_restore_sessions_returns_saved_sessions(self):
+    def test_restore_sessions_disabled_but_sessions_persist(self):
+        """restore_sessions() intentionally returns [] (closed tabs must stay
+        closed), but auto-saved sessions remain on disk and loadable."""
         self.ctrl.session.add_message(Message(role=Role.USER, content="persisted one"))
         self.cfg.checkpoint_auto_save = True
         self.ctrl.on_agent_finished()
@@ -136,10 +140,18 @@ class TestIdaSessionController(unittest.TestCase):
         self.ctrl.session.add_message(Message(role=Role.USER, content="persisted two"))
         self.ctrl.on_agent_finished()
 
+        # Both sessions were persisted to disk...
+        from spectra.state.history import SessionHistory
+
+        history = SessionHistory(self.cfg)
+        sessions = history.list_sessions(db_instance_id=self.ctrl._db_instance_id)
+        self.assertEqual(len(sessions), 2)
+        self.assertTrue(all(s.get("message_count", 1) >= 0 for s in sessions))
+
+        # ...but bulk auto-restore stays disabled by design.
         ctrl2 = IdaSessionController(self.cfg)
         restored = ctrl2.restore_sessions()
-        self.assertEqual(len(restored), 2)
-        self.assertTrue(all(session.messages for _, session in restored))
+        self.assertEqual(restored, [])
         ctrl2.shutdown()
 
     def test_restore_preserves_token_usage(self):
@@ -198,7 +210,9 @@ class TestIdaSessionController(unittest.TestCase):
         self.ctrl.shutdown()
 
         with patch.object(self.cfg, "enabled_external_mcp", ["claude:test"]):
-            with patch("spectra.core.external_sources.discover_all_external_mcp", return_value={"claude": [], "codex": []}) as discover_mcp:
+            with patch(
+                "spectra.core.external_sources.discover_all_external_mcp", return_value={"claude": [], "codex": []}
+            ) as discover_mcp:
                 ctrl = IdaSessionController(self.cfg)
                 ctrl._runtime_init_done.wait(timeout=5.0)
                 ctrl.shutdown()

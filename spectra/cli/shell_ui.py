@@ -12,11 +12,11 @@ Features:
 from __future__ import annotations
 
 import json
-import sys
-import re
-import time
 import random
-from typing import Generator, Optional
+import re
+import sys
+import time
+from collections.abc import Generator
 
 from ..agent.loop import AgentLoop
 from ..agent.turn import TurnEvent, TurnEventType
@@ -59,10 +59,10 @@ def strip_ansi(text: str) -> str:
 def strip_xml_tags(text: str) -> str:
     """Remove XML-like tags from tool results."""
     # Remove <tool_result> tags
-    text = re.sub(r'<tool_result[^>]*>', '', text)
-    text = re.sub(r'</tool_result>', '', text)
+    text = re.sub(r"<tool_result[^>]*>", "", text)
+    text = re.sub(r"</tool_result>", "", text)
     # Remove other common XML tags
-    text = re.sub(r'<[^>]+>', '', text)
+    text = re.sub(r"<[^>]+>", "", text)
     return text.strip()
 
 
@@ -103,7 +103,7 @@ def _render_markdown_table(lines: list[str], start_idx: int) -> tuple[list[str],
 
     # Render table
     result = []
-    total_width = sum(col_widths) + (num_cols - 1) * 3 + 2  # 3 for " | ", 2 for borders
+    _total_width = sum(col_widths) + (num_cols - 1) * 3 + 2  # 3 for " | ", 2 for borders
 
     # Header row
     header = rows[0]
@@ -271,7 +271,7 @@ class ShellUI:
         if self._tool_results:
             # Toggle the most recent result
             result_state = self._tool_results[-1]
-            is_now_collapsed = result_state.toggle()
+            _is_now_collapsed = result_state.toggle()
 
             # Redraw the result
             self._redraw_result(result_state)
@@ -283,22 +283,28 @@ class ShellUI:
         so this prints a fresh copy below the original.
         """
         result = result_state.result
-        lines = result.split('\n')
+        lines = result.split("\n")
         line_count = len(lines)
 
         # Format tool args for display
         args_display = ""
         if result_state.tool_args:
             try:
-                args_dict = json.loads(result_state.tool_args) if isinstance(result_state.tool_args, str) else result_state.tool_args
+                args_dict = (
+                    json.loads(result_state.tool_args)
+                    if isinstance(result_state.tool_args, str)
+                    else result_state.tool_args
+                )
                 args_display = self._format_tool_args(result_state.tool_name, args_dict)
-            except:
+            except Exception:
                 args_display = ""
 
         # Print separator
         print()
         collapse_status = "collapsed" if result_state.collapsed else "expanded"
-        print(f"    {self._color(f'[{result_state.tool_name}]', Colors.CYAN)} {self._color(args_display, Colors.DIM)} {self._color(':', Colors.CYAN)} ({collapse_status})")
+        print(
+            f"    {self._color(f'[{result_state.tool_name}]', Colors.CYAN)} {self._color(args_display, Colors.DIM)} {self._color(':', Colors.CYAN)} ({collapse_status})"
+        )
 
         if not result_state.collapsed:
             # Expanded view
@@ -336,7 +342,7 @@ class ShellUI:
             None after each event is processed
         """
         # Track state for tool approval
-        pending_approval: Optional[str] = None
+        pending_approval: str | None = None
 
         try:
             for event in agent_loop.run(""):  # Prompt already set in loop
@@ -344,7 +350,9 @@ class ShellUI:
 
                 # Handle tool approval requests
                 if event.type == TurnEventType.TOOL_APPROVAL_REQUEST:
-                    print(f"[SHELL DEBUG] TOOL_APPROVAL_REQUEST received: {event.tool_name}", file=sys.stderr, flush=True)
+                    print(
+                        f"[SHELL DEBUG] TOOL_APPROVAL_REQUEST received: {event.tool_name}", file=sys.stderr, flush=True
+                    )
                     tool_name = event.tool_name
                     tool_args = event.tool_args
 
@@ -357,7 +365,7 @@ class ShellUI:
                         print(self._color("⚠️  Shell command requires approval", Colors.YELLOW))
                         print()
 
-                    print(f"[SHELL DEBUG] Calling _prompt_approval...", file=sys.stderr, flush=True)
+                    print("[SHELL DEBUG] Calling _prompt_approval...", file=sys.stderr, flush=True)
                     decision = self._prompt_approval(
                         tool_name,
                         tool_args,
@@ -422,6 +430,7 @@ class ShellUI:
             # Show filename with directory prefix
             if "/" in value or "\\" in value:
                 import os
+
                 basename = os.path.basename(value)
                 dirname = os.path.dirname(value)
                 if len(dirname) > 30:
@@ -433,7 +442,7 @@ class ShellUI:
 
         return f"({value})"
 
-    def _handle_event(self, event: TurnEvent, pending_approval: Optional[str] = None) -> Generator[None, None, None]:
+    def _handle_event(self, event: TurnEvent, pending_approval: str | None = None) -> Generator[None, None, None]:
         """Handle a single event and output to terminal.
 
         Args:
@@ -459,7 +468,7 @@ class ShellUI:
             i = 0
             while i < len(text):
                 # Check for **
-                if text[i:i+2] == '**':
+                if text[i : i + 2] == "**":
                     if self._in_bold:
                         # End bold
                         sys.stdout.write(Colors.RESET)
@@ -470,7 +479,7 @@ class ShellUI:
                         self._in_bold = True
                     i += 2
                 # Check for `code`
-                elif text[i] == '`':
+                elif text[i] == "`":
                     if self._in_code:
                         # End code
                         sys.stdout.write(Colors.RESET)
@@ -500,7 +509,7 @@ class ShellUI:
                 # Clear the line and re-render
                 sys.stdout.write("\r\033[K")  # Clear to end of line
                 # Move up to clear previous lines (rough estimation)
-                lines = self._current_text_buffer.count('\n')
+                lines = self._current_text_buffer.count("\n")
                 for _ in range(lines + 1):
                     sys.stdout.write("\033[1A\033[K")  # Move up and clear
 
@@ -527,7 +536,7 @@ class ShellUI:
                 ("Analyzing context...", "🔍"),
                 ("Processing query...", "🧠"),
                 ("Generating response...", "✨"),
-                ("Preparing output...", "📝")
+                ("Preparing output...", "📝"),
             ]
 
             for stage, icon in stages:
@@ -535,7 +544,9 @@ class ShellUI:
                 for progress in range(11):
                     bar_length = progress
                     bar = "█" * bar_length + "░" * (10 - bar_length)
-                    sys.stdout.write(f"\r{self._color(icon, Colors.CYAN)} {self._bold(stage)} [{self._color(bar, Colors.GREEN)}]")
+                    sys.stdout.write(
+                        f"\r{self._color(icon, Colors.CYAN)} {self._bold(stage)} [{self._color(bar, Colors.GREEN)}]"
+                    )
                     sys.stdout.flush()
                     time.sleep(0.03)
 
@@ -543,7 +554,9 @@ class ShellUI:
 
             # Clear line and show ready message with flash effect
             for flash in range(3):
-                sys.stdout.write(f"\r{self._color('🤖', Colors.GREEN if flash % 2 == 0 else Colors.YELLOW)} {self._bold('Spectra:')}      ")
+                sys.stdout.write(
+                    f"\r{self._color('🤖', Colors.GREEN if flash % 2 == 0 else Colors.YELLOW)} {self._bold('Spectra:')}      "
+                )
                 sys.stdout.flush()
                 time.sleep(0.1)
 
@@ -568,8 +581,8 @@ class ShellUI:
                 if event.tool_args:
                     try:
                         args = json.loads(event.tool_args) if isinstance(event.tool_args, str) else event.tool_args
-                        prompt = args.get('prompt', args.get('task', ''))
-                        agent_type = args.get('subagent_type', args.get('agentType', 'general'))
+                        prompt = args.get("prompt", args.get("task", ""))
+                        agent_type = args.get("subagent_type", args.get("agentType", "general"))
 
                         # Show detailed spawn_subagent info
                         print()
@@ -577,10 +590,10 @@ class ShellUI:
                         print(f"    {self._color('Type:', Colors.CYAN)} {self._color(agent_type, Colors.DIM)}")
                         if prompt:
                             # Show prompt preview
-                            preview = prompt[:120] + '...' if len(prompt) > 120 else prompt
+                            preview = prompt[:120] + "..." if len(prompt) > 120 else prompt
                             print(f"    {self._color('Task:', Colors.CYAN)} {preview}")
                         print()
-                    except:
+                    except Exception:
                         # Fallback for parsing errors
                         print(f"\n  {self._color('→', Colors.BLUE)} {colored_tool_name}", end="")
                 else:
@@ -600,7 +613,7 @@ class ShellUI:
                         arg_summary = self._format_tool_args(tool_name, args)
                         if arg_summary:
                             print(f" {self._color('→', Colors.BLUE)} {self._color(arg_summary, Colors.DIM)}", end="")
-                    except:
+                    except Exception:
                         pass  # If parsing fails, just show tool name
 
                 sys.stdout.flush()
@@ -646,7 +659,7 @@ class ShellUI:
                 # Strip XML tags first
                 result = strip_xml_tags(result)
                 result = result.strip()
-                line_count = result.count('\n') + 1
+                line_count = result.count("\n") + 1
 
                 # Get tool args for display
                 tool_args = self._pending_tool_args.get(event.tool_call_id, "")
@@ -662,20 +675,24 @@ class ShellUI:
                     try:
                         args_dict = json.loads(tool_args) if isinstance(tool_args, str) else tool_args
                         args_display = self._format_tool_args(tool_name, args_dict)
-                    except:
+                    except Exception:
                         args_display = ""
 
                 # Simple header with collapse hint
-                collapse_icon = self._color('▼', Colors.GREEN) if not result_state.collapsed else self._color('▶', Colors.YELLOW)
+                collapse_icon = (
+                    self._color("▼", Colors.GREEN) if not result_state.collapsed else self._color("▶", Colors.YELLOW)
+                )
                 collapse_text = "/toggle to collapse" if not result_state.collapsed else "/toggle to expand"
                 # Show: [tool_name args]: (line_count) lines [toggle]
-                print(f"    {self._color(f'[{tool_name}]', Colors.CYAN)} {self._color(args_display, Colors.DIM)} {self._color(':', Colors.CYAN)} ({line_count} lines) [{collapse_icon} {collapse_text}]")
+                print(
+                    f"    {self._color(f'[{tool_name}]', Colors.CYAN)} {self._color(args_display, Colors.DIM)} {self._color(':', Colors.CYAN)} ({line_count} lines) [{collapse_icon} {collapse_text}]"
+                )
 
                 # Show content (collapsed or expanded) with markdown rendering
                 if not result_state.collapsed:
                     # Expanded view - render markdown and show all
                     rendered = simple_markdown_render(result) if self.use_markdown else result
-                    lines = rendered.split('\n')
+                    lines = rendered.split("\n")
                     for line in lines:
                         if line.strip():
                             print(f"      {self._color(line, Colors.DIM)}")
@@ -683,14 +700,16 @@ class ShellUI:
                 else:
                     # Collapsed view - show summary only (with markdown)
                     rendered = simple_markdown_render(result) if self.use_markdown else result
-                    lines = rendered.split('\n')
+                    lines = rendered.split("\n")
                     preview_lines = min(3, len(lines))
                     for i in range(preview_lines):
                         if lines[i].strip():
                             print(f"      {self._color(lines[i], Colors.DIM)}")
                     if line_count > preview_lines:
                         remaining = line_count - preview_lines
-                        print(f"      {self._color(f'... ({remaining} more lines, press Ctrl+O to expand)', Colors.DIM)}")
+                        print(
+                            f"      {self._color(f'... ({remaining} more lines, press Ctrl+O to expand)', Colors.DIM)}"
+                        )
                     result_state.lines_shown = preview_lines
             else:
                 # Empty result - also show args if available
@@ -700,9 +719,11 @@ class ShellUI:
                     try:
                         args_dict = json.loads(tool_args) if isinstance(tool_args, str) else tool_args
                         args_display = self._format_tool_args(tool_name, args_dict)
-                    except:
+                    except Exception:
                         args_display = ""
-                print(f"    {self._color(f'[{tool_name}]', Colors.CYAN)} {self._color(args_display, Colors.DIM)} {self._color(':', Colors.CYAN)} {self._color('(no output)', Colors.DIM)}")
+                print(
+                    f"    {self._color(f'[{tool_name}]', Colors.CYAN)} {self._color(args_display, Colors.DIM)} {self._color(':', Colors.CYAN)} {self._color('(no output)', Colors.DIM)}"
+                )
             yield
 
         elif event.type == TurnEventType.ERROR:
@@ -757,15 +778,15 @@ class ShellUI:
             # Matrix-style initialization animation
             matrix_chars = "01─|/\\*"
             for _ in range(12):
-                chars = ''.join(random.choice(matrix_chars) for _ in range(8))
+                chars = "".join(random.choice(matrix_chars) for _ in range(8))
                 sys.stdout.write(f"\r{self._color('  🧪', Colors.MAGENTA)} {self._color(chars, Colors.GREEN)}")
                 sys.stdout.flush()
                 time.sleep(0.04)
 
             sys.stdout.write("\r" + " " * 40 + "\r")
             # Show what the subagent is doing and the prompt
-            task = event.metadata.get('task', 'working')
-            prompt = event.metadata.get('prompt', event.text or '')
+            task = event.metadata.get("task", "working")
+            prompt = event.metadata.get("prompt", event.text or "")
             print(self._color(f"🔄 Subagent active ({task} | {prompt})", Colors.MAGENTA))
             yield
 
@@ -776,7 +797,9 @@ class ShellUI:
 
             # Success flash animation
             for _ in range(2):
-                sys.stdout.write(f"\r{self._color('  ⚡', Colors.YELLOW)} {self._color('Analysis complete!', Colors.GREEN)}")
+                sys.stdout.write(
+                    f"\r{self._color('  ⚡', Colors.YELLOW)} {self._color('Analysis complete!', Colors.GREEN)}"
+                )
                 sys.stdout.flush()
                 time.sleep(0.08)
 
@@ -787,20 +810,15 @@ class ShellUI:
 
         elif event.type == TurnEventType.EXPLORATION_PHASE_CHANGE:
             # Exploration phase transition
-            old_phase = event.metadata.get('from_phase', '')
-            new_phase = event.metadata.get('to_phase', '')
-            reason = event.text or event.metadata.get('reason', '')
+            old_phase = event.metadata.get("from_phase", "")
+            new_phase = event.metadata.get("to_phase", "")
+            reason = event.text or event.metadata.get("reason", "")
 
             # Phase icons
-            phase_icons = {
-                'explore': '🔍',
-                'plan': '📋',
-                'execute': '⚡',
-                'save': '💾'
-            }
+            phase_icons = {"explore": "🔍", "plan": "📋", "execute": "⚡", "save": "💾"}
 
-            old_icon = phase_icons.get(old_phase, '🔄')
-            new_icon = phase_icons.get(new_phase, '🔄')
+            old_icon = phase_icons.get(old_phase, "🔄")
+            new_icon = phase_icons.get(new_phase, "🔄")
 
             print()
             print(self._color(f"{old_icon} Phase: {old_phase.upper()} → {new_phase.upper()} {new_icon}", Colors.CYAN))
@@ -831,8 +849,9 @@ class ShellUI:
         # Parse args for display
         try:
             import json
+
             args = json.loads(tool_args) if tool_args else {}
-        except:
+        except Exception:
             args = {}
 
         # Show tool call details
@@ -847,6 +866,7 @@ class ShellUI:
             command = args.get("command", "")
             if command:
                 from ..tools.shell_tools import check_dangerous_command
+
                 is_dangerous, danger_reason, detected_patterns = check_dangerous_command(command)
                 if is_dangerous:
                     danger_warning = danger_reason
@@ -873,15 +893,16 @@ class ShellUI:
         while True:
             print()
             if is_dangerous:
-                response = input(
-                    self._color("⚠️  This command is DANGEROUS. Really approve? ", Colors.BRIGHT_RED) +
-                    "[Y]es/[N]o: "
-                ).strip().lower()
+                response = (
+                    input(
+                        self._color("⚠️  This command is DANGEROUS. Really approve? ", Colors.BRIGHT_RED)
+                        + "[Y]es/[N]o: "
+                    )
+                    .strip()
+                    .lower()
+                )
             else:
-                response = input(
-                    self._color("Approve? ", Colors.YELLOW) +
-                    "[Y]es/[N]o/[A]ll: "
-                ).strip().lower()
+                response = input(self._color("Approve? ", Colors.YELLOW) + "[Y]es/[N]o/[A]ll: ").strip().lower()
 
             if response in ("y", "yes", ""):
                 return "y"
@@ -924,7 +945,11 @@ class ShellUI:
 
         # Header box
         print(self._color("╔══════════════════════════════════════════════════════════════╗", Colors.CYAN))
-        print(self._color("║", Colors.CYAN) + self._color("  Spectra CLI - AI-Powered Security Analysis Shell    ", Colors.BOLD) + self._color(" ║", Colors.CYAN))
+        print(
+            self._color("║", Colors.CYAN)
+            + self._color("  Spectra CLI - AI-Powered Security Analysis Shell    ", Colors.BOLD)
+            + self._color(" ║", Colors.CYAN)
+        )
         print(self._color("╚══════════════════════════════════════════════════════════════╝", Colors.CYAN))
         print()
 

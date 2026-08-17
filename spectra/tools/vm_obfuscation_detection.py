@@ -7,15 +7,14 @@ opaque predicates, and junk code insertion.
 
 from __future__ import annotations
 
-import re
-from collections import Counter
 from typing import Any
 
 # Try to import IDA API
 try:
     import idaapi
-    import idc
     import idautils
+    import idc
+
     IDA_AVAILABLE = True
 except ImportError:
     IDA_AVAILABLE = False
@@ -25,7 +24,8 @@ from .ida_helpers import get_disasm_text
 
 # Try to import Binary Ninja API
 try:
-    import binaryninja
+    import binaryninja  # noqa: F401 — availability probe
+
     BINJA_AVAILABLE = True
 except ImportError:
     BINJA_AVAILABLE = False
@@ -37,49 +37,49 @@ VM_PROTECTOR_SIGNATURES = {
         "strings": ["VMProtect", "vmp", "VMProtectSDK", "VMProtectBegin", "VMProtectEnd"],
         "imports": ["VMProtectIsProtected", "VMProtectIsDebuggerPresent", "VMProtectDecryptStringA"],
         "sections": [".vmp0", ".vmp1", ".vmp2", ".vmp3"],
-        "description": "VMProtect virtualization"
+        "description": "VMProtect virtualization",
     },
     "Themida": {
         "strings": ["Themida", "WinLicense", "ThemidaSDK", "SecureEngine"],
         "imports": ["CodeVirtualizerBegin", "CodeVirtualizerEnd", "Themida"],
         "sections": [".themida", ".winlice"],
-        "description": "Themida/WinLicense protection"
+        "description": "Themida/WinLicense protection",
     },
     "Tigress": {
         "strings": ["Tigress", "Tigress_transform", "Tigress_obfuscate"],
         "imports": ["tigress_", "Tigress_"],
         "sections": [".tigs"],
-        "description": "Tigress code protection"
+        "description": "Tigress code protection",
     },
     "VMPsoft": {
         "strings": ["VMPsoft", "Virtual_Machine"],
         "imports": ["VMP_"],
         "sections": [".vmp"],
-        "description": "VMPsoft virtual machine"
+        "description": "VMPsoft virtual machine",
     },
     "Enigma": {
         "strings": ["Enigma", "EnigmaVB", "Enigma Protector"],
         "imports": ["ENIGMA_", "Enigma_"],
         "sections": [".enigma"],
-        "description": "Enigma Protector"
+        "description": "Enigma Protector",
     },
     "UPX": {
         "strings": ["UPX!", "UPX compressed"],
         "imports": ["UPX"],
         "sections": ["UPX0", "UPX1", "UPX2"],
-        "description": "UPX packer (can be unpacked)"
+        "description": "UPX packer (can be unpacked)",
     },
     "ASPack": {
         "strings": ["ASPack", "ASPack compressed"],
         "imports": ["ASPack"],
         "sections": [".aspack"],
-        "description": "ASPack packer"
+        "description": "ASPack packer",
     },
     "PECompact": {
         "strings": ["PECompact", "PECompact2"],
         "imports": ["PEC2", "PECompact"],
         "sections": [".pec", ".pec2"],
-        "description": "PECompact packer"
+        "description": "PECompact packer",
     },
 }
 
@@ -87,48 +87,23 @@ VM_PROTECTOR_SIGNATURES = {
 CF_OBFUSCATION_PATTERNS = {
     "dispatcher": {
         "description": "Dispatcher-based control flow (switch/jump table)",
-        "indicators": [
-            "large switch statement",
-            "jump table",
-            "indirect jump via register",
-            "computed goto"
-        ]
+        "indicators": ["large switch statement", "jump table", "indirect jump via register", "computed goto"],
     },
     "opaque_predicate": {
         "description": "Opaque predicates (always true/false conditions)",
-        "indicators": [
-            "xor reg, reg; test reg, reg",
-            "cmp reg, reg",
-            "always zero comparison",
-            "redundant comparison"
-        ]
+        "indicators": ["xor reg, reg; test reg, reg", "cmp reg, reg", "always zero comparison", "redundant comparison"],
     },
     "junk_code": {
         "description": "Junk code insertion",
-        "indicators": [
-            "useless mov instructions",
-            "push/pop without effect",
-            "nop sequences",
-            "dead store"
-        ]
+        "indicators": ["useless mov instructions", "push/pop without effect", "nop sequences", "dead store"],
     },
     "instruction_substitution": {
         "description": "Instruction substitution (e.g., xor reg, reg vs mov reg, 0)",
-        "indicators": [
-            "xor for zeroing",
-            "sub for negation",
-            "push/pop for mov",
-            "complex single-purpose sequences"
-        ]
+        "indicators": ["xor for zeroing", "sub for negation", "push/pop for mov", "complex single-purpose sequences"],
     },
     "call_obfuscation": {
         "description": "Call obfuscation (trampolines, push/ret)",
-        "indicators": [
-            "push addr; ret",
-            "jmp [reg+off]",
-            "call table lookup",
-            "nested calls"
-        ]
+        "indicators": ["push addr; ret", "jmp [reg+off]", "call table lookup", "nested calls"],
     },
 }
 
@@ -244,13 +219,15 @@ def _analyze_function_complexity_ida() -> dict[str, Any]:
                     issues.append(f"High self-loop ratio: {self_loop_ratio:.2f}")
 
                 if issues:
-                    complex_functions.append({
-                        "address": func_ea,
-                        "name": func_name,
-                        "instr_count": instr_count,
-                        "block_count": block_count,
-                        "issues": issues,
-                    })
+                    complex_functions.append(
+                        {
+                            "address": func_ea,
+                            "name": func_name,
+                            "instr_count": instr_count,
+                            "block_count": block_count,
+                            "issues": issues,
+                        }
+                    )
 
                     # Look for obfuscation patterns
                     func_text = ""
@@ -265,31 +242,37 @@ def _analyze_function_complexity_ida() -> dict[str, Any]:
                     if "jmp" in func_text and ("qword ptr" in func_text or "dword ptr" in func_text):
                         jump_count = func_text.count("jmp")
                         if jump_count > 10:
-                            suspicious_patterns.append({
-                                "function": func_name,
-                                "address": func_ea,
-                                "pattern": "dispatcher",
-                                "description": f"Dispatcher pattern detected ({jump_count} indirect jumps)",
-                            })
+                            suspicious_patterns.append(
+                                {
+                                    "function": func_name,
+                                    "address": func_ea,
+                                    "pattern": "dispatcher",
+                                    "description": f"Dispatcher pattern detected ({jump_count} indirect jumps)",
+                                }
+                            )
 
                     # Check for opaque predicates
                     if "xor" in func_text and "test" in func_text:
-                        suspicious_patterns.append({
-                            "function": func_name,
-                            "address": func_ea,
-                            "pattern": "opaque_predicate",
-                            "description": "Potential opaque predicates (xor/test patterns)",
-                        })
+                        suspicious_patterns.append(
+                            {
+                                "function": func_name,
+                                "address": func_ea,
+                                "pattern": "opaque_predicate",
+                                "description": "Potential opaque predicates (xor/test patterns)",
+                            }
+                        )
 
                     # Check for junk code
                     nop_count = func_text.count("nop")
                     if nop_count > 5:
-                        suspicious_patterns.append({
-                            "function": func_name,
-                            "address": func_ea,
-                            "pattern": "junk_code",
-                            "description": f"Excessive NOPs ({nop_count})",
-                        })
+                        suspicious_patterns.append(
+                            {
+                                "function": func_name,
+                                "address": func_ea,
+                                "pattern": "junk_code",
+                                "description": f"Excessive NOPs ({nop_count})",
+                            }
+                        )
 
         except Exception:
             pass
@@ -363,33 +346,38 @@ def _analyze_function_complexity_binja(bv) -> dict[str, Any]:
             continue
 
         # Calculate metrics
-        if instr_count > OBFUSCATION_METRICS["high_instruction_count"]["threshold"] or \
-           block_count > OBFUSCATION_METRICS["high_basic_block_count"]["threshold"]:
-
+        if (
+            instr_count > OBFUSCATION_METRICS["high_instruction_count"]["threshold"]
+            or block_count > OBFUSCATION_METRICS["high_basic_block_count"]["threshold"]
+        ):
             issues = []
             if instr_count > OBFUSCATION_METRICS["high_instruction_count"]["threshold"]:
                 issues.append(f"High instruction count: {instr_count}")
             if block_count > OBFUSCATION_METRICS["high_basic_block_count"]["threshold"]:
                 issues.append(f"High basic block count: {block_count}")
 
-            complex_functions.append({
-                "address": hex(func.start),
-                "name": func.name,
-                "instr_count": instr_count,
-                "block_count": block_count,
-                "issues": issues,
-            })
+            complex_functions.append(
+                {
+                    "address": hex(func.start),
+                    "name": func.name,
+                    "instr_count": instr_count,
+                    "block_count": block_count,
+                    "issues": issues,
+                }
+            )
 
             # Look for obfuscation patterns in disassembly
             func_text = "\n".join(str(instr) for instr in func.instructions).lower()
 
             if "jmp" in func_text and ("qword" in func_text or "dword" in func_text):
-                suspicious_patterns.append({
-                    "function": func.name,
-                    "address": hex(func.start),
-                    "pattern": "dispatcher",
-                    "description": "Dispatcher pattern detected",
-                })
+                suspicious_patterns.append(
+                    {
+                        "function": func.name,
+                        "address": hex(func.start),
+                        "pattern": "dispatcher",
+                        "description": "Dispatcher pattern detected",
+                    }
+                )
 
     return {
         "complex_functions": complex_functions[:20],
@@ -408,8 +396,7 @@ def format_obfuscation_report(protector_detection: dict, complexity: dict) -> st
             confidence = protector_detection["confidence"].get(protector, 0)
             sig = VM_PROTECTOR_SIGNATURES.get(protector, {})
             report_lines.append(
-                f"- **{protector}** (confidence: {confidence}%)\n"
-                f"  - *{sig.get('description', 'Unknown protector')}*\n"
+                f"- **{protector}** (confidence: {confidence}%)\n  - *{sig.get('description', 'Unknown protector')}*\n"
             )
     else:
         report_lines.append("### Detected Protectors\n")
@@ -504,34 +491,39 @@ def get_deobfuscation_suggestions(detected_protectors: list[str]) -> str:
 
     for protector in detected_protectors:
         if protector == "VMProtect":
-            suggestions.append({
-                "tool": "VMProtect Devirtualizer",
-                "method": "Use VMP3 devirtualization tools or trace VM handlers",
-                "difficulty": "Hard",
-            })
+            suggestions.append(
+                {
+                    "tool": "VMProtect Devirtualizer",
+                    "method": "Use VMP3 devirtualization tools or trace VM handlers",
+                    "difficulty": "Hard",
+                }
+            )
         elif protector == "Themida":
-            suggestions.append({
-                "tool": "Themida Unpacker",
-                "method": "Dump from memory after unpacking stub, rebuild IAT",
-                "difficulty": "Medium",
-            })
+            suggestions.append(
+                {
+                    "tool": "Themida Unpacker",
+                    "method": "Dump from memory after unpacking stub, rebuild IAT",
+                    "difficulty": "Medium",
+                }
+            )
         elif protector == "UPX":
-            suggestions.append({
-                "tool": "UPX",
-                "method": "upx -d filename.exe",
-                "difficulty": "Easy",
-            })
+            suggestions.append(
+                {
+                    "tool": "UPX",
+                    "method": "upx -d filename.exe",
+                    "difficulty": "Easy",
+                }
+            )
         elif protector == "Tigress":
-            suggestions.append({
-                "tool": "Tigress Deobfuscator",
-                "method": "Use symbolic execution or partial evaluation",
-                "difficulty": "Very Hard",
-            })
+            suggestions.append(
+                {
+                    "tool": "Tigress Deobfuscator",
+                    "method": "Use symbolic execution or partial evaluation",
+                    "difficulty": "Very Hard",
+                }
+            )
 
-    return "\n".join(
-        f"- **{s['tool']}** ({s['difficulty']}): {s['method']}\n"
-        for s in suggestions
-    )
+    return "\n".join(f"- **{s['tool']}** ({s['difficulty']}): {s['method']}\n" for s in suggestions)
 
 
 if __name__ == "__main__":

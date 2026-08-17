@@ -56,6 +56,7 @@ class SpectraPanel(idaapi.PluginForm):
             root_layout.addWidget(self._core)
         except Exception as e:
             import traceback
+
             tb = traceback.format_exc()
             idaapi.msg(f"[Spectra] OnCreate error: {e}\n{tb}\n")
             raise
@@ -86,6 +87,7 @@ class SpectraPanel(idaapi.PluginForm):
                 self._core = None
         except Exception as e:
             import traceback
+
             tb = traceback.format_exc()
             idaapi.msg(f"[Spectra] Shutdown warning: {e}\n{tb}\n")
 

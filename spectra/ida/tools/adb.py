@@ -14,19 +14,19 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from ...tools.base import tool
 from ...tools.adb import (
+    adb_app_info,
     adb_check,
     adb_connect,
     adb_install,
-    adb_uninstall,
-    adb_shell,
     adb_list_packages,
-    adb_app_info,
     adb_pull,
     adb_push,
+    adb_shell,
+    adb_uninstall,
     get_adb_manager,
 )
+from ...tools.base import tool
 
 
 # Re-export the core ADB tools with IDA-specific descriptions
@@ -44,7 +44,9 @@ def ida_adb_check() -> str:
 
 @tool(category="adb", description="Connect to an Android device via ADB")
 def ida_adb_connect(
-    device_id: Annotated[str, "Device ID (serial or IP:port for wireless). Leave empty for first available device."] = "",
+    device_id: Annotated[
+        str, "Device ID (serial or IP:port for wireless). Leave empty for first available device."
+    ] = "",
 ) -> str:
     """Connect to an Android device and get device information.
 
@@ -244,9 +246,9 @@ def find_android_api_calls(
         List of Android API calls found with analysis.
     """
     try:
+        import ida_funcs
         import ida_hexrays
         import ida_name
-        import ida_funcs
         import ida_xref
     except ImportError:
         return "Error: IDA API not available"
@@ -261,9 +263,14 @@ def find_android_api_calls(
     # Look for Android API imports and calls
     android_symbols = []
     api_patterns = [
-        "android::", "Java_", "JNI_", "ANative",
-        "AAsset", "AConfiguration", "ALooper",
-        "_Znj"  # C++ new (common in Android)
+        "android::",
+        "Java_",
+        "JNI_",
+        "ANative",
+        "AAsset",
+        "AConfiguration",
+        "ALooper",
+        "_Znj",  # C++ new (common in Android)
     ]
 
     # Scan for xrefs to potential Android APIs
@@ -272,11 +279,7 @@ def find_android_api_calls(
         if target_name:
             for pattern in api_patterns:
                 if pattern in target_name:
-                    android_symbols.append({
-                        "name": target_name,
-                        "address": f"0x{xref.to:X}",
-                        "type": xref.type
-                    })
+                    android_symbols.append({"name": target_name, "address": f"0x{xref.to:X}", "type": xref.type})
 
     if not android_symbols:
         return f"No Android API calls found in function at 0x{ea:X}"

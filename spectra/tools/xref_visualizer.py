@@ -7,7 +7,7 @@ and complexity analysis for both IDA Pro and Binary Ninja.
 from __future__ import annotations
 
 import json
-from typing import Any, Tuple
+from typing import Any
 
 from ..core.logging import log_info
 from ..core.xref import XRefGraph, build_xref_graph
@@ -265,7 +265,7 @@ class XRefVisualizerTool(Tool):
         return "\n".join(lines)
 
     def _to_json(
-        self, graph: XRefGraph, func_addr: int, callers: list[int], callees: list[int], similar: list[Tuple[int, float]]
+        self, graph: XRefGraph, func_addr: int, callers: list[int], callees: list[int], similar: list[tuple[int, float]]
     ) -> str:
         """Convert analysis results to JSON format."""
         data = {
@@ -320,7 +320,7 @@ class XRefVisualizerTool(Tool):
     def _is_ida(self) -> bool:
         """Check if running in IDA Pro environment."""
         try:
-            import ida_kernwin
+            import ida_kernwin  # noqa: F401 — availability probe
 
             return True
         except ImportError:

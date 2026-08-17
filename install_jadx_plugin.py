@@ -6,11 +6,9 @@ Automatically installs Spectra as a JADX plugin.
 Supports Linux, macOS, and Windows.
 """
 
-import os
+import json
 import shutil
 import sys
-import json
-import platform
 from pathlib import Path
 
 __version__ = "1.0.0"
@@ -40,9 +38,9 @@ def get_jadx_plugin_dir() -> Path:
 def install_plugin() -> int:
     """Install Spectra as JADX plugin."""
 
-    print("="*60)
+    print("=" * 60)
     print("  Spectra JADX Plugin Installer")
-    print("="*60)
+    print("=" * 60)
 
     # Get current directory (Spectra root)
     spectra_root = Path(__file__).parent.absolute()
@@ -60,7 +58,7 @@ def install_plugin() -> int:
 
     if script_source.exists():
         shutil.copy2(script_source, script_dest)
-        print(f"✅ Copied: spectra_jadx.py")
+        print("✅ Copied: spectra_jadx.py")
     else:
         print(f"❌ Error: {script_source} not found")
         return 1
@@ -73,7 +71,7 @@ def install_plugin() -> int:
         if spectra_module_dest.exists():
             shutil.rmtree(spectra_module_dest)
         shutil.copytree(spectra_module_source, spectra_module_dest)
-        print(f"✅ Copied: spectra/ module")
+        print("✅ Copied: spectra/ module")
     else:
         print(f"❌ Error: {spectra_module_source} not found")
         return 1
@@ -86,24 +84,21 @@ def install_plugin() -> int:
         "author": "Ali Can Gönüllü",
         "main": "spectra_jadx.py",
         "enabled": True,
-        "dependencies": [
-            "anthropic>=0.18.0",
-            "httpx>=0.24.0"
-        ],
+        "dependencies": ["anthropic>=0.18.0", "httpx>=0.24.0"],
         "capabilities": [
             "apk_analysis",
             "string_search",
             "manifest_parsing",
             "security_assessment",
             "native_library_detection",
-            "interactive_mode"
-        ]
+            "interactive_mode",
+        ],
     }
 
     config_path = spectra_plugin_dir / "plugin.json"
     with open(config_path, "w", encoding="utf-8") as f:
         json.dump(plugin_config, f, indent=2, ensure_ascii=False)
-    print(f"✅ Created: plugin.json")
+    print("✅ Created: plugin.json")
 
     # Create default config
     default_config = {
@@ -117,14 +112,14 @@ def install_plugin() -> int:
             "network_security": True,
             "native_libraries": True,
             "debuggable_check": True,
-            "backup_check": True
-        }
+            "backup_check": True,
+        },
     }
 
     config_file_path = spectra_plugin_dir / "config.json"
     with open(config_file_path, "w", encoding="utf-8") as f:
         json.dump(default_config, f, indent=2, ensure_ascii=False)
-    print(f"✅ Created: config.json")
+    print("✅ Created: config.json")
 
     # Create README
     readme_content = """# Spectra JADX Plugin
@@ -176,18 +171,18 @@ https://github.com/alicangnll/Spectra
     readme_path = spectra_plugin_dir / "README.md"
     with open(readme_path, "w", encoding="utf-8") as f:
         f.write(readme_content)
-    print(f"✅ Created: README.md")
+    print("✅ Created: README.md")
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("  Installation Complete!")
-    print("="*60)
+    print("=" * 60)
     print(f"\n📦 Plugin installed to: {spectra_plugin_dir}")
     print(f"🔧 Plugin config: {config_file_path}")
-    print(f"\n📖 Next steps:")
+    print("\n📖 Next steps:")
     print(f"   1. Configure API key in: {config_file_path}")
-    print(f"   2. Restart JADX if running")
-    print(f"   3. Check Tools → Spectra menu in JADX GUI")
-    print(f"\n📚 Documentation: See README.md in plugin directory")
+    print("   2. Restart JADX if running")
+    print("   3. Check Tools → Spectra menu in JADX GUI")
+    print("\n📚 Documentation: See README.md in plugin directory")
 
     return 0
 
@@ -195,9 +190,9 @@ https://github.com/alicangnll/Spectra
 def uninstall_plugin() -> int:
     """Uninstall Spectra JADX plugin."""
 
-    print("="*60)
+    print("=" * 60)
     print("  Spectra JADX Plugin Uninstaller")
-    print("="*60)
+    print("=" * 60)
 
     plugin_dir = get_jadx_plugin_dir()
     spectra_plugin_dir = plugin_dir / "spectra"
@@ -222,19 +217,9 @@ def main() -> int:
 
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Install/uninstall Spectra as JADX plugin"
-    )
-    parser.add_argument(
-        "--uninstall",
-        action="store_true",
-        help="Uninstall the plugin"
-    )
-    parser.add_argument(
-        "--version",
-        action="version",
-        version=f"%(prog)s {__version__}"
-    )
+    parser = argparse.ArgumentParser(description="Install/uninstall Spectra as JADX plugin")
+    parser.add_argument("--uninstall", action="store_true", help="Uninstall the plugin")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
 
     args = parser.parse_args()
 

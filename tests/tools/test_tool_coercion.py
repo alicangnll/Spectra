@@ -8,6 +8,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from tests.mocks.ida_mock import install_ida_mocks
+
 install_ida_mocks()
 
 from spectra.tools.base import ParameterSchema, ToolDefinition
@@ -93,14 +94,21 @@ class TestCoerceArguments(unittest.TestCase):
 
     def test_native_types_unchanged(self):
         """Values already matching their schema type should pass through."""
-        defn = _make_defn([
-            ParameterSchema(name="count", type="integer"),
-            ParameterSchema(name="flag", type="boolean"),
-            ParameterSchema(name="name", type="string"),
-        ])
-        result = ToolRegistry._coerce_arguments(defn, {
-            "count": 42, "flag": True, "name": "hello",
-        })
+        defn = _make_defn(
+            [
+                ParameterSchema(name="count", type="integer"),
+                ParameterSchema(name="flag", type="boolean"),
+                ParameterSchema(name="name", type="string"),
+            ]
+        )
+        result = ToolRegistry._coerce_arguments(
+            defn,
+            {
+                "count": 42,
+                "flag": True,
+                "name": "hello",
+            },
+        )
         self.assertEqual(result["count"], 42)
         self.assertTrue(result["flag"])
         self.assertEqual(result["name"], "hello")

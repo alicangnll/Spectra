@@ -20,10 +20,10 @@ from spectra.binja.ui.actions import (
     handle_xref_analysis,
 )
 
-
 # ---------------------------------------------------------------------------
 # build_context
 # ---------------------------------------------------------------------------
+
 
 class TestBuildContext(unittest.TestCase):
     def _make_deps(self, func=None):
@@ -73,6 +73,7 @@ class TestBuildContext(unittest.TestCase):
 # handle_send_to
 # ---------------------------------------------------------------------------
 
+
 class TestHandleSendTo(unittest.TestCase):
     def test_selected_text_returned_as_is(self):
         ctx = {"selected_text": "my selection", "func_name": "func", "ea": 0x1000}
@@ -85,7 +86,7 @@ class TestHandleSendTo(unittest.TestCase):
         self.assertIn("0x1000", result)
 
     def test_address_only_when_no_name_and_no_selection(self):
-        ctx = {"selected_text": "", "func_name": None, "ea": 0xdeadbeef}
+        ctx = {"selected_text": "", "func_name": None, "ea": 0xDEADBEEF}
         result = handle_send_to(ctx)
         self.assertIn("0xdeadbeef", result)
         self.assertNotIn("None", result)
@@ -94,6 +95,7 @@ class TestHandleSendTo(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # handle_explain
 # ---------------------------------------------------------------------------
+
 
 class TestHandleExplain(unittest.TestCase):
     def test_includes_name_and_address(self):
@@ -117,6 +119,7 @@ class TestHandleExplain(unittest.TestCase):
 # handle_rename
 # ---------------------------------------------------------------------------
 
+
 class TestHandleRename(unittest.TestCase):
     def test_includes_func_name(self):
         ctx = {"func_name": "old_name", "func_ea": 0x1000, "ea": 0x1000}
@@ -132,6 +135,7 @@ class TestHandleRename(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # handle_deobfuscate
 # ---------------------------------------------------------------------------
+
 
 class TestHandleDeobfuscateBn(unittest.TestCase):
     def test_includes_obfuscation_patterns(self):
@@ -149,6 +153,7 @@ class TestHandleDeobfuscateBn(unittest.TestCase):
 # handle_vuln_audit
 # ---------------------------------------------------------------------------
 
+
 class TestHandleVulnAudit(unittest.TestCase):
     def test_mentions_vulnerability_types(self):
         ctx = {"func_name": "fn", "func_ea": 0x1000, "ea": 0x1000}
@@ -165,6 +170,7 @@ class TestHandleVulnAudit(unittest.TestCase):
 # handle_suggest_types
 # ---------------------------------------------------------------------------
 
+
 class TestHandleSuggestTypes(unittest.TestCase):
     def test_mentions_types_and_structs(self):
         ctx = {"func_name": "fn", "func_ea": 0x1000, "ea": 0x1000}
@@ -177,6 +183,7 @@ class TestHandleSuggestTypes(unittest.TestCase):
 # handle_annotate
 # ---------------------------------------------------------------------------
 
+
 class TestHandleAnnotate(unittest.TestCase):
     def test_mentions_comments(self):
         ctx = {"func_name": "fn", "func_ea": 0x1000, "ea": 0x1000}
@@ -188,6 +195,7 @@ class TestHandleAnnotate(unittest.TestCase):
 # handle_clean_mcode
 # ---------------------------------------------------------------------------
 
+
 class TestHandleCleanIl(unittest.TestCase):
     def test_mentions_il(self):
         ctx = {"func_name": "fn", "func_ea": 0x1000, "ea": 0x1000}
@@ -198,6 +206,7 @@ class TestHandleCleanIl(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # handle_xref_analysis
 # ---------------------------------------------------------------------------
+
 
 class TestHandleXrefAnalysis(unittest.TestCase):
     def test_mentions_callers_and_callees(self):
@@ -211,6 +220,7 @@ class TestHandleXrefAnalysis(unittest.TestCase):
 # handle_smart_patch
 # ---------------------------------------------------------------------------
 
+
 class TestHandleSmartPatch(unittest.TestCase):
     def test_includes_skill_prefix(self):
         ctx = {"func_name": "fn", "func_ea": 0x1000, "ea": 0x1000}
@@ -221,6 +231,7 @@ class TestHandleSmartPatch(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # ACTION_DEFS
 # ---------------------------------------------------------------------------
+
 
 class TestActionDefs(unittest.TestCase):
     def test_all_actions_have_four_fields(self):

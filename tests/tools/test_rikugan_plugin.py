@@ -4,23 +4,24 @@ from __future__ import annotations
 
 import builtins
 import importlib
+
+# ---------------------------------------------------------------------------
+# Stub idaapi (and related IDA modules) before importing the plugin
+# ---------------------------------------------------------------------------
+import os as _os
 import sys
 import types
 import unittest
 from unittest.mock import MagicMock, patch
 
-
-# ---------------------------------------------------------------------------
-# Stub idaapi (and related IDA modules) before importing the plugin
-# ---------------------------------------------------------------------------
-
-import os as _os
 sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))))
 from tests.mocks.ida_mock import install_ida_mocks
+
 install_ida_mocks()
 
 # Provide real base classes so class inheritance works
 import idaapi as _idaapi_mock  # type: ignore[import]
+
 _idaapi_mock.plugmod_t = type("plugmod_t", (), {})
 _idaapi_mock.plugin_t = type("plugin_t", (), {})
 _idaapi_mock.PLUGIN_MULTI = 1
@@ -28,12 +29,12 @@ _idaapi_mock.PLUGIN_FIX = 2
 
 # Force re-import so IDA mocks are active for this module's import
 sys.modules.pop("spectra_plugin", None)
-import spectra_plugin as rp  # noqa: E402
-
+import spectra_plugin as rp
 
 # ---------------------------------------------------------------------------
 # _guarded_import — re-entrancy guard
 # ---------------------------------------------------------------------------
+
 
 class TestGuardedImport(unittest.TestCase):
     def test_marker_attribute_set(self):
@@ -119,6 +120,7 @@ class TestGuardedImport(unittest.TestCase):
 # SpectraPlugmod.term
 # ---------------------------------------------------------------------------
 
+
 def _make_plugmod():
     """Create a SpectraPlugmod without calling __init__."""
     pm = object.__new__(rp.SpectraPlugmod)
@@ -193,6 +195,7 @@ class TestSpectraPlugmodTogglePanel(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # PLUGIN_ENTRY
 # ---------------------------------------------------------------------------
+
 
 class TestPluginEntry(unittest.TestCase):
     def test_returns_spectra_plugin(self):

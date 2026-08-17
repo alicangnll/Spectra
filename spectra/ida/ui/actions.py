@@ -117,7 +117,7 @@ if _HAS_IDA:
     def _handle_toggle_auto_reload(ctx: dict[str, Any]) -> None:
         """Toggle auto-reload for development."""
         try:
-            from ...core.auto_reload import is_watching, enable_auto_reload, disable_auto_reload
+            from ...core.auto_reload import disable_auto_reload, enable_auto_reload, is_watching
 
             if is_watching():
                 disable_auto_reload()
@@ -381,6 +381,7 @@ if _HAS_IDA:
                 self._registered = False
 
 else:
+
     class SpectraUIHooks:
         """Stub when IDA is not available."""
 

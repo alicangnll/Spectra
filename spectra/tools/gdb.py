@@ -15,8 +15,8 @@ import subprocess
 import tempfile
 from typing import Any
 
+from ..core.logging import log_debug, log_info
 from ..core.tool_infrastructure import ExternalTool
-from ..core.logging import log_debug, log_error, log_info
 from ..tools.base import ParameterSchema, ToolDefinition
 
 
@@ -74,12 +74,12 @@ def _create_gdb_script(commands: list[str]) -> str:
         Path to script file
     """
     try:
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.gdb', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".gdb", delete=False) as f:
             for cmd in commands:
                 f.write(cmd + "\n")
             return f.name
     except Exception as e:
-        raise RuntimeError(f"Failed to create GDB script: {e}")
+        raise RuntimeError(f"Failed to create GDB script: {e}") from e
 
 
 def gdb_attach(pid: int, commands: list[str] | None = None) -> str:
@@ -280,32 +280,47 @@ def create_gdb_tools() -> list[ToolDefinition]:
             category="debugging",
             parameters=[
                 ParameterSchema(name="pid", type="integer", description="Process ID", required=True),
-                ParameterSchema(name="commands", type="string", description="Optional GDB commands (semicolon-separated)", required=False, default=""),
+                ParameterSchema(
+                    name="commands",
+                    type="string",
+                    description="Optional GDB commands (semicolon-separated)",
+                    required=False,
+                    default="",
+                ),
             ],
-            handler=lambda pid, commands="", **kwargs: gdb_attach(
-                pid,
-                commands.split(";") if commands else None
-            ),
+            handler=lambda pid, commands="", **kwargs: gdb_attach(pid, commands.split(";") if commands else None),
         ),
-
         ToolDefinition(
             name="gdb_run",
             description="Run binary under GDB with breakpoints",
             category="debugging",
             parameters=[
                 ParameterSchema(name="binary", type="string", description="Binary path", required=True),
-                ParameterSchema(name="args", type="string", description="Command-line arguments", required=False, default=""),
-                ParameterSchema(name="breakpoints", type="string", description="Comma-separated breakpoint addresses (hex)", required=False, default=""),
-                ParameterSchema(name="commands", type="string", description="Additional GDB commands (semicolon-separated)", required=False, default=""),
+                ParameterSchema(
+                    name="args", type="string", description="Command-line arguments", required=False, default=""
+                ),
+                ParameterSchema(
+                    name="breakpoints",
+                    type="string",
+                    description="Comma-separated breakpoint addresses (hex)",
+                    required=False,
+                    default="",
+                ),
+                ParameterSchema(
+                    name="commands",
+                    type="string",
+                    description="Additional GDB commands (semicolon-separated)",
+                    required=False,
+                    default="",
+                ),
             ],
             handler=lambda binary, args="", breakpoints="", commands="", **kwargs: gdb_run(
                 binary,
                 args,
                 [int(bp, 16) for bp in breakpoints.split(",") if breakpoints],
-                commands.split(";") if commands else None
+                commands.split(";") if commands else None,
             ),
         ),
-
         ToolDefinition(
             name="gdb_get_registers",
             description="Get register values from attached process",
@@ -315,7 +330,6 @@ def create_gdb_tools() -> list[ToolDefinition]:
             ],
             handler=lambda pid, **kwargs: gdb_get_registers(pid),
         ),
-
         ToolDefinition(
             name="gdb_get_memory",
             description="Read memory at address from attached process",
@@ -326,12 +340,9 @@ def create_gdb_tools() -> list[ToolDefinition]:
                 ParameterSchema(name="size", type="integer", description="Number of bytes", required=True, default=256),
             ],
             handler=lambda pid, address, size=256, **kwargs: gdb_get_memory(
-                pid,
-                int(address, 16) if isinstance(address, str) else address,
-                size
+                pid, int(address, 16) if isinstance(address, str) else address, size
             ),
         ),
-
         ToolDefinition(
             name="gdb_set_breakpoint",
             description="Set breakpoint in attached process",
@@ -339,22 +350,24 @@ def create_gdb_tools() -> list[ToolDefinition]:
             parameters=[
                 ParameterSchema(name="pid", type="integer", description="Process ID", required=True),
                 ParameterSchema(name="address", type="string", description="Breakpoint address (hex)", required=True),
-                ParameterSchema(name="condition", type="string", description="Breakpoint condition", required=False, default=""),
+                ParameterSchema(
+                    name="condition", type="string", description="Breakpoint condition", required=False, default=""
+                ),
             ],
             handler=lambda pid, address, condition="", **kwargs: gdb_set_breakpoint(pid, int(address, 16), condition),
         ),
-
         ToolDefinition(
             name="gdb_get_callstack",
             description="Get call stack backtrace",
             category="debugging",
             parameters=[
                 ParameterSchema(name="pid", type="integer", description="Process ID", required=True),
-                ParameterSchema(name="max_frames", type="integer", description="Maximum frames", required=False, default=10),
+                ParameterSchema(
+                    name="max_frames", type="integer", description="Maximum frames", required=False, default=10
+                ),
             ],
             handler=lambda pid, max_frames=10, **kwargs: gdb_get_callstack(pid, max_frames),
         ),
-
         ToolDefinition(
             name="gdb_disassemble",
             description="Disassemble code at address",
@@ -362,7 +375,9 @@ def create_gdb_tools() -> list[ToolDefinition]:
             parameters=[
                 ParameterSchema(name="pid", type="integer", description="Process ID", required=True),
                 ParameterSchema(name="address", type="string", description="Address (hex)", required=True),
-                ParameterSchema(name="num_lines", type="integer", description="Number of instructions", required=False, default=10),
+                ParameterSchema(
+                    name="num_lines", type="integer", description="Number of instructions", required=False, default=10
+                ),
             ],
             handler=lambda pid, address, num_lines=10, **kwargs: gdb_disassemble(pid, int(address, 16), num_lines),
         ),

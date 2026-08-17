@@ -10,17 +10,17 @@ Components:
     parse_command - Command routing for slash commands
 """
 
-from .shell_controller import CLISessionController, create_cli_tool_registry
-from .shell_ui import ShellUI
-from .shell_repl import ShellREPL
 from .command_parser import Command, CommandType, parse_command
+from .shell_controller import CLISessionController, create_cli_tool_registry
+from .shell_repl import ShellREPL
+from .shell_ui import ShellUI
 
 __all__ = [
     "CLISessionController",
-    "create_cli_tool_registry",
-    "ShellUI",
-    "ShellREPL",
     "Command",
     "CommandType",
+    "ShellREPL",
+    "ShellUI",
+    "create_cli_tool_registry",
     "parse_command",
 ]

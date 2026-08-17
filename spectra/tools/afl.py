@@ -10,14 +10,13 @@ Provides tools for:
 
 from __future__ import annotations
 
-import json
 import os
 import re
 import subprocess
 from typing import Any
 
+from ..core.logging import log_debug, log_info
 from ..core.tool_infrastructure import ExternalTool, ToolSafety
-from ..core.logging import log_debug, log_error, log_info
 from ..tools.base import ParameterSchema, ToolDefinition
 
 
@@ -66,6 +65,7 @@ def _ensure_afl(tool: str = "afl-fuzz") -> str:
 
     # Try to find specific tool
     import shutil
+
     path = shutil.which(tool)
     if path:
         return path
@@ -85,7 +85,10 @@ def _ensure_afl(tool: str = "afl-fuzz") -> str:
 # Tool Functions
 # ============================================================================
 
-def afl_run(target: str, input_dir: str, output_dir: str, args: str = "", duration: int = 3600, memory_limit: int = 8192) -> str:
+
+def afl_run(
+    target: str, input_dir: str, output_dir: str, args: str = "", duration: int = 3600, memory_limit: int = 8192
+) -> str:
     """Run AFL++ on target.
 
     Args:
@@ -116,11 +119,16 @@ def afl_run(target: str, input_dir: str, output_dir: str, args: str = "", durati
 
     cmd = [
         afl_fuzz_path,
-        "-i", input_dir,
-        "-o", output_dir,
-        "-t", "1000",  # Timeout
-        "-m", str(memory_limit),
-        "-V", "60",  # Smash threshold
+        "-i",
+        input_dir,
+        "-o",
+        output_dir,
+        "-t",
+        "1000",  # Timeout
+        "-m",
+        str(memory_limit),
+        "-V",
+        "60",  # Smash threshold
     ]
 
     # Add duration (AFL++ doesn't have built-in duration, use timeout)
@@ -128,7 +136,7 @@ def afl_run(target: str, input_dir: str, output_dir: str, args: str = "", durati
 
     output = [
         "=== AFL++ Fuzzing Command ===",
-        " ".join(cmd + [target, (args or "@@")]),
+        " ".join([*cmd, target, (args or "@@")]),
         "",
         f"Duration: {duration}s (note: AFL++ runs until manually stopped)",
         f"Memory limit: {memory_limit}MB",
@@ -165,7 +173,7 @@ def afl_crashes(output_dir: str) -> str:
         output.append("")
 
         # Show unique crashes
-        unique_crashes = [f for f in crash_files if ",sync:" in f or "id:" in f or f == "README.txt"]
+        _unique_crashes = [f for f in crash_files if ",sync:" in f or "id:" in f or f == "README.txt"]
         output.append(f"Unique crashes: {len([c for c in crash_files if 'id' in c or 'sync' in c])}")
 
         if crash_files:
@@ -188,7 +196,7 @@ def afl_crashes(output_dir: str) -> str:
         output.append("")
         output.append("=== Fuzzer Stats ===")
         try:
-            with open(stats_file, 'r') as f:
+            with open(stats_file) as f:
                 stats = f.read()
             output.append(stats[:500])  # Show first 500 chars
         except Exception:
@@ -218,7 +226,7 @@ def afl_plot_data(output_dir: str) -> str:
     output = [f"=== AFL Plot Data: {output_dir} ==="]
 
     try:
-        with open(plot_data_file, 'r') as f:
+        with open(plot_data_file) as f:
             lines = f.readlines()
 
         # Parse AFL plot data format
@@ -262,7 +270,7 @@ def afl_triage_crashes(output_dir: str, target: str, args: str = "") -> str:
     crash_files = [f for f in os.listdir(crashes_dir) if f != "README.txt"]
 
     output = [
-        f"=== AFL Crash Triage ===",
+        "=== AFL Crash Triage ===",
         f"Target: {target}",
         f"Crashes: {len(crash_files)}",
         "",
@@ -333,9 +341,12 @@ def afl_minimize_corpus(target: str, input_dir: str, output_dir: str, args: str 
     cmd = [
         afl_cmin_path,
         "--all",
-        "-i", input_dir,
-        "-o", output_dir,
-        "-t", "1000",
+        "-i",
+        input_dir,
+        "-o",
+        output_dir,
+        "-t",
+        "1000",
     ]
 
     cmd.extend(target.split())
@@ -372,7 +383,7 @@ def afl_analyze_crash(crash_file: str, target: str, args: str = "") -> str:
         return f"Error: Target not found: {target}"
 
     output = [
-        f"=== AFL Crash Analysis ===",
+        "=== AFL Crash Analysis ===",
         f"Crash: {crash_file}",
         f"Target: {target}",
         "",
@@ -385,7 +396,7 @@ def afl_analyze_crash(crash_file: str, target: str, args: str = "") -> str:
     # Show hexdump of crash
     output.append("\nCrash data (hex):")
     try:
-        with open(crash_file, 'rb') as f:
+        with open(crash_file, "rb") as f:
             data = f.read()
 
         hex_str = data[:100].hex()  # First 100 bytes
@@ -437,7 +448,7 @@ def afl_cov(target: str, input_dir: str, args: str = "") -> str:
     Returns:
         Coverage info
     """
-    afl_what_path = _ensure_afl("afl-whatsup")
+    _afl_what_path = _ensure_afl("afl-whatsup")
 
     if not os.path.isdir(input_dir):
         return f"Error: Input directory not found: {input_dir}"
@@ -465,6 +476,7 @@ def afl_cov(target: str, input_dir: str, args: str = "") -> str:
 # Tool Definitions
 # ============================================================================
 
+
 def create_afl_tools() -> list[ToolDefinition]:
     """Create AFL tool definitions.
 
@@ -478,15 +490,34 @@ def create_afl_tools() -> list[ToolDefinition]:
             category="fuzzing",
             parameters=[
                 ParameterSchema(name="target", type="string", description="Target binary path", required=True),
-                ParameterSchema(name="input_dir", type="string", description="Input directory with seed corpus", required=True),
-                ParameterSchema(name="output_dir", type="string", description="Output directory for results", required=True),
-                ParameterSchema(name="args", type="string", description="Target arguments (use @@ for input file)", required=False, default=""),
-                ParameterSchema(name="duration", type="integer", description="Fuzzing duration in seconds", required=False, default=3600),
-                ParameterSchema(name="memory_limit", type="integer", description="Memory limit in MB", required=False, default=8192),
+                ParameterSchema(
+                    name="input_dir", type="string", description="Input directory with seed corpus", required=True
+                ),
+                ParameterSchema(
+                    name="output_dir", type="string", description="Output directory for results", required=True
+                ),
+                ParameterSchema(
+                    name="args",
+                    type="string",
+                    description="Target arguments (use @@ for input file)",
+                    required=False,
+                    default="",
+                ),
+                ParameterSchema(
+                    name="duration",
+                    type="integer",
+                    description="Fuzzing duration in seconds",
+                    required=False,
+                    default=3600,
+                ),
+                ParameterSchema(
+                    name="memory_limit", type="integer", description="Memory limit in MB", required=False, default=8192
+                ),
             ],
-            handler=lambda target, input_dir, output_dir, args="", duration=3600, memory_limit=8192, **kwargs: afl_run(target, input_dir, output_dir, args, duration, memory_limit),
+            handler=lambda target, input_dir, output_dir, args="", duration=3600, memory_limit=8192, **kwargs: afl_run(
+                target, input_dir, output_dir, args, duration, memory_limit
+            ),
         ),
-
         ToolDefinition(
             name="afl_crashes",
             description="Get crash information from AFL output",
@@ -496,7 +527,6 @@ def create_afl_tools() -> list[ToolDefinition]:
             ],
             handler=lambda output_dir, **kwargs: afl_crashes(output_dir),
         ),
-
         ToolDefinition(
             name="afl_plot_data",
             description="Get plot data for visualization",
@@ -506,7 +536,6 @@ def create_afl_tools() -> list[ToolDefinition]:
             ],
             handler=lambda output_dir, **kwargs: afl_plot_data(output_dir),
         ),
-
         ToolDefinition(
             name="afl_triage_crashes",
             description="Triage crashes with target",
@@ -514,11 +543,16 @@ def create_afl_tools() -> list[ToolDefinition]:
             parameters=[
                 ParameterSchema(name="output_dir", type="string", description="AFL output directory", required=True),
                 ParameterSchema(name="target", type="string", description="Target binary", required=True),
-                ParameterSchema(name="args", type="string", description="Target arguments (use @@ for input)", required=False, default=""),
+                ParameterSchema(
+                    name="args",
+                    type="string",
+                    description="Target arguments (use @@ for input)",
+                    required=False,
+                    default="",
+                ),
             ],
             handler=lambda output_dir, target, args="", **kwargs: afl_triage_crashes(output_dir, target, args),
         ),
-
         ToolDefinition(
             name="afl_minimize_corpus",
             description="Minimize corpus with afl-cmin",
@@ -526,12 +560,15 @@ def create_afl_tools() -> list[ToolDefinition]:
             parameters=[
                 ParameterSchema(name="target", type="string", description="Target binary", required=True),
                 ParameterSchema(name="input_dir", type="string", description="Input corpus directory", required=True),
-                ParameterSchema(name="output_dir", type="string", description="Output directory for minimized corpus", required=True),
+                ParameterSchema(
+                    name="output_dir", type="string", description="Output directory for minimized corpus", required=True
+                ),
                 ParameterSchema(name="args", type="string", description="Target arguments", required=False, default=""),
             ],
-            handler=lambda target, input_dir, output_dir, args="", **kwargs: afl_minimize_corpus(target, input_dir, output_dir, args),
+            handler=lambda target, input_dir, output_dir, args="", **kwargs: afl_minimize_corpus(
+                target, input_dir, output_dir, args
+            ),
         ),
-
         ToolDefinition(
             name="afl_analyze_crash",
             description="Analyze specific crash file",
@@ -543,7 +580,6 @@ def create_afl_tools() -> list[ToolDefinition]:
             ],
             handler=lambda crash_file, target, args="", **kwargs: afl_analyze_crash(crash_file, target, args),
         ),
-
         ToolDefinition(
             name="afl_cov",
             description="Check code coverage information",

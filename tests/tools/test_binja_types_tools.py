@@ -8,9 +8,10 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from tests.mocks.ida_mock import install_ida_mocks
+
 install_ida_mocks()
 
-from spectra.binja.tools.types_tools import _extract_types_dict, _build_struct_decl
+from spectra.binja.tools.types_tools import _build_struct_decl, _extract_types_dict
 
 
 class TestExtractTypesDict(unittest.TestCase):
@@ -36,44 +37,56 @@ class TestExtractTypesDict(unittest.TestCase):
 
     def test_types_attr_dict(self):
         sentinel = object()
+
         class FakeResult:
             types = {"Bar": sentinel}
+
         assert _extract_types_dict(FakeResult()) == {"Bar": sentinel}
 
     def test_types_attr_list_of_pairs(self):
         sentinel = object()
+
         class FakeResult:
             types = [("Baz", sentinel)]
+
         result = _extract_types_dict(FakeResult())
         assert result == {"Baz": sentinel}
 
     def test_types_attr_list_of_objects(self):
         sentinel = object()
+
         class FakeTypeInfo:
             name = "Qux"
             type = sentinel
+
         class FakeResult:
             types = [FakeTypeInfo()]
+
         result = _extract_types_dict(FakeResult())
         assert result == {"Qux": sentinel}
 
     def test_types_attr_empty_list(self):
         class FakeResult:
             types = []
+
         assert _extract_types_dict(FakeResult()) == {}
 
     def test_types_attr_none_skipped(self):
         class FakeResult:
             types = None
+
         assert _extract_types_dict(FakeResult()) is None
 
     def test_qualified_name_stringified(self):
         class QName:
             def __str__(self):
                 return "MyStruct"
+
         sentinel = object()
+
         class FakeResult:
             types = [(QName(), sentinel)]
+
         result = _extract_types_dict(FakeResult())
         assert "MyStruct" in result
         assert result["MyStruct"] is sentinel

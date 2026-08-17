@@ -8,6 +8,7 @@ import unittest
 from unittest.mock import MagicMock
 
 from tests.qt_stubs import ensure_pyside6_stubs
+
 ensure_pyside6_stubs()
 
 # Stub heavy spectra submodules
@@ -31,14 +32,28 @@ for _mod_name in [
     if _mod_name not in sys.modules:
         _stub = types.ModuleType(_mod_name)
         for _attr in [
-            "DARK_THEME", "ChatView", "InputArea", "ContextBar",
-            "_SharedSpinnerTimer", "SpectraConfig",
-            "log_error", "log_info", "log_debug",
-            "TurnEvent", "TurnEventType", "MutationRecord",
-            "Role", "ModelInfo",
-            "resolve_auth_cached", "resolve_anthropic_auth",
-            "DEFAULT_OLLAMA_URL", "ProviderRegistry",
-            "get_dark_theme", "AgentCreatorDialog",
+            "DARK_THEME",
+            "ChatView",
+            "InputArea",
+            "ContextBar",
+            "_SharedSpinnerTimer",
+            "SpectraConfig",
+            "log_error",
+            "log_info",
+            "log_debug",
+            "TurnEvent",
+            "TurnEventType",
+            "MutationRecord",
+            "Role",
+            "ModelInfo",
+            "resolve_auth_cached",
+            "resolve_anthropic_auth",
+            "DEFAULT_OLLAMA_URL",
+            "ProviderRegistry",
+            "get_dark_theme",
+            "get_mode_bar_style",
+            "get_skill_chip_style",
+            "AgentCreatorDialog",
         ]:
             setattr(_stub, _attr, MagicMock())
         sys.modules[_mod_name] = _stub
@@ -58,16 +73,18 @@ if _ollama_stub and not isinstance(getattr(_ollama_stub, "DEFAULT_OLLAMA_URL", N
 # so we always import the real module here.
 sys.modules.pop("spectra.ui.panel_core", None)
 
-from spectra.ui.panel_core import (  # noqa: E402
-    _export_detect_lang, _export_format_tool_args,
-    _export_format_tool_result, SpectraPanelCore,
+from spectra.ui.panel_core import (
     _TOOL_RESULT_TRUNCATE_CHARS,
+    SpectraPanelCore,
+    _export_detect_lang,
+    _export_format_tool_args,
+    _export_format_tool_result,
 )
-
 
 # ---------------------------------------------------------------------------
 # _export_detect_lang
 # ---------------------------------------------------------------------------
+
 
 class TestExportDetectLang(unittest.TestCase):
     def test_arg_key_code_returns_python(self):
@@ -129,6 +146,7 @@ class TestExportDetectLang(unittest.TestCase):
 # _export_format_tool_args
 # ---------------------------------------------------------------------------
 
+
 class TestExportFormatToolArgs(unittest.TestCase):
     def _make_tc(self, name: str, args: dict):
         tc = MagicMock()
@@ -171,6 +189,7 @@ class TestExportFormatToolArgs(unittest.TestCase):
 # _export_format_tool_result
 # ---------------------------------------------------------------------------
 
+
 class TestExportFormatToolResult(unittest.TestCase):
     def _make_tr(self, content: str, name: str = "tool"):
         tr = MagicMock()
@@ -206,6 +225,7 @@ class TestExportFormatToolResult(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # Panel logic via object.__new__ injection
 # ---------------------------------------------------------------------------
+
 
 def _make_panel():
     panel = object.__new__(SpectraPanelCore)

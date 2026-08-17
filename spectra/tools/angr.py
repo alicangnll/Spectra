@@ -11,14 +11,13 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import subprocess
 import sys
 import tempfile
 from typing import Any
 
+from ..core.logging import log_debug, log_info
 from ..core.tool_infrastructure import ExternalTool
-from ..core.logging import log_debug, log_error, log_info
 from ..tools.base import ParameterSchema, ToolDefinition
 
 
@@ -36,14 +35,17 @@ class AngrTool(ExternalTool):
         """Check if angr Python module is available."""
         try:
             import importlib.util
+
             spec = importlib.util.find_spec("angr")
             if spec is not None:
                 from ..core.tool_infrastructure import ToolLocation
+
                 # Try to get version
                 try:
                     import angr
+
                     version = angr.__version__
-                except:
+                except Exception:
                     version = "unknown"
                 location = ToolLocation(path="angr", version=version)
                 location.is_valid = True
@@ -90,7 +92,7 @@ def _run_angr_script(script: str) -> str:
     _ensure_angr()
 
     try:
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(script)
             script_path = f.name
 
@@ -118,7 +120,7 @@ def _run_angr_script(script: str) -> str:
     finally:
         try:
             os.unlink(script_path)
-        except:
+        except Exception:
             pass
 
 
@@ -126,7 +128,8 @@ def _run_angr_script(script: str) -> str:
 # Tool Functions
 # ============================================================================
 
-def angr_explore(binary: str, address: int, constraints: list = []) -> str:
+
+def angr_explore(binary: str, address: int, constraints: list | None = None) -> str:
     """Explore paths with Angr.
 
     Args:
@@ -138,6 +141,8 @@ def angr_explore(binary: str, address: int, constraints: list = []) -> str:
         Path exploration results
     """
     _ensure_angr()
+    if constraints is None:
+        constraints = []
 
     addr = int(address, 16) if isinstance(address, str) and address.startswith("0x") else int(address)
 
@@ -238,11 +243,22 @@ print(f"Functions: {{len(functions)}}")
 
 # Scan for potentially dangerous functions
 dangerous = {
-    'strcpy', 'gets', 'sprintf', 'vsprintf',
-    'scanf', 'sscanf', 'fscanf',
-    'system', 'execl', 'execv',
-    'malloc', 'calloc', 'realloc',
-}
+        (
+            "strcpy",
+            "gets",
+            "sprintf",
+            "vsprintf",
+            "scanf",
+            "sscanf",
+            "fscanf",
+            "system",
+            "execl",
+            "execv",
+            "malloc",
+            "calloc",
+            "realloc",
+        )
+    }
 
 print("\\nPotentially dangerous functions:")
 for func in functions:
@@ -399,6 +415,7 @@ for name, count in sorted_funcs[:10]:
 # Tool Definitions
 # ============================================================================
 
+
 def create_angr_tools() -> list[ToolDefinition]:
     """Create Angr tool definitions.
 
@@ -412,12 +429,21 @@ def create_angr_tools() -> list[ToolDefinition]:
             category="symbolic_execution",
             parameters=[
                 ParameterSchema(name="binary", type="string", description="Binary path", required=True),
-                ParameterSchema(name="address", type="string", description="Start address (hex or decimal)", required=True),
-                ParameterSchema(name="constraints", type="string", description="Optional constraints (JSON array)", required=False, default="[]"),
+                ParameterSchema(
+                    name="address", type="string", description="Start address (hex or decimal)", required=True
+                ),
+                ParameterSchema(
+                    name="constraints",
+                    type="string",
+                    description="Optional constraints (JSON array)",
+                    required=False,
+                    default="[]",
+                ),
             ],
-            handler=lambda binary, address, constraints="[]", **kwargs: angr_explore(binary, address, json.loads(constraints) if constraints else []),
+            handler=lambda binary, address, constraints="[]", **kwargs: angr_explore(
+                binary, address, json.loads(constraints) if constraints else []
+            ),
         ),
-
         ToolDefinition(
             name="angr_solve_constraint",
             description="Solve constraint with symbolic execution",
@@ -428,7 +454,6 @@ def create_angr_tools() -> list[ToolDefinition]:
             ],
             handler=lambda binary, constraint, **kwargs: angr_solve_constraint(binary, constraint),
         ),
-
         ToolDefinition(
             name="angr_vulnerability_scan",
             description="Scan binary for vulnerabilities with symbolic execution",
@@ -438,19 +463,21 @@ def create_angr_tools() -> list[ToolDefinition]:
             ],
             handler=lambda binary, **kwargs: angr_vulnerability_scan(binary),
         ),
-
         ToolDefinition(
             name="angr_taint_analysis",
             description="Perform taint analysis on binary",
             category="symbolic_execution",
             parameters=[
                 ParameterSchema(name="binary", type="string", description="Binary path", required=True),
-                ParameterSchema(name="source", type="string", description="Source location (function or address)", required=True),
-                ParameterSchema(name="sink", type="string", description="Sink location (function or address)", required=True),
+                ParameterSchema(
+                    name="source", type="string", description="Source location (function or address)", required=True
+                ),
+                ParameterSchema(
+                    name="sink", type="string", description="Sink location (function or address)", required=True
+                ),
             ],
             handler=lambda binary, source, sink, **kwargs: angr_taint_analysis(binary, source, sink),
         ),
-
         ToolDefinition(
             name="angr_reaching_definitions",
             description="Analyze reaching definitions for function",
@@ -461,7 +488,6 @@ def create_angr_tools() -> list[ToolDefinition]:
             ],
             handler=lambda binary, function, **kwargs: angr_reaching_definitions(binary, function),
         ),
-
         ToolDefinition(
             name="angr_cg_level",
             description="Generate and analyze call graph",

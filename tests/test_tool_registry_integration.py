@@ -12,15 +12,18 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from tests.mocks.ida_mock import install_ida_mocks
+
 install_ida_mocks()
 
 # Reload tool modules so they pick up real stub base classes (optinsn_t,
 # Hexrays_Hooks, etc.) instead of MagicMock, which would leak fake
 # _tool_definition attributes into the registry.
 import importlib
+
+import spectra.ida.tools.database as _db_mod
 import spectra.ida.tools.microcode as _mc_mod
 import spectra.ida.tools.microcode_optim as _mco_mod
-import spectra.ida.tools.database as _db_mod
+
 importlib.reload(_mco_mod)
 importlib.reload(_mc_mod)
 importlib.reload(_db_mod)
@@ -134,11 +137,13 @@ class TestRegistryExecution(unittest.TestCase):
 
     def test_execute_unknown_tool_raises(self):
         from spectra.core.errors import ToolNotFoundError
+
         with self.assertRaises(ToolNotFoundError):
             self.registry.execute("nonexistent_tool_xyz", {})
 
     def test_execute_wrong_args_raises(self):
         from spectra.core.errors import ToolError
+
         with self.assertRaises(ToolError):
             # list_functions expects int for offset — @tool wraps TypeError as ToolError
             self.registry.execute("list_functions", {"offset": "not_an_int"})

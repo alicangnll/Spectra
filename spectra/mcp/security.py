@@ -6,15 +6,10 @@ prevent command execution vulnerabilities and unauthorized system access.
 
 from __future__ import annotations
 
-import os
+import posixpath
 import re
-from typing import TYPE_CHECKING
 
-from ..core.logging import log_debug, log_error, log_info, log_warn
-
-if TYPE_CHECKING:
-    pass
-
+from ..core.logging import log_error, log_warn
 
 # =============================================================================
 # SECURITY POLICIES
@@ -28,18 +23,15 @@ SAFE_COMMANDS = {
     "npm": (True, "Node.js package manager", "low"),
     "pnpm": (True, "Node.js package manager", "low"),
     "yarn": (True, "Node.js package manager", "low"),
-
     # Python executors (generally safe with proper environment)
     "python": (True, "Python interpreter", "medium"),
     "python3": (True, "Python 3 interpreter", "medium"),
     "python2": (False, "Python 2 (deprecated, insecure)", "high"),
     "uvx": (True, "UV tool runner", "low"),
-
     # Development tools (moderate risk)
     "node": (True, "Node.js runtime", "medium"),
     "deno": (True, "Deno runtime", "medium"),
     "bun": (True, "Bun runtime", "medium"),
-
     # Container tools (higher risk, requires validation)
     "docker": (False, "Docker (requires explicit approval)", "high"),
     "podman": (False, "Podman (requires explicit approval)", "high"),
@@ -55,7 +47,6 @@ BLOCKED_COMMANDS = {
     "cmd": False,
     "powershell": False,
     "pwsh": False,
-
     # System commands (can modify system state)
     "sudo": False,
     "su": False,
@@ -65,7 +56,6 @@ BLOCKED_COMMANDS = {
     "mv": False,
     "cp": False,
     "rm": False,
-
     # Network tools (data exfiltration risk)
     "nc": False,
     "netcat": False,
@@ -73,7 +63,6 @@ BLOCKED_COMMANDS = {
     "curl": False,
     "wget": False,
     "ftp": False,
-
     # Potentially dangerous system tools
     "vi": False,
     "vim": False,
@@ -84,36 +73,42 @@ BLOCKED_COMMANDS = {
 # Dangerous patterns in arguments that should be blocked
 DANGEROUS_PATTERNS = [
     # Command injection attempts
-    r"\|.*\|\|",           # Pipe chains
-    r";.*rm\s+",          # Command chaining with delete
+    r"\|.*\|\|",  # Pipe chains
+    r";.*rm\s+",  # Command chaining with delete
     r";.*chmod\s+[777]",  # Permission escalation
-    r"\$\([^)]*\)",       # Command substitution
-    r"`[^`]*`",           # Backtick command substitution
-    r"\${.*}",             # Variable expansion
-    r">.*/.*",             # Output redirection to suspicious paths
-    r"eval\s+",           # eval execution
-    r"exec\s+",           # exec execution
-
+    r"\$\([^)]*\)",  # Command substitution
+    r"`[^`]*`",  # Backtick command substitution
+    r"\$\{[^}]*\}",  # Variable expansion
+    r">\s*/",  # Output redirection to an absolute path
+    r"eval\s+",  # eval execution
+    r"exec\s+",  # exec execution
     # Path traversal attempts
-    r"\.\.\/",             # Parent directory traversal
-    r"\.\.\\",             # Windows parent directory traversal
-
+    r"\.\.\/",  # Parent directory traversal
+    r"\.\.\\",  # Windows parent directory traversal
     # Suspicious network operations
-    r"curl.*\|",           # Curl with pipe
-    r"wget.*\|",           # Wget with pipe
-    r"nc\s+",              # Netcat
-
+    r"curl.*\|",  # Curl with pipe
+    r"wget.*\|",  # Wget with pipe
+    r"nc\s+",  # Netcat
     # System file access
-    r"/etc/passwd",        # Password file access
-    r"/etc/shadow",        # Shadow file access
-    r"~/.ssh/",            # SSH key access
-    r"~/.aws/",            # AWS credentials access
-
+    r"/etc/passwd",  # Password file access
+    r"/etc/shadow",  # Shadow file access
+    r"~/.ssh/",  # SSH key access
+    r"~/.aws/",  # AWS credentials access
     # Code execution patterns
-    r"__import__\s*\(",    # Python import execution
-    r"exec\s*\(",          # Python exec
-    r"eval\s*\(",          # Python/JS eval
-    r"system\s*\(",        # System calls
+    r"__import__\s*\(",  # Python import execution
+    r"exec\s*\(",  # Python exec
+    r"eval\s*\(",  # Python/JS eval
+    r"system\s*\(",  # System calls
+]
+
+# Regexes used by validate_arguments to flag arguments that look like
+# inline code execution (function-call syntax, not bare package names).
+_ARG_CODE_EXEC_PATTERNS = [
+    r"eval\s*\(",  # eval function call
+    r"exec\s*\(",  # exec function call
+    r"__import__\s*\(",  # Python import execution
+    r"system\s*\(",  # system() call
+    r"compile\s*\(",  # compile() call
 ]
 
 
@@ -132,6 +127,43 @@ def _check_dangerous_patterns(args: list[str]) -> tuple[bool, str | None]:
     return True, None
 
 
+def _normalize_path_key(path: str) -> str:
+    """Normalize a path for critical-path comparison.
+
+    Makes comparisons case-insensitive and slash-agnostic so that
+    ``c:/``, ``C:\\``, ``C:/`` and ``//`` all normalize consistently on
+    every platform. Both the config value and the reference lists go
+    through this function, keeping the comparison consistent.
+    """
+    p = path.strip().replace("\\", "/")
+    p = posixpath.normpath(p)  # collapses duplicate slashes, resolves ./..
+    if not p.strip("/"):  # pure slashes ("//", "///") are also the filesystem root
+        return "/"
+    return p.lower()
+
+
+# CRITICAL paths: BLOCK these entirely (entire-filesystem access)
+_CRITICAL_PATH_KEYS = {
+    _normalize_path_key(p)
+    for p in (
+        "/",  # POSIX root
+        "C:\\",  # Windows root
+        "/root",  # Root user directory
+    )
+}
+
+# Moderately dangerous paths: warn (broad user/system access)
+_DANGEROUS_PATH_KEYS = {
+    _normalize_path_key(p)
+    for p in (
+        "/home",  # All home directories
+        "/Users",  # All macOS users
+        "/etc",  # System config
+        "~",  # Home directory shortcut (can expand to user home)
+    )
+}
+
+
 def _check_path_security(env: dict[str, str]) -> tuple[bool, list[str]]:
     """Validate environment variables for path security.
 
@@ -145,27 +177,13 @@ def _check_path_security(env: dict[str, str]) -> tuple[bool, list[str]]:
         allowed_paths = env["ALLOWED_PATHS"].split(",")
         for path in allowed_paths:
             path = path.strip()
+            key = _normalize_path_key(path)
 
-            # CRITICAL: Block the most dangerous paths
-            critical_paths = [
-                "/",              # Root directory - ENTIRE filesystem access
-                "C:\\",            # Windows root - ENTIRE filesystem access
-                "/root",           # Root user directory
-            ]
-
-            if path in critical_paths:
+            if key in _CRITICAL_PATH_KEYS:
                 warnings.append(f"CRITICAL: ALLOWED_PATHS includes entire filesystem: {path}")
                 return False, warnings  # BLOCK these entirely
 
-            # WARN about moderately dangerous paths
-            dangerous_paths = [
-                "/home",          # All home directories
-                "/Users",          # All macOS users
-                "/etc",            # System config
-                "~",               # Home directory shortcut (can expand to user home)
-            ]
-
-            if path in dangerous_paths:
+            if key in _DANGEROUS_PATH_KEYS:
                 warnings.append(f"WARNING: ALLOWED_PATHS includes potentially dangerous path: {path}")
 
             # Check for parent directory traversal in paths
@@ -193,7 +211,10 @@ class MCPSecurityValidator:
                         If False, warn but allow them.
         """
         self._strict_mode = strict_mode
+        # Bounded: validation summaries are informational only, so a
+        # long-lived process must not accumulate them without limit.
         self._validation_history: list[dict] = []
+        self._max_history = 200
 
     def validate_command(self, command: str) -> tuple[bool, str | None, str]:
         """Validate if a command is safe to execute.
@@ -227,7 +248,7 @@ class MCPSecurityValidator:
             return False, f"Unknown command '{command}' - not in safe commands list", "medium"
         else:
             log_warn(f"Allowing unknown command '{command}' - user discretion advised")
-            return True, f"Unknown command (allowed in non-strict mode)", "medium"
+            return True, "Unknown command (allowed in non-strict mode)", "medium"
 
     def validate_arguments(self, args: list[str], command: str) -> tuple[bool, list[str]]:
         """Validate command arguments for security issues.
@@ -257,16 +278,8 @@ class MCPSecurityValidator:
 
             # Flag potential code execution - but avoid false positives from package names
             # Check for actual dangerous patterns, not just substring matches
-            dangerous_patterns = [
-                r"eval\s*\(",           # eval function call
-                r"exec\s*\(",           # exec function call
-                r"__import__\s*\(",     # Python import execution
-                r"system\s*\(",         # system() call
-                r"compile\s*\(",        # compile() call
-            ]
-            import re
             arg_lower = arg.lower()
-            for pattern in dangerous_patterns:
+            for pattern in _ARG_CODE_EXEC_PATTERNS:
                 if re.search(pattern, arg_lower):
                     warnings.append(f"Argument may trigger code execution: {arg}")
                     break
@@ -285,12 +298,7 @@ class MCPSecurityValidator:
         return _check_path_security(env)
 
     def validate_server_config(
-        self,
-        name: str,
-        command: str,
-        args: list[str],
-        env: dict[str, str],
-        timeout: float
+        self, name: str, command: str, args: list[str], env: dict[str, str], timeout: float
     ) -> tuple[bool, list[str]]:
         """Comprehensive validation of an MCP server configuration.
 
@@ -312,12 +320,14 @@ class MCPSecurityValidator:
             log_error(f"MCP Server '{name}' blocked: {cmd_reason}")
             all_warnings.append(f"❌ BLOCKED: {cmd_reason}")
             # Still track blocked validations
-            self._validation_history.append({
-                "name": name,
-                "command": command,
-                "allowed": False,
-                "warnings": all_warnings,
-            })
+            self._validation_history.append(
+                {
+                    "name": name,
+                    "command": command,
+                    "allowed": False,
+                    "warnings": all_warnings,
+                }
+            )
             return False, all_warnings
 
         all_warnings.append(f"✓ Command '{command}' allowed (risk: {risk_level})")
@@ -334,12 +344,16 @@ class MCPSecurityValidator:
         allowed = cmd_allowed and args_safe and env_safe
 
         # Log the validation
-        self._validation_history.append({
-            "name": name,
-            "command": command,
-            "allowed": allowed,
-            "warnings": all_warnings,
-        })
+        self._validation_history.append(
+            {
+                "name": name,
+                "command": command,
+                "allowed": allowed,
+                "warnings": all_warnings,
+            }
+        )
+        if len(self._validation_history) > self._max_history:
+            del self._validation_history[: -self._max_history]
 
         # In strict mode, require all validations to pass
         if self._strict_mode and not allowed:
@@ -384,7 +398,7 @@ def get_security_validator(strict_mode: bool = True) -> MCPSecurityValidator:
     return _security_validator
 
 
-def validate_command_quick(command: str, strict_mode: bool = True) -> tuple[bool, str]:
+def validate_command_quick(command: str, strict_mode: bool = True) -> tuple[bool, str | None]:
     """Quick command validation returning (is_allowed, reason).
 
     Convenience wrapper that returns only 2 values for simple checks.

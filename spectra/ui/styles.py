@@ -16,16 +16,17 @@ def _get_scaled_theme() -> str:
 
     font_small = scale_font_size(12)
     font_normal = scale_font_size(14)
-    font_medium = scale_font_size(15)
-    font_large = scale_font_size(17)
+    _font_medium = scale_font_size(15)
+    _font_large = scale_font_size(17)
 
     padding_small = int(4 * scale + 0.5)
     padding_normal = int(8 * scale + 0.5)
-    padding_large = int(12 * scale + 0.5)
+    _padding_large = int(12 * scale + 0.5)
 
     font_mono = "'Consolas', 'JetBrains Mono', 'Fira Code', 'Courier New', monospace"
 
-    return """
+    return (
+        """
 QWidget#spectra_panel {
     background-color: #141414;
     color: #d4d4d4;
@@ -50,7 +51,9 @@ QFrame#message_user {
     background-color: #222225;
     border: 1px solid #2e2e33;
     border-radius: 8px;
-    padding: """ + str(padding_normal) + """px;
+    padding: """
+        + str(padding_normal)
+        + """px;
     margin: 4px 10px 4px 10px;
 }
 
@@ -58,7 +61,9 @@ QFrame#message_assistant {
     background-color: #18181b;
     border: 1px solid #242428;
     border-radius: 8px;
-    padding: """ + str(padding_normal) + """px;
+    padding: """
+        + str(padding_normal)
+        + """px;
     margin: 4px 10px 4px 10px;
 }
 
@@ -91,14 +96,22 @@ QFrame#message_thinking {
 QLabel#tool_header {
     color: #3a9fd5;
     font-weight: bold;
-    font-size: """ + str(font_small) + """px;
-    font-family: """ + font_mono + """;
+    font-size: """
+        + str(font_small)
+        + """px;
+    font-family: """
+        + font_mono
+        + """;
 }
 
 QLabel#tool_content {
     color: #9cdcfe;
-    font-family: """ + font_mono + """;
-    font-size: """ + str(font_small) + """px;
+    font-family: """
+        + font_mono
+        + """;
+    font-size: """
+        + str(font_small)
+        + """px;
 }
 
 QPlainTextEdit#input_area {
@@ -107,11 +120,19 @@ QPlainTextEdit#input_area {
     border: 1.5px solid #333338;
     border-radius: 8px;
     padding: 8px 10px;
-    font-size: """ + str(font_normal) + """px;
-    font-family: """ + font_mono + """;
+    font-size: """
+        + str(font_normal)
+        + """px;
+    font-family: """
+        + font_mono
+        + """;
     selection-background-color: #094771;
-    min-height: """ + str(int(36 * scale)) + """px;
-    max-height: """ + str(int(90 * scale)) + """px;
+    min-height: """
+        + str(int(36 * scale))
+        + """px;
+    max-height: """
+        + str(int(90 * scale))
+        + """px;
 }
 
 QPlainTextEdit#input_area:focus {
@@ -126,7 +147,9 @@ QPushButton#send_button {
     border-radius: 6px;
     padding: 4px 10px;
     font-weight: bold;
-    font-size: """ + str(font_normal) + """px;
+    font-size: """
+        + str(font_normal)
+        + """px;
     min-height: 28px;
 }
 
@@ -152,7 +175,9 @@ QPushButton#cancel_button {
     border-radius: 6px;
     padding: 4px 10px;
     font-weight: bold;
-    font-size: """ + str(font_normal) + """px;
+    font-size: """
+        + str(font_normal)
+        + """px;
     min-height: 28px;
 }
 
@@ -168,7 +193,9 @@ QPushButton {
     border: 1px solid #333338;
     border-radius: 6px;
     padding: 4px 8px;
-    font-size: """ + str(font_small) + """px;
+    font-size: """
+        + str(font_small)
+        + """px;
     min-height: 24px;
 }
 
@@ -193,21 +220,31 @@ QFrame#context_bar {
 QLabel#context_label {
     color: #6c6c75;
     font-weight: bold;
-    font-size: """ + str(font_small) + """px;
+    font-size: """
+        + str(font_small)
+        + """px;
 }
 
 QLabel#context_value {
     color: #d0d0d8;
-    font-size: """ + str(font_small) + """px;
-    font-family: """ + font_mono + """;
+    font-size: """
+        + str(font_small)
+        + """px;
+    font-family: """
+        + font_mono
+        + """;
 }
 
 QToolButton#context_jump_btn {
     color: #3a9fd5;
     background: transparent;
     border: none;
-    font-family: """ + font_mono + """;
-    font-size: """ + str(font_small) + """px;
+    font-family: """
+        + font_mono
+        + """;
+    font-size: """
+        + str(font_small)
+        + """px;
     font-weight: bold;
     padding: 1px 6px;
 }
@@ -245,7 +282,9 @@ QFrame#plan_step_done {
 QToolButton#collapse_button {
     border: none;
     color: #777780;
-    font-size: """ + str(font_small) + """px;
+    font-size: """
+        + str(font_small)
+        + """px;
 }
 
 QToolButton#collapse_button:hover {
@@ -257,7 +296,9 @@ QComboBox, QLineEdit, QSpinBox, QDoubleSpinBox {
     color: #d4d4d4;
     border: 1px solid #333338;
     border-radius: 4px;
-    padding: """ + str(padding_small) + """px;
+    padding: """
+        + str(padding_small)
+        + """px;
 }
 
 QGroupBox {
@@ -291,11 +332,19 @@ QFrame#tools_panel QTabBar {
 QFrame#tools_panel QTabBar::tab {
     background: #1c1c1f;
     color: #777780;
-    padding: """ + str(padding_small) + """px """ + str(padding_normal) + """px;
+    padding: """
+        + str(padding_small)
+        + """px """
+        + str(padding_normal)
+        + """px;
     border: none;
     border-right: 1px solid #242428;
-    font-size: """ + str(font_small) + """px;
-    min-height: """ + str(int(22 * scale)) + """px;
+    font-size: """
+        + str(font_small)
+        + """px;
+    min-height: """
+        + str(int(22 * scale))
+        + """px;
 }
 
 QFrame#tools_panel QTabBar::tab:selected {
@@ -313,7 +362,9 @@ QTreeWidget {
     background-color: #141414;
     color: #d4d4d4;
     border: none;
-    font-size: """ + str(font_small) + """px;
+    font-size: """
+        + str(font_small)
+        + """px;
 }
 
 QTreeWidget::item {
@@ -335,7 +386,9 @@ QHeaderView::section {
     border: none;
     border-right: 1px solid #242428;
     padding: 4px 8px;
-    font-size: """ + str(font_small) + """px;
+    font-size: """
+        + str(font_small)
+        + """px;
 }
 
 QTableWidget {
@@ -343,7 +396,9 @@ QTableWidget {
     color: #d4d4d4;
     border: none;
     gridline-color: #242428;
-    font-size: """ + str(font_small) + """px;
+    font-size: """
+        + str(font_small)
+        + """px;
 }
 
 QTableWidget::item {
@@ -361,7 +416,9 @@ QProgressBar {
     border-radius: 4px;
     text-align: center;
     color: #d4d4d4;
-    font-size: """ + str(font_small) + """px;
+    font-size: """
+        + str(font_small)
+        + """px;
     height: 14px;
 }
 
@@ -372,7 +429,9 @@ QProgressBar::chunk {
 
 QRadioButton {
     color: #d4d4d4;
-    font-size: """ + str(font_small) + """px;
+    font-size: """
+        + str(font_small)
+        + """px;
     spacing: 4px;
 }
 
@@ -381,10 +440,15 @@ QTextEdit {
     color: #d4d4d4;
     border: 1px solid #242428;
     border-radius: 6px;
-    font-size: """ + str(font_small) + """px;
-    font-family: """ + font_mono + """;
+    font-size: """
+        + str(font_small)
+        + """px;
+    font-family: """
+        + font_mono
+        + """;
 }
 """
+    )
 
 
 def get_mode_bar_style() -> str:
@@ -405,7 +469,6 @@ def get_skill_chip_style() -> str:
         "border-radius: 10px; padding: 2px 8px; font-size: 10px; font-weight: bold; min-height: 18px; }"
         "QPushButton#skill_chip:hover { background-color: #094771; color: #ffffff; border-color: #3a9fd5; }"
     )
-
 
 
 # Cached theme that gets regenerated when DPI changes
