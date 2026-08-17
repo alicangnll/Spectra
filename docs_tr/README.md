@@ -16,18 +16,18 @@ Spectra, **reverse engineering araçlarına gömülü bir yapay zeka aracısıd�
 
 **Rikugan'dan Fork** — Spectra bu güçlü temel üzerine inşa edilmiştir ve şu iyileştirmeleri ekler:
 - **170+ araç** (IDA Pro + Binary Ninja)
-- **39 yerleşik yetenek** (Rikugan'da 12)
+- **39 yerleşik yetenek** (temel projede 12)
 - **4 platform** — IDA Pro, Binary Ninja, VSCode, JADX CLI
 - **Gelişmiş güvenlik analizi** — Exploit, malware, firmware, mobil
 - **JADX entegrasyonu** — Android APK reverse engineering
 
 ---
 
-## Spectra vs Rikugan
+## Spectra vs Yukarı Akış (Temel Proje)
 
 ### Temel Farklar
 
-| Özellik | Rikugan | Spectra |
+| Özellik | Temel Proje | Spectra |
 |---------|---------|---------|
 | **Yetenekler** | 12 yerleşik | 39 yerleşik |
 | **Araçlar** | 60+ | 170+ |
@@ -47,7 +47,7 @@ Spectra, **reverse engineering araçlarına gömülü bir yapay zeka aracısıd�
 | **VM Obfuscation** | ❌ | ✅ Tespit |
 | **GLM Desteği** | ❌ | ✅ GLM-4 & GLM-5 serisi |
 
-### Miras Alınan Özellikler (Rikugan'dan)
+### Miras Alınan Özellikler (Temel Projeden)
 
 - **Generator tabanlı aracı döngüsü** — Akıcı yanıtlar
 - **Otomatik araç çalıştırma** — Manuel müdahale gerekmez
@@ -198,7 +198,7 @@ IDADIR=/path/to/ida-pro-9.1 ./install_ida.sh
 ## Özellikler
 
 
-### 🤖 Aracı Döngüsü (Rikugan'dan Miras Alınmış)
+### 🤖 Aracı Döngüsü (Temel Projeden Miras Alınmış)
 
 Akıcı yanıtlar için **generator tabanlı dönüş döngüsü**:
 - Gerçek zamanlı token akışı — Yapay zekanın düşünüşünü görün
@@ -541,7 +541,6 @@ Katkılar kabul edilir! Bkz. [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) ve [docs
 
 ## Teşekkürler
 
-- **[Rikugan](https://github.com/buzzer-re/Rikugan)** — buzzer-re'in orijinal projesi
 - **Claude Code** — Muazzam pair programmer
 - **Anthropic** — İnanılmaz yapay zeka modelleri
 - **Binary Ninja Ekibi** — Mükemmel API ve destek

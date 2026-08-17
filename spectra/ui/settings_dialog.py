@@ -1364,6 +1364,35 @@ class SettingsDialog(QDialog):
             self._update_status_label.setText("Update check complete")
             self._update_btn.setEnabled(False)
 
+    def _offer_save_and_restart(self) -> None:
+        """After a successful update, offer to save the database and restart IDA."""
+        try:
+            from ..core.host import is_ida, restart_host, save_host_database
+
+            if not is_ida():
+                self._update_status_label.setText("Updated! Please restart the host application.")
+                return
+
+            from .qt_compat import QMessageBox
+
+            answer = QMessageBox.question(
+                self,
+                "Spectra Update",
+                "Update installed. Save the database and restart IDA Pro now?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if answer != QMessageBox.StandardButton.Yes:
+                self._update_status_label.setText("Updated! Please restart IDA Pro.")
+                return
+
+            if not save_host_database():
+                log_error("Could not save the database before restart — continuing anyway")
+            if not restart_host():
+                self._update_status_label.setText("Updated! Please restart IDA Pro manually.")
+        except Exception as e:
+            log_error(f"Save-and-restart offer failed: {e}")
+
     def _update_install_result(self, update_info: UpdateInfo | None, message: str) -> None:
         """Handle update installation result (main thread, via queued signal)."""
         if self._closed:
@@ -1377,9 +1406,10 @@ class SettingsDialog(QDialog):
         if update_info and message == "Update installed successfully":
             self._update_progress_bar.setRange(0, 100)
             self._update_progress_bar.setValue(100)
-            self._update_status_label.setText(f"Updated to {update_info.latest_version}! Please restart IDA Pro.")
+            self._update_status_label.setText(f"Updated to {update_info.latest_version}!")
             self._update_btn.setEnabled(False)
             self._load_current_version()
+            self._offer_save_and_restart()
         elif "failed" in message.lower() or "error" in message.lower():
             self._update_progress_bar.setVisible(False)
             self._update_status_label.setText(f"Error: {message}")

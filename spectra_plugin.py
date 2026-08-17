@@ -139,6 +139,35 @@ class SpectraPlugin(idaapi.plugin_t):
         _ver = importlib.import_module("spectra.constants").PLUGIN_VERSION
         idaapi.msg(f"[Spectra] Plugin loaded (v{_ver})\n")
 
+        # Background update check — daemon thread, never blocks IDA startup.
+        try:
+            _updater_mod = importlib.import_module("spectra.core.updater")
+
+            def _notify_update(info) -> None:
+                text = (
+                    f"[Spectra] Update available: {info.current_version} → {info.latest_version} "
+                    "(Settings → Update)\n"
+                )
+                try:
+                    _kernwin = importlib.import_module("ida_kernwin")
+
+                    class _MsgSync(_kernwin.execute_sync):
+                        def __init__(self) -> None:
+                            super().__init__()
+                            self._text = text
+
+                        def run(self) -> int:
+                            idaapi.msg(self._text)
+                            return 1
+
+                    _MsgSync()  # marshals msg() onto the main thread
+                except Exception:
+                    _log(text.strip())
+
+            _updater_mod.check_and_notify(_notify_update)
+        except Exception as _e:
+            _log(f"startup update check unavailable: {_e}")
+
         # Add Windows Python site-packages to IDA's Python path
         import os
         import sys

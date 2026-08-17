@@ -2628,6 +2628,24 @@ locations, and each tool reports exactly which binary is missing.
 | `ios_jailbreak_check` | Probe an `iproxy`-forwarded SSH port to test for a jailbreak |
 | `ios_shell` | SSH command on a jailbroken device (default `root@127.0.0.1:2222` via `iproxy 2222 22`, password auth through `sshpass`) — gated exactly like `adb_shell` (§13.4) |
 
+### 13.7 Update System
+
+Spectra keeps itself up to date without leaving the host:
+
+- **Startup check** — on plugin load, Spectra quietly checks GitHub for a
+  newer release (background thread, never blocks startup) and prints
+  `Update available: a → b (Settings → Update)` in the host output window.
+- **Settings → Update** — explicit check / install with progress. Every
+  step is time-bounded (30 s check timeout, 60 s per-read + 600 s overall
+  download deadline, partial files deleted on abort), and packages are
+  verified against the published SHA-256 before install.
+- **No external commands** — backups and installs use Python's stdlib
+  (`tarfile`, `zipfile`, `shutil`); no `tar`/`unzip`/`git` binary is
+  required on any OS (the `git pull` fast path simply skips itself when
+  git is absent).
+- **Save & restart** — after a successful install, Spectra offers to save
+  the database (IDB/BNDB) and relaunch IDA Pro with the same file open.
+
 ---
 
 ## 14. Performance & Optimization

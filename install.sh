@@ -14,7 +14,7 @@
 #
 # Environment variables:
 #   SPECTRA_DIR     — where to clone the repo   (default: ~/.spectra)
-#   RIKUGAN_BRANCH  — git branch to check out   (default: main)
+#   SPECTRA_BRANCH  — git branch to check out   (default: main)
 #   IDADIR          — override IDA install dir  (forwarded to install_ida.sh)
 #   IDA_PYTHON      — override Python for IDA    (forwarded to install_ida.sh)
 #   BN_PYTHON       — override Python for BN     (forwarded to install_binaryninja.sh)
@@ -28,7 +28,7 @@ set -euo pipefail
 
 REPO_URL="https://github.com/alicangnll/Spectra.git"
 INSTALL_DIR="${SPECTRA_DIR:-$HOME/.spectra}"
-BRANCH="${RIKUGAN_BRANCH:-main}"
+BRANCH="${SPECTRA_BRANCH:-main}"
 
 # ── Colors ───────────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'
@@ -72,7 +72,7 @@ for arg in "$@"; do
             echo ""
             echo "Environment:"
             echo "  SPECTRA_DIR=$INSTALL_DIR"
-            echo "  RIKUGAN_BRANCH=$BRANCH"
+            echo "  SPECTRA_BRANCH=$BRANCH"
             exit 0
             ;;
     esac

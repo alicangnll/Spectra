@@ -9,7 +9,10 @@ import hashlib
 import json
 import re
 import subprocess
+import tarfile
 import tempfile
+import threading
+import time
 import urllib.request
 import zipfile
 from collections.abc import Callable
@@ -50,7 +53,6 @@ class Updater:
     """
 
     UPDATE_URL = "https://raw.githubusercontent.com/alicangnll/Spectra/main/update.json"
-    BACKUP_DIR = ".spectra_backup"
 
     def __init__(self) -> None:
         """Initialize updater."""
@@ -199,17 +201,26 @@ class Updater:
         update_info: UpdateInfo,
         dest_dir: Path | None = None,
         progress_callback: Callable[[int, int], None] | None = None,
+        timeout: int = 60,
+        max_seconds: int = 600,
     ) -> Path | None:
         """Download update package with optional progress callback.
+
+        Both the per-read socket timeout and an overall deadline bound how
+        long a stalled connection can keep the UI in "Downloading update…"
+        state — a hang always resolves into a logged failure.
 
         Args:
             update_info: Update information.
             dest_dir: Destination directory. If None, uses temp directory.
             progress_callback: Callable receiving (downloaded_bytes, total_bytes).
+            timeout: Per-read socket timeout in seconds.
+            max_seconds: Overall download deadline in seconds.
 
         Returns:
             Path to downloaded file, or None if download failed.
         """
+        download_path: Path | None = None
         try:
             if dest_dir is None:
                 dest_dir = Path(tempfile.gettempdir())
@@ -225,12 +236,15 @@ class Updater:
                 update_info.download_url, headers={"User-Agent": f"Spectra/{self.current_version}"}
             )
 
-            with urllib.request.urlopen(request, timeout=300) as response:
+            deadline = time.monotonic() + max_seconds
+            with urllib.request.urlopen(request, timeout=timeout) as response:
                 total_size = int(response.headers.get("Content-Length", 0))
                 downloaded = 0
 
                 with open(download_path, "wb") as f:
                     while True:
+                        if time.monotonic() > deadline:
+                            raise TimeoutError(f"download exceeded overall deadline of {max_seconds}s")
                         chunk = response.read(65536)
                         if not chunk:
                             break
@@ -265,7 +279,35 @@ class Updater:
 
         except Exception as e:
             log_error(f"Failed to download update: {e}")
+            if download_path is not None:
+                download_path.unlink(missing_ok=True)
             return None
+
+    @classmethod
+    def _backup_root(cls) -> Path:
+        """Backups live under the user config dir — never the process CWD."""
+        try:
+            from ..core.host import get_user_config_base_dir
+
+            return Path(get_user_config_base_dir()) / "spectra_backup"
+        except Exception:
+            return Path.home() / ".spectra" / "spectra_backup"
+
+    def _install_root(self) -> Path:
+        """Directory that holds the spectra package (symlinks resolved).
+
+        For repo layouts (``<repo>/spectra/core/updater.py``) this is the
+        repo root; for plugin-dir layouts (``<plugins>/spectra/core/…``)
+        it is the plugins directory itself.
+        """
+        current_dir = Path(__file__).parent.parent.parent
+        if current_dir.name == "spectra":
+            source_dir = current_dir.parent
+        else:
+            source_dir = current_dir
+        if source_dir.is_symlink():
+            source_dir = source_dir.resolve()
+        return source_dir
 
     def backup_installation(self) -> bool:
         """Backup current installation.
@@ -274,21 +316,10 @@ class Updater:
             True if backup successful, False otherwise.
         """
         try:
-            backup_path = Path(self.BACKUP_DIR)
+            backup_path = self._backup_root()
             backup_path.mkdir(parents=True, exist_ok=True)
 
-            # Backup current directory
-            current_dir = Path(__file__).parent.parent.parent
-            if current_dir.name == "spectra":
-                # We're in the package directory
-                source_dir = current_dir.parent
-            else:
-                # We're in the repository root
-                source_dir = current_dir
-
-            # Resolve symlinks to backup the actual installation, not the symlink
-            if source_dir.is_symlink():
-                source_dir = source_dir.resolve()
+            source_dir = self._install_root()
 
             backup_name = f"backup_{self.current_version}"
             backup_file = backup_path / f"{backup_name}.tar.gz"
@@ -296,11 +327,10 @@ class Updater:
             log_info(f"Creating backup: {backup_file}")
             log_info(f"Backing up directory: {source_dir}")
 
-            subprocess.run(
-                ["tar", "-czf", str(backup_file), "-C", str(source_dir.parent), source_dir.name],
-                check=True,
-                capture_output=True,
-            )
+            # Pure-Python tar (stdlib tarfile) — no external `tar` binary
+            # required, works identically on Linux/macOS/Windows.
+            with tarfile.open(backup_file, "w:gz") as tar:
+                tar.add(source_dir, arcname=source_dir.name)
 
             log_info("Backup created successfully")
             return True
@@ -325,16 +355,8 @@ class Updater:
         try:
             log_info("Installing update...")
 
-            # Resolve the real installation directory (follow symlinks)
-            current_dir = Path(__file__).parent.parent.parent
-            if current_dir.name == "spectra":
-                source_dir = current_dir.parent
-            else:
-                source_dir = current_dir
-
-            if source_dir.is_symlink():
-                source_dir = source_dir.resolve()
-                log_info(f"Resolved symlink to: {source_dir}")
+            source_dir = self._install_root()
+            log_debug(f"Install root: {source_dir}")
 
             # ── Strategy 1: git pull (preferred) ──────────────────────
             # When the installation is a git repo AND git is available,
@@ -482,7 +504,7 @@ class Updater:
             True if restoration successful, False otherwise.
         """
         try:
-            backup_path = Path(self.BACKUP_DIR)
+            backup_path = self._backup_root()
             backups = list(backup_path.glob("backup_*.tar.gz"))
 
             if not backups:
@@ -494,24 +516,16 @@ class Updater:
 
             log_info(f"Restoring from {latest_backup}")
 
-            current_dir = Path(__file__).parent.parent.parent
-            if current_dir.name == "spectra":
-                source_dir = current_dir.parent
-            else:
-                source_dir = current_dir
-
-            # Resolve symlinks to restore to the actual location
-            if source_dir.is_symlink():
-                source_dir = source_dir.resolve()
+            source_dir = self._install_root()
 
             log_info(f"Restoring to: {source_dir}")
 
-            # Extract backup
-            subprocess.run(
-                ["tar", "-xzf", str(latest_backup), "-C", str(source_dir.parent)],
-                check=True,
-                capture_output=True,
-            )
+            # Pure-Python extraction (stdlib tarfile) — no external `tar`.
+            with tarfile.open(latest_backup, "r:gz") as tar:
+                try:
+                    tar.extractall(source_dir.parent, filter="data")
+                except TypeError:  # Python < 3.12 has no `filter`
+                    tar.extractall(source_dir.parent)
 
             log_info("Backup restored successfully")
             log_info("Please restart IDA Pro/Binary Ninja")
@@ -530,6 +544,38 @@ def check_for_updates() -> UpdateInfo | None:
     """
     updater = Updater()
     return updater.check_for_updates()
+
+
+def _startup_check_worker(notify: Callable[[UpdateInfo], None] | None) -> None:
+    """Body of the startup check — separate so tests can run it inline."""
+    try:
+        updater = Updater()
+        info = updater.check_for_updates()
+        if info is not None and info.is_newer:
+            log_info(f"Startup check: update available → {info.latest_version}")
+            if notify is not None:
+                try:
+                    notify(info)
+                except Exception as e:
+                    log_warn(f"Update notification failed: {e}")
+    except Exception as e:
+        log_debug(f"Startup update check failed: {e}")
+
+
+def check_and_notify(notify: Callable[[UpdateInfo], None] | None = None) -> None:
+    """Background startup update check.
+
+    Spawns a daemon thread so plugin init can call this without blocking
+    host startup. ``notify`` is invoked from the worker thread only when a
+    newer release exists — wrap host-UI calls in the host's thread
+    marshalling (e.g. IDA's ``execute_sync``).
+    """
+    threading.Thread(
+        target=_startup_check_worker,
+        args=(notify,),
+        name="spectra-startup-update-check",
+        daemon=True,
+    ).start()
 
 
 def install_update(update_info: UpdateInfo) -> bool:

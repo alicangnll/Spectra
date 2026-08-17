@@ -16,18 +16,18 @@ Spectra is an **AI agent embedded in reverse engineering tools**. An assistant t
 
 **Forked from Rikugan** — Spectra is built on this powerful foundation and adds the following enhancements:
 - **170+ tools** (IDA Pro + Binary Ninja)
-- **60+ built-in skills** (12 in Rikugan)
+- **60+ built-in skills** (12 in the upstream project)
 - **4 platforms** — IDA Pro, Binary Ninja, interactive CLI, JADX
 - **Advanced security analysis** — Exploitation, malware, firmware, mobile
 - **JADX integration** — Android APK reverse engineering
 
 ---
 
-## Spectra vs Rikugan
+## Spectra vs Upstream
 
 ### Key Differences
 
-| Feature | Rikugan | Spectra |
+| Feature | Upstream | Spectra |
 |---------|---------|---------|
 | **Skills** | 12 built-in | 60+ built-in |
 | **Tools** | 60+ | 170+ |
@@ -47,7 +47,7 @@ Spectra is an **AI agent embedded in reverse engineering tools**. An assistant t
 | **VM Obfuscation** | ❌ | ✅ Detection |
 | **GLM Support** | ❌ | ✅ GLM-4 & GLM-5 series |
 
-### Inherited Features (from Rikugan)
+### Inherited Features (from the upstream project)
 
 - **Generator-based agent loop** — Smooth responses
 - **Automatic tool execution** — No manual intervention needed
@@ -234,7 +234,7 @@ IDAPATH=/path/to/ida-pro-9.1 ./install_ida.sh
 ---
 
 
-### 🤖 Agent Loop (Inherited from Rikugan)
+### 🤖 Agent Loop (inherited from the upstream project)
 
 **Generator-based turn cycle** for smooth responses:
 - Real-time token streaming — See the AI think
@@ -610,7 +610,6 @@ Contributions are welcome! See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) and [d
 
 ## Acknowledgments
 
-- **[Rikugan](https://github.com/buzzer-re/Rikugan)** — buzzer-re's original project
 - **Claude Code** — Amazing pair programmer
 - **Anthropic** — Incredible AI models
 - **Binary Ninja Team** — Excellent API and support

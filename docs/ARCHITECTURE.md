@@ -257,6 +257,23 @@ through `UpdateSignals` (`Signal(object)` emissions), which Qt delivers to
 main-thread slots as queued connections in every binding (PySide6, PyQt5,
 PyQt6).
 
+### Update flow (bounds, startup check, save & restart)
+
+Every step of the update flow is time-bounded so a stalled network or a
+huge tree can never leave the Update tab spinning forever: the update-info
+request retries with a 30 s timeout, downloads use a 60 s per-read socket
+timeout plus a 600 s overall deadline (aborted downloads delete the partial
+file), and backups/restores use the stdlib `tarfile` module — no external
+`tar` binary is required on any OS (the optional `git pull` fast path
+skips itself when git is absent and falls back to the pure-Python zip
+method). On plugin load, `Updater.check_and_notify()` runs the check in a
+daemon thread and surfaces newer releases in the host output window (IDA:
+via `ida_kernwin.execute_sync` main-thread marshalling). After a
+successful install, the Update tab offers to save the database
+(`host.save_host_database()`) and relaunch the host with the same IDB
+(`host.restart_host()` — locates the IDA executable from `sys.argv[0]` or
+the `idaapi` module location, no shell commands).
+
 ## MCP Integration
 
 ### Server Management

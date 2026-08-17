@@ -20,7 +20,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$InstallDir = if ($env:RIKUGAN_DIR) { $env:RIKUGAN_DIR } else { Join-Path $HOME ".spectra" }
+$InstallDir = if ($env:SPECTRA_DIR) { $env:SPECTRA_DIR } else { Join-Path $HOME ".spectra" }
 
 # ── Helpers ──────────────────────────────────────────────────────────
 function Write-Info    { param($Msg) Write-Host "[*] $Msg" -ForegroundColor Cyan }

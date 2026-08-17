@@ -298,3 +298,87 @@ def set_database_instance_id(instance_id: str) -> bool:
             return False
 
     return False
+
+
+def save_host_database() -> bool:
+    """Save the active database (IDB in IDA, BNDB in Binary Ninja).
+
+    Returns:
+        True when the database was saved (or the save call succeeded);
+        False when no database is open or the host API reported failure.
+    """
+    if is_ida():
+        try:
+            import ida_loader
+
+            path = ida_loader.get_path(ida_loader.PATH_TYPE_IDB)
+            if not path:
+                return False
+            return bool(ida_loader.save_database(path, 0))
+        except Exception as e:
+            sys.stderr.write(f"[Spectra] save_host_database IDA failed: {e}\n")
+            return False
+
+    if is_binary_ninja():
+        bv = get_binary_ninja_view()
+        if bv is None:
+            return False
+        try:
+            return bool(bv.save())
+        except Exception as e:
+            sys.stderr.write(f"[Spectra] save_host_database BN failed: {e}\n")
+            return False
+
+    return False
+
+
+def restart_host() -> bool:
+    """Relaunch the host application with the current database (IDA only).
+
+    Saves nothing by itself — call ``save_host_database()`` first when data
+    must be preserved. Uses only the host's own executable path (no shell
+    commands); when the executable cannot be located, returns False and the
+    caller should ask the user to restart manually.
+
+    Returns:
+        True if a relaunch was scheduled (the host exits immediately after).
+    """
+    if not is_ida():
+        return False
+
+    try:
+        import subprocess
+
+        import ida_loader
+        import ida_pro
+
+        idb_path = ida_loader.get_path(ida_loader.PATH_TYPE_IDB) or ""
+
+        # Candidate executables, most reliable first. sys.argv[0] is the
+        # ida binary under IDAPython; otherwise derive the install dir from
+        # the idaapi module location.
+        candidates: list[str] = []
+        if sys.argv and sys.argv[0]:
+            candidates.append(os.path.abspath(sys.argv[0]))
+        try:
+            idaapi = _idaapi
+            if idaapi is not None and getattr(idaapi, "__file__", None):
+                ida_dir = os.path.dirname(os.path.dirname(os.path.abspath(idaapi.__file__)))
+                names = (
+                    ("ida64.exe", "ida.exe") if sys.platform == "win32" else ("ida64", "ida")
+                )
+                candidates.extend(os.path.join(ida_dir, n) for n in names)
+        except Exception:
+            pass
+
+        exe = next((c for c in candidates if os.path.isfile(c)), "")
+        if not exe:
+            return False
+
+        args = [exe] + ([idb_path] if idb_path else [])
+        subprocess.Popen(args, close_fds=(sys.platform != "win32"))
+        ida_pro.qexit(0)
+        return True
+    except Exception as e:
+        sys.stderr.write(f"[Spectra] restart_host failed: {e}\n")
+        return False

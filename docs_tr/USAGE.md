@@ -2718,6 +2718,27 @@ eksik olduğunu bildirir.
 | `ios_jailbreak_check` | Jailbreak testi için `iproxy` ile yönlendirilmiş SSH portunu yoklar |
 | `ios_shell` | Jailbreak'li cihazda SSH komutu (varsayılan `root@127.0.0.1:2222`, `iproxy 2222 22` üzerinden; parola kimlik doğrulaması `sshpass` ile) — tam olarak `adb_shell` gibi geçitli (§13.4) |
 
+### 13.7 Güncelleme Sistemi
+
+Spectra, hosttan çıkmadan kendini güncel tutar:
+
+- **Başlangıç kontrolü** — eklenti yüklenirken Spectra arka planda
+  (iş parçacığı, açılışı asla bloklamaz) GitHub'da yeni sürüm olup
+  olmadığını kontrol eder ve host çıktı penceresine
+  `Update available: a → b (Settings → Update)` yazar.
+- **Settings → Update** — ilerleme göstergeli açık denetim/kurulum. Her
+  adım süre ile sınırlıdır (30 s denetim zaman aşımı, indirme için okuma
+  başına 60 s + toplam 600 s son tarih; iptal edilen indirme yarım dosyayı
+  siler) ve paketler kurulmadan önce yayımlanan SHA-256 özetiyle
+  doğrulanır.
+- **Harici komut yok** — yedekleme ve kurulum Python'ın stdlib'siyle
+  yapılır (`tarfile`, `zipfile`, `shutil`); hiçbir OS'ta
+  `tar`/`unzip`/`git` binary'si gerekmez (git yoksa `git pull` hızlı yolu
+  kendini atlar).
+- **Kaydet-yeniden başlat** — kurulum başarılı olunca Spectra veritabanını
+  (IDB/BNDB) kaydetmeyi ve IDA Pro'yu aynı dosya açık şekilde yeniden
+  başlatmayı önerir.
+
 ---
 
 ## 14. Performans ve Optimizasyon

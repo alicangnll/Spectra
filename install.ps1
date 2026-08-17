@@ -9,8 +9,8 @@
 #   & ([scriptblock]::Create((irm https://raw.githubusercontent.com/alicangnll/Spectra/main/install.ps1))) -Target both
 #
 # Environment variables:
-#   RIKUGAN_DIR     — where to clone the repo   (default: ~\.spectra)
-#   RIKUGAN_BRANCH  — git branch to check out   (default: main)
+#   SPECTRA_DIR     — where to clone the repo   (default: ~\.spectra)
+#   SPECTRA_BRANCH  — git branch to check out   (default: main)
 #   IDADIR          — override IDA install dir  (forwarded to install_ida.bat)
 #   IDA_PYTHON      — override Python for IDA    (forwarded to install_ida.bat)
 #   BN_PYTHON       — override Python for BN     (forwarded to install_binaryninja.bat)
@@ -24,8 +24,8 @@ param(
 $ErrorActionPreference = "Stop"
 
 $RepoUrl = "https://github.com/alicangnll/Spectra.git"
-$InstallDir = if ($env:RIKUGAN_DIR) { $env:RIKUGAN_DIR } else { Join-Path $HOME ".spectra" }
-$Branch = if ($env:RIKUGAN_BRANCH) { $env:RIKUGAN_BRANCH } else { "main" }
+$InstallDir = if ($env:SPECTRA_DIR) { $env:SPECTRA_DIR } else { Join-Path $HOME ".spectra" }
+$Branch = if ($env:SPECTRA_BRANCH) { $env:SPECTRA_BRANCH } else { "main" }
 
 # ── Helpers ──────────────────────────────────────────────────────────
 function Write-Info    { param($Msg) Write-Host "[*] $Msg" -ForegroundColor Cyan }

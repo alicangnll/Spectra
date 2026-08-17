@@ -258,6 +258,23 @@ işçi iş parçacığında çalışır ve yalnızca `UpdateSignals` üzerinden
 (PySide6, PyQt5, PyQt6) ana iş parçacığı slotlarına kuyruklanan bağlantı
 olarak teslim eder.
 
+### Güncelleme akışı (süre sınırları, başlangıç kontrolü, kaydet-yeniden başlat)
+
+Akışın her adımı süre ile sınırlıdır; takılan bir ağ veya devasa bir ağaç
+Güncelleme sekmesini sonsuza dek döndüremez: update-info isteği 30 s
+zaman aşımıyla yeniden denenir, indirmeler okuma başına 60 s soket zaman
+aşımı artı 600 s toplam son tarih kullanır (iptal edilen indirme yarım
+dosyayı siler), yedekleme/geri yükleme ise stdlib `tarfile` modülüyle
+yapılır — hiçbir OS'ta harici `tar` binary'si gerekmez (isteğe bağlı
+`git pull` hızlı yolu git yokken kendini atlar ve saf-Python zip yöntemine
+düşer). Eklenti yüklenirken `Updater.check_and_notify()` kontrolü bir
+daemon iş parçacığında çalıştırır ve yeni sürümleri host çıktı penceresinde
+duyurur (IDA: `ida_kernwin.execute_sync` ile ana iş parçacığına taşıma).
+Kurulum başarılı olunca Güncelleme sekmesi veritabanını kaydetmeyi
+(`host.save_host_database()`) ve hostu aynı IDB ile yeniden başlatmayı
+(`host.restart_host()` — IDA çalıştırılabilirini `sys.argv[0]` veya
+`idaapi` modül konumundan bulur, shell komutu yok) önerir.
+
 ## MCP Entegrasyonu
 
 ### Sunucu Yönetimi
