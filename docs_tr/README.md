@@ -15,7 +15,7 @@
 Spectra, **reverse engineering araçlarına gömülü bir yapay zeka aracısıdır**. IDA Pro ve Binary Ninja içinde, terminalinizde ve JADX üzerinden Android APK'larda doğrudan çalışan, birden fazla LLM sağlayıcısını destekleyen bir asistandır.
 
 **Rikugan'dan Fork** — Spectra bu güçlü temel üzerine inşa edilmiştir ve şu iyileştirmeleri ekler:
-- **240+ araç** (123 IDA Pro + 125 Binary Ninja)
+- **290+ araç** (146 IDA Pro + 148 Binary Ninja)
 - **63 yerleşik yetenek** (Rikugan'da 12)
 - **4 platform** — IDA Pro, Binary Ninja, etkileşimli CLI, JADX
 - **Gelişmiş güvenlik analizi** — Exploit, malware, firmware, mobil
@@ -31,7 +31,7 @@ Spectra, **reverse engineering araçlarına gömülü bir yapay zeka aracısıd�
 | Özellik | Rikugan | Spectra |
 |---------|---------|---------|
 | **Yetenekler** | 12 yerleşik | 63 yerleşik |
-| **Araçlar** | 60+ | 123 (IDA Pro) / 125 (Binary Ninja) |
+| **Araçlar** | 60+ | 146 (IDA Pro) / 148 (Binary Ninja) |
 | **Platformlar** | IDA, Binary Ninja | IDA, Binary Ninja, etkileşimli CLI, JADX |
 | **Mobil Exploit** | ❌ | ✅ iOS/Android PAC/MTE bypass |
 | **APK Analizi** | ❌ | ✅ Tam JADX entegrasyonu |
@@ -46,9 +46,11 @@ Spectra, **reverse engineering araçlarına gömülü bir yapay zeka aracısıd�
 | **OWASP Top 10** | ❌ | ✅ Mobil + Web |
 | **Sürücü Exploit** | ❌ | ✅ Linux/macOS/Windows |
 | **SSL Pinning** | ❌ | ✅ Yapısal tespit (içe aktarmalar/XREF'ler/pin malzemesi) + bypass kataloğu |
+| **Dosya Düzeyi Triyaj** | ❌ | ✅ 11 saf-Python araç (checksec, entropi/packer, diff, kripto & kütüphane parmak izi, IOC, YARA) |
 | **VM Obfuscation** | ❌ | ✅ Tespit |
 | **MCP Sunucu Yönetimi** | ❌ | ✅ Ayarlar arayüzü + güvenlik doğrulayıcı |
 | **Güvensiz Komut İzni** | ❌ | ✅ Tüm araç geçitleri için tek global anahtar |
+| **Otomatik Güncelleyici** | ❌ | ✅ SHA-256 doğrulanmış paketler, açılış kontrolü, kaydet & hostu yeniden başlat |
 | **GLM Desteği** | ❌ | ✅ GLM-4 & GLM-5 serisi |
 
 ### Miras Alınan Özellikler (Rikugan'dan)
@@ -261,21 +263,23 @@ spectra> /config_edit           # Config'i editörde aç
 - `glm` — Zhipu AI (GLM-4, GLM-5)
 - `lmstudio` — LM Studio (yerel modeller)
 
-### 🛠️ 240+ Araç
+### 🛠️ 290+ Araç
 
-**IDA Pro (123 araç):**
+**IDA Pro (146 araç):**
 - Navigasyon, decompilation, disassembly
 - Cross-references, strings, imports, exports
 - Annotations (rename, comment, set type)
 - Microcode manipulation (Hex-Rays IL)
 - Cihaz etkileşimi — ADB (Android) + iOS (libimobiledevice)
+- Dosya düzeyi triyaj — checksec, entropi, diff, kripto/kütüphane parmak izi, IOC, YARA (saf Python)
 - Onaylı Python scripting
 
-**Binary Ninja (125 araç):**
+**Binary Ninja (148 araç):**
 - Navigasyon, decompilation, HLIL
 - Cross-references, strings, veritabanı sorguları
 - IL okuma/yazma/dönüştürme
 - Cihaz etkileşimi — ADB (Android) + iOS (libimobiledevice)
+- Dosya düzeyi triyaj — checksec, entropi, diff, kripto/kütüphane parmak izi, IOC, YARA (saf Python)
 - Onaylı Python scripting
 
 ### 📚 63 Yerleşik Yetenek

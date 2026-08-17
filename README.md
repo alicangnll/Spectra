@@ -15,7 +15,7 @@
 Spectra is an **AI agent embedded in reverse engineering tools**. An assistant that works directly inside IDA Pro and Binary Ninja, in your terminal, and on Android APKs via JADX — with support for multiple LLM providers.
 
 **Forked from Rikugan** — Spectra is built on this powerful foundation and adds the following enhancements:
-- **240+ tools** (123 IDA Pro + 125 Binary Ninja)
+- **290+ tools** (146 IDA Pro + 148 Binary Ninja)
 - **63 built-in skills** (12 in Rikugan)
 - **4 platforms** — IDA Pro, Binary Ninja, interactive CLI, JADX
 - **Advanced security analysis** — Exploitation, malware, firmware, mobile
@@ -31,7 +31,7 @@ Spectra is an **AI agent embedded in reverse engineering tools**. An assistant t
 | Feature | Rikugan | Spectra |
 |---------|---------|---------|
 | **Skills** | 12 built-in | 63 built-in |
-| **Tools** | 60+ | 123 (IDA Pro) / 125 (Binary Ninja) |
+| **Tools** | 60+ | 146 (IDA Pro) / 148 (Binary Ninja) |
 | **Platforms** | IDA, Binary Ninja | IDA, Binary Ninja, interactive CLI, JADX |
 | **Mobile Exploitation** | ❌ | ✅ iOS/Android PAC/MTE bypass |
 | **APK Analysis** | ❌ | ✅ Full JADX integration |
@@ -46,9 +46,11 @@ Spectra is an **AI agent embedded in reverse engineering tools**. An assistant t
 | **OWASP Top 10** | ❌ | ✅ Mobile + Web |
 | **Driver Exploitation** | ❌ | ✅ Linux/macOS/Windows |
 | **SSL Pinning** | ❌ | ✅ Structural detection (imports/XREFs/pin material) + bypass catalog |
+| **File-Level Triage** | ❌ | ✅ 11 pure-Python tools (checksec, entropy/packer, diff, crypto & lib fingerprints, IOCs, YARA) |
 | **VM Obfuscation** | ❌ | ✅ Detection |
 | **MCP Server Management** | ❌ | ✅ Settings UI + security validator |
 | **Unsafe-Command Opt-In** | ❌ | ✅ Single global toggle for all tool gates |
+| **Auto-Updater** | ❌ | ✅ SHA-256-verified packages, startup check, save & restart host |
 | **GLM Support** | ❌ | ✅ GLM-4 & GLM-5 series |
 
 ### Inherited Features (from Rikugan)
@@ -328,21 +330,23 @@ System:
 - `glm` — Zhipu AI (GLM-4, GLM-5)
 - `lmstudio` — LM Studio (local models)
 
-### 🛠️ 240+ Tools
+### 🛠️ 290+ Tools
 
-**IDA Pro (123 tools):**
+**IDA Pro (146 tools):**
 - Navigation, decompilation, disassembly
 - Cross-references, strings, imports, exports
 - Annotations (rename, comment, set type)
 - Microcode manipulation (Hex-Rays IL)
 - Device interaction — ADB (Android) + iOS (libimobiledevice)
+- File-level triage — checksec, entropy, diff, crypto/lib fingerprint, IOCs, YARA (pure Python)
 - Python scripting with approval
 
-**Binary Ninja (125 tools):**
+**Binary Ninja (148 tools):**
 - Navigation, decompilation, HLIL
 - Cross-references, strings, database queries
 - IL read/write/transform
 - Device interaction — ADB (Android) + iOS (libimobiledevice)
+- File-level triage — checksec, entropy, diff, crypto/lib fingerprint, IOCs, YARA (pure Python)
 - Python scripting with approval
 
 ### 📚 Built-in Skills
