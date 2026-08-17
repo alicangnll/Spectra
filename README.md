@@ -67,6 +67,8 @@ Spectra is an **AI agent embedded in reverse engineering tools**. An assistant t
 - **Findings Bookmarking** — Mark and export findings
 - **Suspicious API Highlighting** — Highlight dangerous APIs
 - **Anti-Debugging Detection** — Automatic anti-debug detection
+- **Structural SSL Pinning Detection** — Finds pinning from the binary itself (imports, XREFs, native trust symbols, embedded pin material) with confidence-backed verdicts and hook/patch targets
+- **Unsafe-Command Opt-In** — One Settings toggle bypasses every tool-level safety gate (ADB safe-list, script guard, network approvals)
 - **Windows auto-install** — Automatic dependency installation
 
 ---

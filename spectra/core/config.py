@@ -89,6 +89,10 @@ class SpectraConfig:
     # Shell command approval settings
     shell_auto_approve_limit: int = 100  # max commands in auto-approve mode before reset
 
+    # Tool safety bypass — one switch for every safety gate (adb shell
+    # safe-list, script guard, ToolSafety command/network checks)
+    allow_unsafe_commands: bool = False
+
     # Token limiter
     token_limiter: dict[str, Any] = field(default_factory=dict)
 
@@ -215,6 +219,7 @@ class SpectraConfig:
             "oauth_consent_accepted",
             "encrypt_api_keys",
             "shell_auto_approve_limit",
+            "allow_unsafe_commands",
             "token_limiter",
         ):
             if k in data:

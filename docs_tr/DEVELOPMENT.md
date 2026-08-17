@@ -126,6 +126,30 @@ tests/
 
 Binary Ninja ve IDA Pro API'leri test sırasında taklit edilir — test paketini çalıştırmak için host yüklemenize gerek yoktur.
 
+### Test paketi tuzakları (zor yoldan öğrenildi)
+
+- **Paylaşılan IDA mock'ları, import sırasında birkaç test modülü tarafından
+  yeniden kurulur** — `sys.modules`'ta son `install_ida_mocks()` çağrısı
+  kazanır. Daha önce içe aktarılan bir modül hâlâ *eski* mock nesnelerini
+  tutar. Testiniz doğrudan `sys.modules["idautils"]` yapılandırırsa,
+  test edilen modülün hiç kullanmadığı bir mock'a yama yapmış
+  olabilirsiniz (belirti: tek başına geçer, tam pakette başarısız olur).
+  Ya modülün kendi bağlantılarını yapılandırın
+  (`spectra_module.idautils`) ya da `setUpModule` içinde
+  `importlib.reload()` edin (bkz. `tests/tools/test_ssl_pinning.py`).
+- **`spectra.core.config` bazı testler tarafından** `MagicMock` ile
+  stub'lanır. Gerçek config kaydet/yükle davranışını iddia eden her şey
+  bir **alt süreçte** çalışmalıdır (`[sys.executable, "-c", script,
+  repo_root]` — bkz. `tests/tools/test_adb.py` içinde
+  `TestConfigRoundTrip`). Güvenlik yardımcıları da `val is True` ile
+  kapalı başarısız olur; böylece mock'lanmış bir config asla güvensiz
+  komut iznini etkinleştiremez.
+- **Bağlamalar arasında `Signal` ve `QTimer.singleShot`**: düz bir Python
+  işçi iş parçacığından planlanan `QTimer.singleShot` asla tetiklenmez
+  (olay döngüsü yoktur). İşçi→UI iletişimi `Signal(...).emit`
+  (kuyruklanan bağlantı) kullanmalıdır; bu PySide6, PyQt5 ve PyQt6'da
+  aynı şekilde çalışır.
+
 ---
 
 ## Kod Kalitesi

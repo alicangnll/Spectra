@@ -2493,6 +2493,7 @@ spectra> Yapılandırma dosyalarını bul
   "oauth_consent_accepted": false,
   "bulk_renamer_batch_size": 10,
   "bulk_renamer_max_concurrent": 3,
+  "allow_unsafe_commands": false,
   "encrypt_api_keys": false,
   "token_limiter": {},
   "session_token_usage": {}
@@ -2517,6 +2518,7 @@ spectra> Yapılandırma dosyalarını bul
 - `exploration_turn_limit` - Keşif modunda maksimum tur
 - `max_retries` - API yeniden deneme sayısı
 - `silent_retry_mode` - Yeniden deneme mesajlarını gizle
+- `allow_unsafe_commands` - **Tüm** araç güvenlik geçitlerini atlar (bkz. §13.4)
 
 **Yetenek Ayarları:**
 - `disabled_skills` - Devre dışı bırakılacak yetenekler
@@ -2657,6 +2659,38 @@ Kullanıcı: /undo
 Spectra: [Değişiklik geri alınıyor...]
          Fonksiyon sub_401000 olarak yeniden adlandırıldı
 ```
+
+### 13.4 Araç Güvenlik Geçitleri ve Güvensiz Komut İzni
+
+Sisteminizde bir şey çalıştırabilen her araç bir güvenlik geçidinin arkasındadır. Varsayılan olarak **hepsi önce engeller**:
+
+| Geçit | Araç(lar) | Varsayılan davranış |
+|-------|-----------|---------------------|
+| ADB shell güvenli liste | `adb_shell` | Yalnızca bilinen güvenli komut önekleri (≈39: `ls`, `cat`, `dumpsys`, `pm`, `logcat`, `sqlite3`, …); diğer her şey (örn. `curl`) reddedilir; tehlikeli kalıplar (`rm -rf`, `dd`, fabrika ayarları, …) her zaman reddedilir |
+| Python betik koruması | `run_script`, betik araçları | AST denetimi `subprocess`/`os.system`/`exec`/`eval`/dinamik içe aktarmayı engeller; yerleşikler kısıtlanır |
+| Komut güvenliği | paylaşılan `ToolSafety` | Yıkıcı komutlar engellenir; bilinmeyen komutlar onay ister |
+| Ağ güvenliği | scapy (`send`/`sniff`/`scan`), mitmproxy (`intercept`) | Flood/inject engellenir; sniff/scan onay ister |
+
+**Güvensiz komut modu.** Ayarlar → Davranış → **"Allow unsafe commands (all tools)"** (config anahtarı `allow_unsafe_commands`) yukarıdaki tüm geçitleri tek seferde kapatır — `adb_shell` her komutu kabul eder, betik araçları `subprocess`/`os.system` kullanabilir, ağ/fuzzing araçları onay sorularını atlar. Ayar her çağrıda diskten okunduğu için checkbox'ı işaretlemek eklentiyi yeniden başlatmadan hemen etkili olur.
+
+> ⚠️ **Uyarı:** Bu, araç başına kapsamı olmayan tek bir küresel anahtardır. Yalnızca tam olarak kontrol ettiğiniz sistem ve cihazlarda etkinleştirin ve işiniz bitince kapatın.
+
+**Bilinçli olarak atlanmaz** (komut yürütme değil, saldırı yüzeyi koruması):
+- MCP sunucu yol ve argüman doğrulaması (`mcp/security.py`)
+- İsteme enjeksiyonu temizleme
+- Fuzzing süre/bellek sınırları (kaynak koruması, komut geçidi değil)
+
+### 13.5 SSL Sabitleme Tespiti (Yapısal)
+
+`detect_ssl_pinning` / `detect_ssl_pinning_impl` sabitlemeyi **ikilinin kendisinden** bulur — çerçeve kaynak-kod kalıplarını söküm metniyle eşleştirmez. Her bulgu için somut bir adres gösterir:
+
+- **İçe aktarma tablosu** — doğrulama giriş noktaları (`SSL_CTX_set_verify`, `SSL_CTX_set_custom_verify`, `SecTrustSetAnchorCertificates`, `WinHttpSetOption`, `CertVerifyCertificateChainPolicy`, …); Mach-O `_` öneki ve ELF `@version` normalizasyonu dahil
+- **Çapraz referanslar** — bu içe aktarmaların ikili içindeki çağıranları; adresleriyle birlikte **hook/patch hedefleri** olarak raporlanır
+- **İkilinin kendi sembolleri** — yerel trust-manager mantığı (`checkServerTrusted`, `getAcceptedIssuers`, `okhostnameverify`, JNI export'ları, …)
+- **Dizgilerde sabitleme malzemesi** (**tüm** segmentler taranır, `.rodata` dahil) — OkHttp pinleri (`sha256/…`), gömülü PEM sertifikaları, HPKP `pin-sha256` listeleri, 40/64-hex anahtar özetleri
+- **Güven destekli karar** — YÜKSEK (sabitleme malzemesi, yerel trust-manager sembolleri, çağıranı olan sabitlemeye özgü içe aktarma), ORTA (çağıranı olan genel doğrulama içe aktarması, olası pin özeti), DÜŞÜK (kitaplık var, çağıran yok); ayrıca teyit eden TLS dizgileri
+
+Rapor, tespit edilen çerçeve listesinden üretilen çerçeveye özel atlama teknikleriyle (Frida/objection/hook/patch) biter.
 
 ---
 

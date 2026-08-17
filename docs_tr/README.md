@@ -67,6 +67,8 @@ Spectra, **reverse engineering araçlarına gömülü bir yapay zeka aracısıd�
 - **Bulunanları Yer İmeleme** — Bulguları işaretle ve dışa aktar
 - **Şüpheli API Vurgulama** — Tehlikeli API'leri vurgula
 - **Anti-Debug Tespiti** — Otomatik anti-debug tespiti
+- **Yapısal SSL Sabitleme Tespiti** — Sabitlemeyi ikilinin kendisinden bulur (içe aktarmalar, XREF'ler, yerel trust sembolleri, gömülü pin malzemesi); güven destekli kararlar ve hook/patch hedefleriyle
+- **Güvensiz Komut İzni** — Tek bir Ayarlar anahtarı tüm araç düzeyi güvenlik geçitlerini atlar (ADB güvenli listesi, betik koruması, ağ onayları)
 - **Windows otomatik kurulum** — Otomatik bağımlılık kurulumu
 
 ---

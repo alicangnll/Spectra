@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from .logging import log_debug, log_error, log_info
+from .safety import unsafe_commands_allowed
 
 
 @dataclass
@@ -277,6 +278,9 @@ class ToolSafety:
         Returns:
             Tuple of (is_safe, reason, detected_patterns)
         """
+        if unsafe_commands_allowed():
+            return True, "Unsafe-command mode enabled in Settings", []
+
         detected_patterns = []
 
         # Check critical patterns
@@ -321,6 +325,9 @@ class ToolSafety:
         Returns:
             Tuple of (is_safe, reason)
         """
+        if unsafe_commands_allowed():
+            return True, "Unsafe-command mode enabled in Settings"
+
         # Explicitly safe operations
         safe_operations = {"parse", "analyze", "read", "extract", "statistics"}
         if operation.lower() in safe_operations:

@@ -10,6 +10,7 @@ import re
 import subprocess
 
 from ..core.logging import log_debug, log_error, log_info, log_warning
+from ..core.safety import unsafe_commands_allowed
 from .base import tool
 
 # Singleton ADB manager instance
@@ -74,6 +75,10 @@ class _AdbManager:
 
     def _check_shell_command_safety(self, command: str) -> tuple[bool, str]:
         """Check if a shell command is safe to execute."""
+        if unsafe_commands_allowed():
+            log_warning("ADB unsafe-command mode is enabled in Settings — safety checks bypassed")
+            return True, "Unsafe-command mode enabled in Settings"
+
         dangerous_patterns = [
             r"\brm\b.*-\rf",
             r"\brm\b.*/",
@@ -357,7 +362,11 @@ def adb_uninstall(package_name: str, keep_data: bool = False) -> str:
 
 @tool(
     name="adb_shell",
-    description="Run a safe shell command on the Android device. Only read-only analysis commands are allowed for safety.",
+    description=(
+        "Run a shell command on the Android device. Only read-only analysis "
+        "commands are allowed for safety, unless the user enabled unsafe "
+        "commands in Spectra Settings."
+    ),
     category="adb",
 )
 def adb_shell(command: str) -> str:

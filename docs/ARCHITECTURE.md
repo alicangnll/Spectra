@@ -247,6 +247,16 @@ All IDA API calls marshaled to main thread via `@idasync` decorator:
 
 Thread-safe API allows direct calls from background threads.
 
+### Qt / UI Threads (settings_dialog, updater)
+
+Background workers **must not** touch widgets or use `QTimer.singleShot` —
+a timer scheduled from a plain Python thread has no event loop and its
+callback is silently dropped (this froze the Update tab mid-download). The
+update check/install flow runs in a worker thread and reports exclusively
+through `UpdateSignals` (`Signal(object)` emissions), which Qt delivers to
+main-thread slots as queued connections in every binding (PySide6, PyQt5,
+PyQt6).
+
 ## MCP Integration
 
 ### Server Management
@@ -332,6 +342,49 @@ Agent explicitly prevented from:
 - Running target binaries
 - File system writes outside sandbox
 - Network operations without approval
+
+### Tool Safety Gates & Unsafe-Command Opt-In
+
+`spectra/core/safety.py` (`unsafe_commands_allowed()`) is the single source
+of truth every tool-level gate consults:
+
+- **adb_shell** — safe-command prefix list + dangerous-pattern regexes
+- **script_guard** — AST check (subprocess/os.system/exec/eval/…) and
+  builtins restriction
+- **ToolSafety** — shared command and network approval checks
+  (scapy, mitmproxy, afl/libfuzzer/honggfuzz)
+
+When the Settings checkbox **Allow unsafe commands (all tools)**
+(`allow_unsafe_commands` in config.json) is on, each gate returns
+allow-early. The helper fails **closed**: the value is checked with
+`val is True`, so unreadable/malformed configs — and test stubs — never
+enable the bypass. MCP path/argument validation, prompt-injection
+sanitization, and fuzzing duration/memory caps are deliberately outside
+the bypass.
+
+### SSL Pinning Detection Engine
+
+`spectra/tools/ssl_pinning.py` detects pinning structurally — no
+source-level pattern is ever matched against disassembly:
+
+1. **Collectors** (`_collect_facts_ida`, `_collect_facts_binja`) gather raw
+   facts: named locations/imports with cross-reference callers, defined
+   symbols, and strings across all segments. Every disassembler call is
+   individually guarded so API drift degrades to "no evidence", never a
+   crash.
+2. **Pure analyzer** (`analyze_pinning_facts(imports, defined_names,
+   strings)`) derives the verdict — HIGH/MEDIUM/LOW/none confidence,
+   framework list, evidence with addresses, and hook/patch targets —
+   without importing any disassembler API, which makes the decision logic
+   unit-testable (`tests/tools/test_ssl_pinning.py`).
+3. **Report/bypass layer** (`format_ssl_pinning_report`,
+   `get_bypass_techniques`) maps detected frameworks to Frida/objection/
+   hook/patch techniques via `SSL_PINNING_PATTERNS`.
+
+The IDA/Binja tool wrappers consume the results-dict contract
+(`detected`, `confidence`, `frameworks`, `findings`, `hook_targets`,
+`strings`, `functions`); framework names stay keys of
+`SSL_PINNING_PATTERNS` so `get_ssl_bypass` keeps working.
 
 ## Extension Points
 

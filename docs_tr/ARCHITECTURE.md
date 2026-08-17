@@ -247,6 +247,17 @@ Tüm IDA API çağrıları `@idasync` dekoratörü ile ana iş parçacığına m
 
 İş parçacığı güvenli API, arka plan iş parçacıklarından doğrudan çağrıya izin verir.
 
+### Qt / Arayüz İş Parçacıkları (settings_dialog, updater)
+
+Arka plan işçileri asla widget'lara dokunmaz ve `QTimer.singleShot`
+kullanmaz — düz bir Python iş parçacığından planlanan zamanlayıcının olay
+döngüsü yoktur ve geri çağrısı sessizce düşer (bu, Güncelleme sekmesini
+indirme ortasında donduruyordu). Güncelleme denetimi/kurulum akışı bir
+işçi iş parçacığında çalışır ve yalnızca `UpdateSignals` üzerinden
+(`Signal(object)` yayımları) rapor verir; Qt bunları her bağlamada
+(PySide6, PyQt5, PyQt6) ana iş parçacığı slotlarına kuyruklanan bağlantı
+olarak teslim eder.
+
 ## MCP Entegrasyonu
 
 ### Sunucu Yönetimi
@@ -332,6 +343,50 @@ Agent'tan açıkca kaçınılan:
 - Hedef binaryleri çalıştırma
 - Sandbox dışında dosya sistemi yazmaları
 - Onay olmad ağ işlemleri
+
+### Araç Güvenlik Geçitleri ve Güvensiz Komut İzni
+
+`spectra/core/safety.py` (`unsafe_commands_allowed()`), her araç düzeyi
+geçidin danıştığı tek doğruluk kaynağıdır:
+
+- **adb_shell** — güvenli komut önek listesi + tehlikeli kalıp regexleri
+- **script_guard** — AST denetimi (subprocess/os.system/exec/eval/…) ve
+  yerleşikler kısıtlaması
+- **ToolSafety** — paylaşılan komut ve ağ onay denetimleri
+  (scapy, mitmproxy, afl/libfuzzer/honggfuzz)
+
+Ayarlar'daki **Allow unsafe commands (all tools)** checkbox'ı
+(config.json'da `allow_unsafe_commands`) açıkken her geçit erken-izin
+döner. Yardımcı **kapalı başarısız** olur: değer `val is True` ile
+denetlenir; böylece okunamayan/bozuk config'ler — ve test stub'ları —
+asla bu izni etkinleştiremez. MCP yol/argüman doğrulaması, isteme
+enjeksiyonu temizleme ve fuzzing süre/bellek sınırları bilinçli olarak
+iznin dışındadır.
+
+### SSL Sabitleme Tespit Motoru
+
+`spectra/tools/ssl_pinning.py` sabitlemeyi yapısal olarak tespit eder —
+kaynak düzeyi kalıp asla söküm metniyle eşleştirilmez:
+
+1. **Toplayıcılar** (`_collect_facts_ida`, `_collect_facts_binja`) ham
+   bilgileri toplar: çapraz referans çağıranlarıyla adlandırılmış
+   konumlar/içe aktarmalar, tanımlı semboller ve tüm segmentlerdeki
+   dizgiler. Her sökümleyici çağrısı tek tek korunur; API sapması çökmeye
+   değil "kanıt yok" sonucuna bozunur.
+2. **Saf çözümleyici** (`analyze_pinning_facts(imports, defined_names,
+   strings)`) kararı türetir — YÜKSEK/ORTA/DÜŞÜK/yok güven, çerçeve
+   listesi, adresli kanıtlar ve hook/patch hedefleri — hiçbir sökümleyici
+   API'si içe aktarmadan; bu da karar mantığını birim test edilebilir
+   yapar (`tests/tools/test_ssl_pinning.py`).
+3. **Rapor/atlama katmanı** (`format_ssl_pinning_report`,
+   `get_bypass_techniques`) tespit edilen çerçeveleri
+   `SSL_PINNING_PATTERNS` üzerinden Frida/objection/hook/patch
+   tekniklerine eşler.
+
+IDA/Binja araç sarmalayıcıları sonuç-sözlüğü sözleşmesini tüketir
+(`detected`, `confidence`, `frameworks`, `findings`, `hook_targets`,
+`strings`, `functions`); çerçeve adları `SSL_PINNING_PATTERNS` anahtarları
+olarak kalır, böylece `get_ssl_bypass` çalışmaya devam eder.
 
 ## Genişletme Noktaları
 

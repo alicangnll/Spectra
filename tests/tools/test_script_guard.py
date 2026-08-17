@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import builtins as builtins_mod
 import os
 import sys
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from tests.mocks.ida_mock import install_ida_mocks
@@ -118,6 +120,33 @@ class TestRunGuardedScript(unittest.TestCase):
         run_guarded_script("x = 1", factory)
         run_guarded_script("y = 2", factory)
         assert len(calls) == 2
+
+
+class TestUnsafeCommandsBypass(unittest.TestCase):
+    """The global unsafe-command opt-in skips both the AST guard and the
+    builtins restriction."""
+
+    def test_subprocess_import_blocked_by_default(self):
+        result = run_guarded_script("import subprocess\nprint('RAN')", _empty_ns)
+        assert "Blocked" in result
+        assert "RAN" not in result
+
+    def test_subprocess_import_allowed_when_enabled(self):
+        with patch("spectra.tools.script_guard.unsafe_commands_allowed", return_value=True):
+            result = run_guarded_script("import subprocess\nprint('RAN')", _empty_ns)
+        assert "RAN" in result
+
+    def test_builtins_restriction_lifted_when_enabled(self):
+        def factory():
+            return {"__builtins__": builtins_mod}
+
+        with patch("spectra.tools.script_guard.unsafe_commands_allowed", return_value=True):
+            result = run_guarded_script("print(eval('1+1'))", factory)
+        assert "2" in result
+
+    def test_eval_still_blocked_by_default(self):
+        result = run_guarded_script("print(eval('1+1'))", lambda: {"__builtins__": builtins_mod})
+        assert "Blocked" in result
 
 
 if __name__ == "__main__":

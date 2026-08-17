@@ -447,6 +447,15 @@ class SettingsDialog(QDialog):
         self._auto_save_cb.setChecked(self._config.checkpoint_auto_save)
         behavior_form.addRow(self._auto_save_cb)
 
+        self._unsafe_commands_cb = QCheckBox("Allow unsafe commands (all tools)")
+        self._unsafe_commands_cb.setChecked(self._config.allow_unsafe_commands)
+        self._unsafe_commands_cb.setToolTip(
+            "Bypass ALL tool safety checks: adb_shell may run any command on the device "
+            "(curl, rm, ...), script tools may use subprocess/os.system, and network/fuzzing "
+            "tools skip their approval gates. Only enable this on systems and devices you control."
+        )
+        behavior_form.addRow(self._unsafe_commands_cb)
+
         self._explore_turns_spin = QSpinBox()
         self._explore_turns_spin.setRange(5, 200)
         self._explore_turns_spin.setValue(self._config.exploration_turn_limit)
@@ -1062,6 +1071,7 @@ class SettingsDialog(QDialog):
         self._config.provider.context_window = self._context_spin.value()
         self._config.auto_context = self._auto_context_cb.isChecked()
         self._config.checkpoint_auto_save = self._auto_save_cb.isChecked()
+        self._config.allow_unsafe_commands = self._unsafe_commands_cb.isChecked()
         self._config.exploration_turn_limit = self._explore_turns_spin.value()
         self._config.subagent_turn_limit = self._subagent_turns_spin.value()
         self._config.max_retries = self._max_retries_spin.value()

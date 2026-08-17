@@ -126,6 +126,27 @@ tests/
 
 Binary Ninja and IDA Pro APIs are stubbed at test time — you do not need either host installed to run the test suite.
 
+### Test-suite gotchas (learned the hard way)
+
+- **Shared IDA mocks are re-installed by several test modules at import
+  time** — the last `install_ida_mocks()` call wins in `sys.modules`. A
+  module imported earlier still holds the *old* mock objects. If your test
+  configures `sys.modules["idautils"]` directly, it may patch a mock the
+  module under test never uses (symptom: passes standalone, fails in the
+  full suite). Either configure the module's own bindings
+  (`spectra_module.idautils`) or `importlib.reload()` it in `setUpModule`
+  (see `tests/tools/test_ssl_pinning.py`).
+- **`spectra.core.config` is stubbed by some tests** with `MagicMock`s.
+  Anything asserting real config save/load behavior must run in a
+  **subprocess** (`[sys.executable, "-c", script, repo_root]`) — see
+  `TestConfigRoundTrip` in `tests/tools/test_adb.py`. Safety helpers also
+  fail closed with `val is True` so a mocked config can never enable the
+  unsafe-command bypass.
+- **`Signal` vs `QTimer.singleShot` across bindings**: `QTimer.singleShot`
+  scheduled from a plain Python worker thread never fires (no event loop).
+  Worker→UI communication must use `Signal(...).emit` (queued connection),
+  which works identically in PySide6, PyQt5, and PyQt6.
+
 ---
 
 ## Code Quality

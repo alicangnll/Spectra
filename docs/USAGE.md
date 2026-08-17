@@ -2391,6 +2391,7 @@ Approve execution? [Y]es/[N]o/[S]afe auto-approve (100 cmds)/[R]eject all: Y
   "exploration_turn_limit": 100,
   "max_retries": 3,
   "silent_retry_mode": false,
+  "allow_unsafe_commands": false,
   "theme": "dark",
   "disabled_skills": [],
   "enabled_external_skills": [],
@@ -2428,6 +2429,7 @@ Approve execution? [Y]es/[N]o/[S]afe auto-approve (100 cmds)/[R]eject all: Y
 - `exploration_turn_limit` - Max turns in exploration mode
 - `max_retries` - API retry attempts
 - `silent_retry_mode` - Hide retry messages
+- `allow_unsafe_commands` - Bypass **all** tool-level safety gates (see §13.4)
 
 **Skills Settings:**
 - `disabled_skills` - Skills to disable
@@ -2568,6 +2570,38 @@ User: /undo
 Spectra: [Reverting mutation...]
          Function renamed back to sub_401000
 ```
+
+### 13.4 Tool Safety Gates & Unsafe-Command Opt-In
+
+Every tool that could run something on your system sits behind a safety gate. By default **all of them block first**:
+
+| Gate | Tool(s) | Default behavior |
+|------|---------|------------------|
+| ADB shell safe-list | `adb_shell` | Only known-safe command prefixes (≈39: `ls`, `cat`, `dumpsys`, `pm`, `logcat`, `sqlite3`, …); everything else (e.g. `curl`) rejected; dangerous patterns (`rm -rf`, `dd`, factory reset, …) always rejected |
+| Python script guard | `run_script`, script tools | AST check blocks `subprocess`/`os.system`/`exec`/`eval`/dynamic imports; builtins restricted |
+| Command safety | shared `ToolSafety` | Destructive commands blocked; unknown commands require approval |
+| Network safety | scapy (`send`/`sniff`/`scan`), mitmproxy (`intercept`) | Flood/inject blocked; sniff/scan require approval |
+
+**Unsafe-command mode.** Settings → Behavior → **"Allow unsafe commands (all tools)"** (config key `allow_unsafe_commands`) turns every gate above off at once — `adb_shell` accepts any command, script tools may use `subprocess`/`os.system`, and network/fuzzing tools skip their approval prompts. The setting is read from disk on every call, so toggling the checkbox takes effect immediately without restarting the plugin.
+
+> ⚠️ **Warning:** this is a single global switch with no per-tool scoping. Enable it only on systems and devices you fully control, and turn it off when you are done.
+
+**Deliberately NOT bypassed** (attack-surface protection, not command execution):
+- MCP server path & argument validation (`mcp/security.py`)
+- Prompt-injection sanitization
+- Fuzzing duration/memory caps (resource guard, not a command gate)
+
+### 13.5 SSL Pinning Detection (Structural)
+
+`detect_ssl_pinning` / `detect_ssl_pinning_impl` finds pinning **from the binary itself**, not by matching framework source-code patterns against disassembly. For every finding it cites a concrete address:
+
+- **Import table** — verification entry points (`SSL_CTX_set_verify`, `SSL_CTX_set_custom_verify`, `SecTrustSetAnchorCertificates`, `WinHttpSetOption`, `CertVerifyCertificateChainPolicy`, …), with Mach-O `_`-prefix and ELF `@version` normalization
+- **Cross-references** — in-binary callers of those imports, reported as **hook/patch targets** with addresses
+- **Binary's own symbols** — native trust-manager logic (`checkServerTrusted`, `getAcceptedIssuers`, `okhostnameverify`, JNI exports, …)
+- **Pin material in strings** (scanned across **all** segments, including `.rodata`) — OkHttp pins (`sha256/…`), embedded PEM certificates, HPKP `pin-sha256` lists, 40/64-hex key hashes
+- **Confidence-backed verdict** — HIGH (pin material, native trust-manager symbols, pinning-specific import with callers), MEDIUM (generic verification import with callers, possible pin hash), LOW (library present, no callers), plus corroborating TLS strings
+
+The report ends with per-framework bypass techniques (Frida/objection/hook/patch) driven by the detected framework list.
 
 ---
 

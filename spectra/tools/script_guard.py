@@ -9,6 +9,8 @@ import io
 from collections.abc import Callable
 from typing import Any
 
+from ..core.safety import unsafe_commands_allowed
+
 # Modules that must never be imported (directly or via __import__).
 _BLOCKED_MODULES = frozenset({"subprocess", "shlex", "pty", "commands"})
 
@@ -113,22 +115,30 @@ def _check_ast(code: str) -> str | None:
 
 
 def run_guarded_script(code: str, namespace_factory: Callable[[], dict[str, Any]]) -> str:
-    """Block dangerous patterns, exec code, and return captured stdout/stderr."""
-    violation = _check_ast(code)
-    if violation:
-        return f"Error: {violation}"
+    """Block dangerous patterns, exec code, and return captured stdout/stderr.
+
+    When unsafe commands are allowed in Settings, both the AST check and the
+    builtins restriction are skipped entirely.
+    """
+    unrestricted = unsafe_commands_allowed()
+
+    if not unrestricted:
+        violation = _check_ast(code)
+        if violation:
+            return f"Error: {violation}"
 
     stdout_buf = io.StringIO()
     stderr_buf = io.StringIO()
     namespace = namespace_factory()
 
     # Ensure __builtins__ is restricted even if the factory provided full access
-    ns_builtins = namespace.get("__builtins__")
-    if ns_builtins is builtins or ns_builtins is vars(builtins):
-        namespace["__builtins__"] = safe_builtins()
-    elif isinstance(ns_builtins, dict):
-        for name in _REMOVED_BUILTINS:
-            ns_builtins.pop(name, None)
+    if not unrestricted:
+        ns_builtins = namespace.get("__builtins__")
+        if ns_builtins is builtins or ns_builtins is vars(builtins):
+            namespace["__builtins__"] = safe_builtins()
+        elif isinstance(ns_builtins, dict):
+            for name in _REMOVED_BUILTINS:
+                ns_builtins.pop(name, None)
 
     with contextlib.redirect_stdout(stdout_buf), contextlib.redirect_stderr(stderr_buf):
         try:
