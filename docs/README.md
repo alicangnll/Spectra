@@ -4,7 +4,7 @@
   <img src="../img/logo.png" alt="Spectra Logo" width="200"/>
 </div>
 
-> **AI-Powered Reverse Engineering Agent** — an intelligent assistant living inside IDA Pro, Binary Ninja, and VSCode. Forked from the [Rikugan](https://github.com/buzzer-re/Rikugan) project.
+> **AI-Powered Reverse Engineering Agent** — an intelligent assistant living inside IDA Pro, Binary Ninja, your terminal, and JADX for Android APKs. Forked from the [Rikugan](https://github.com/buzzer-re/Rikugan) project.
 
 [Usage Guide](USAGE.md) | [Architecture](ARCHITECTURE.md) | [Issues](https://github.com/alicangnll/Spectra/issues)
 

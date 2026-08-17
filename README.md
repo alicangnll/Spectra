@@ -15,25 +15,27 @@
 Spectra is an **AI agent embedded in reverse engineering tools**. An assistant that works directly inside IDA Pro and Binary Ninja, in your terminal, and on Android APKs via JADX — with support for multiple LLM providers.
 
 **Forked from Rikugan** — Spectra is built on this powerful foundation and adds the following enhancements:
-- **170+ tools** (IDA Pro + Binary Ninja)
-- **60+ built-in skills** (12 in the upstream project)
+- **240+ tools** (123 IDA Pro + 125 Binary Ninja)
+- **63 built-in skills** (12 in Rikugan)
 - **4 platforms** — IDA Pro, Binary Ninja, interactive CLI, JADX
 - **Advanced security analysis** — Exploitation, malware, firmware, mobile
+- **Device interaction** — ADB (Android) + iOS device tools (libimobiledevice)
 - **JADX integration** — Android APK reverse engineering
 
 ---
 
-## Spectra vs Upstream
+## Spectra vs Rikugan
 
 ### Key Differences
 
-| Feature | Upstream | Spectra |
+| Feature | Rikugan | Spectra |
 |---------|---------|---------|
-| **Skills** | 12 built-in | 60+ built-in |
-| **Tools** | 60+ | 170+ |
-| **Platforms** | IDA, Binary Ninja | IDA, Binary Ninja, VSCode, JADX |
+| **Skills** | 12 built-in | 63 built-in |
+| **Tools** | 60+ | 123 (IDA Pro) / 125 (Binary Ninja) |
+| **Platforms** | IDA, Binary Ninja | IDA, Binary Ninja, interactive CLI, JADX |
 | **Mobile Exploitation** | ❌ | ✅ iOS/Android PAC/MTE bypass |
 | **APK Analysis** | ❌ | ✅ Full JADX integration |
+| **iOS Device Tools** | ❌ | ✅ libimobiledevice (pair, syslog, apps, crash reports, backups, SSH) |
 | **Security Tools** | Basic | Advanced (Xref visualizer, smart naming) |
 | **Type Recovery** | ❌ | ✅ Automatic detection |
 | **Function Navigation** | ❌ | ✅ Clickable names/addresses |
@@ -43,11 +45,13 @@ Spectra is an **AI agent embedded in reverse engineering tools**. An assistant t
 | **RCE Detection** | ❌ | ✅ Remote code execution |
 | **OWASP Top 10** | ❌ | ✅ Mobile + Web |
 | **Driver Exploitation** | ❌ | ✅ Linux/macOS/Windows |
-| **SSL Pinning Bypass** | ❌ | ✅ |
+| **SSL Pinning** | ❌ | ✅ Structural detection (imports/XREFs/pin material) + bypass catalog |
 | **VM Obfuscation** | ❌ | ✅ Detection |
+| **MCP Server Management** | ❌ | ✅ Settings UI + security validator |
+| **Unsafe-Command Opt-In** | ❌ | ✅ Single global toggle for all tool gates |
 | **GLM Support** | ❌ | ✅ GLM-4 & GLM-5 series |
 
-### Inherited Features (from the upstream project)
+### Inherited Features (from Rikugan)
 
 - **Generator-based agent loop** — Smooth responses
 - **Automatic tool execution** — No manual intervention needed
@@ -58,7 +62,7 @@ Spectra is an **AI agent embedded in reverse engineering tools**. An assistant t
 
 ### Added Features (Spectra)
 
-- **60+ security skills** — Exploitation, malware, firmware, mobile
+- **63 security skills** — Exploitation, malware, firmware, mobile
 - **Interactive CLI shell** — Use outside RE tools (`spectra-cli`)
 - **JADX CLI** — Android APK analysis
 - **Xref Visualizer** — Interactive call graphs
@@ -70,6 +74,8 @@ Spectra is an **AI agent embedded in reverse engineering tools**. An assistant t
 - **Structural SSL Pinning Detection** — Finds pinning from the binary itself (imports, XREFs, native trust symbols, embedded pin material) with confidence-backed verdicts and hook/patch targets
 - **iOS Device Tools** — libimobiledevice-based iPhone/iPad interaction (pair, syslog, app management, crash reports, backups, SSH on jailbroken devices) — the ADB counterpart for iOS
 - **Unsafe-Command Opt-In** — One Settings toggle bypasses every tool-level safety gate (ADB/iOS safe-lists, script guard, network approvals)
+- **MCP Server Management** — Add/remove MCP servers from Settings, with path & argument security validation
+- **Secure Auto-Updater** — SHA-256-checksummed update packages, startup update check, save-database & restart-host after install
 - **Windows auto-install** — Automatic dependency installation
 
 ---
@@ -234,7 +240,7 @@ IDAPATH=/path/to/ida-pro-9.1 ./install_ida.sh
 ---
 
 
-### 🤖 Agent Loop (inherited from the upstream project)
+### 🤖 Agent Loop (inherited from Rikugan)
 
 **Generator-based turn cycle** for smooth responses:
 - Real-time token streaming — See the AI think
@@ -251,8 +257,8 @@ python spectra_cli.py dir_loc /path/to/target
 ```
 
 **Features:**
-- **60+ built-in skills** — Access all security skills from CLI
-- **170+ tools** — File operations, shell commands, code analysis
+- **63 built-in skills** — Access all security skills from CLI
+- **Agent toolset** — File operations, shell commands, code analysis
 - **SSH integration** — Remote command execution, file transfer (SCP)
 - **Session management** — Save/load analysis sessions
 - **Plan/Research modes** — Structured analysis workflows
@@ -321,19 +327,21 @@ System:
 - `glm` — Zhipu AI (GLM-4, GLM-5)
 - `lmstudio` — LM Studio (local models)
 
-### 🛠️ 170+ Tools
+### 🛠️ 240+ Tools
 
-**IDA Pro (84 tools):**
+**IDA Pro (123 tools):**
 - Navigation, decompilation, disassembly
 - Cross-references, strings, imports, exports
 - Annotations (rename, comment, set type)
 - Microcode manipulation (Hex-Rays IL)
+- Device interaction — ADB (Android) + iOS (libimobiledevice)
 - Python scripting with approval
 
-**Binary Ninja (86 tools):**
+**Binary Ninja (125 tools):**
 - Navigation, decompilation, HLIL
 - Cross-references, strings, database queries
 - IL read/write/transform
+- Device interaction — ADB (Android) + iOS (libimobiledevice)
 - Python scripting with approval
 
 ### 📚 Built-in Skills

@@ -4,7 +4,7 @@
   <img src="../img/logo.png" alt="Spectra Logo" width="200"/>
 </div>
 
-> **Yapay Zeka Destekli Reverse Engineering Aracısı** — IDA Pro, Binary Ninja ve VSCode içinde yaşayan akıllı bir asistan. [Rikugan](https://github.com/buzzer-re/Rikugan) projesinden fork edilmiştir.
+> **Yapay Zeka Destekli Reverse Engineering Aracısı** — IDA Pro, Binary Ninja, terminaliniz ve Android APK'lar için JADX içinde yaşayan akıllı bir asistan. [Rikugan](https://github.com/buzzer-re/Rikugan) projesinden fork edilmiştir.
 
 [Documentation](docs/USAGE.md) | [Architecture](docs/ARCHITECTURE.md) | [Issues](https://github.com/alicangnll/Spectra/issues)
 
@@ -12,28 +12,30 @@
 
 ## Proje Genel Bakış
 
-Spectra, **reverse engineering araçlarına gömülü bir yapay zeka aracısıdır**. IDA Pro, Binary Ninja ve VSCode içinde doğrudan çalışan, birden fazla LLM sağlayıcısını destekleyen bir asistandır.
+Spectra, **reverse engineering araçlarına gömülü bir yapay zeka aracısıdır**. IDA Pro ve Binary Ninja içinde, terminalinizde ve JADX üzerinden Android APK'larda doğrudan çalışan, birden fazla LLM sağlayıcısını destekleyen bir asistandır.
 
 **Rikugan'dan Fork** — Spectra bu güçlü temel üzerine inşa edilmiştir ve şu iyileştirmeleri ekler:
-- **170+ araç** (IDA Pro + Binary Ninja)
-- **39 yerleşik yetenek** (temel projede 12)
-- **4 platform** — IDA Pro, Binary Ninja, VSCode, JADX CLI
+- **240+ araç** (123 IDA Pro + 125 Binary Ninja)
+- **63 yerleşik yetenek** (Rikugan'da 12)
+- **4 platform** — IDA Pro, Binary Ninja, etkileşimli CLI, JADX
 - **Gelişmiş güvenlik analizi** — Exploit, malware, firmware, mobil
+- **Cihaz etkileşimi** — ADB (Android) + iOS cihaz araçları (libimobiledevice)
 - **JADX entegrasyonu** — Android APK reverse engineering
 
 ---
 
-## Spectra vs Yukarı Akış (Temel Proje)
+## Spectra vs Rikugan
 
 ### Temel Farklar
 
-| Özellik | Temel Proje | Spectra |
+| Özellik | Rikugan | Spectra |
 |---------|---------|---------|
-| **Yetenekler** | 12 yerleşik | 39 yerleşik |
-| **Araçlar** | 60+ | 170+ |
-| **Platformlar** | IDA, Binary Ninja | IDA, Binary Ninja, VSCode, JADX |
+| **Yetenekler** | 12 yerleşik | 63 yerleşik |
+| **Araçlar** | 60+ | 123 (IDA Pro) / 125 (Binary Ninja) |
+| **Platformlar** | IDA, Binary Ninja | IDA, Binary Ninja, etkileşimli CLI, JADX |
 | **Mobil Exploit** | ❌ | ✅ iOS/Android PAC/MTE bypass |
 | **APK Analizi** | ❌ | ✅ Tam JADX entegrasyonu |
+| **iOS Cihaz Araçları** | ❌ | ✅ libimobiledevice (eşleştirme, syslog, uygulamalar, çökme raporları, yedekler, SSH) |
 | **Güvenlik Araçları** | Temel | Gelişmiş (Xref görselleştirici, akıllı adlandırma) |
 | **Tip Kurtarma** | ❌ | ✅ Otomatik tespit |
 | **Fonksiyon Navigasyonu** | ❌ | ✅ Tıklanabilir isimler/adresler |
@@ -43,11 +45,13 @@ Spectra, **reverse engineering araçlarına gömülü bir yapay zeka aracısıd�
 | **RCE Tespiti** | ❌ | ✅ Uzaktan kod çalıştırma |
 | **OWASP Top 10** | ❌ | ✅ Mobil + Web |
 | **Sürücü Exploit** | ❌ | ✅ Linux/macOS/Windows |
-| **SSL Pinning Bypass** | ❌ | ✅ |
+| **SSL Pinning** | ❌ | ✅ Yapısal tespit (içe aktarmalar/XREF'ler/pin malzemesi) + bypass kataloğu |
 | **VM Obfuscation** | ❌ | ✅ Tespit |
+| **MCP Sunucu Yönetimi** | ❌ | ✅ Ayarlar arayüzü + güvenlik doğrulayıcı |
+| **Güvensiz Komut İzni** | ❌ | ✅ Tüm araç geçitleri için tek global anahtar |
 | **GLM Desteği** | ❌ | ✅ GLM-4 & GLM-5 serisi |
 
-### Miras Alınan Özellikler (Temel Projeden)
+### Miras Alınan Özellikler (Rikugan'dan)
 
 - **Generator tabanlı aracı döngüsü** — Akıcı yanıtlar
 - **Otomatik araç çalıştırma** — Manuel müdahale gerekmez
@@ -58,8 +62,8 @@ Spectra, **reverse engineering araçlarına gömülü bir yapay zeka aracısıd�
 
 ### Eklenen Özellikler (Spectra)
 
-- **39 güvenlik yeteneği** — Exploit, malware, firmware, mobil
-- **VSCode uzantısı** — RE araçları dışında kullanım
+- **63 güvenlik yeteneği** — Exploit, malware, firmware, mobil
+- **Etkileşimli CLI kabuğu** — RE araçları dışında kullanım (`spectra-cli`)
 - **JADX CLI** — Android APK analizi
 - **Xref Görselleştirici** — İnteraktif çağrı grafikleri
 - **Akıllı Fonksiyon Adlandırma** — Yapay zeka destekli fonksiyon adlandırma
@@ -70,6 +74,8 @@ Spectra, **reverse engineering araçlarına gömülü bir yapay zeka aracısıd�
 - **Yapısal SSL Sabitleme Tespiti** — Sabitlemeyi ikilinin kendisinden bulur (içe aktarmalar, XREF'ler, yerel trust sembolleri, gömülü pin malzemesi); güven destekli kararlar ve hook/patch hedefleriyle
 - **iOS Cihaz Araçları** — libimobiledevice tabanlı iPhone/iPad etkileşimi (eşleştirme, syslog, uygulama yönetimi, çökme raporları, yedekler, jailbreak'li cihazlarda SSH) — ADB'nin iOS karşılığı
 - **Güvensiz Komut İzni** — Tek bir Ayarlar anahtarı tüm araç düzeyi güvenlik geçitlerini atlar (ADB/iOS güvenli listeleri, betik koruması, ağ onayları)
+- **MCP Sunucu Yönetimi** — Ayarlar'dan MCP sunucuları ekle/kaldır; yol ve argüman güvenlik doğrulamasıyla
+- **Güvenli Otomatik Güncelleyici** — SHA-256 sağlama toplamı doğrulanmış güncelleme paketleri, açılışta güncelleme kontrolü, kurulum sonrası veritabanını kaydet & uygulamayı yeniden başlat
 - **Windows otomatik kurulum** — Otomatik bağımlılık kurulumu
 
 ---
@@ -97,8 +103,9 @@ Spectra, **reverse engineering araçlarına gömülü bir yapay zeka aracısıd�
 |----------|--------|-------|
 | **IDA Pro 9.0+** | ✅ Full | Hex-Rays decompiler gerektirir |
 | **Binary Ninja 3164+** | ✅ Full | UI modu |
-| **VSCode** | ✅ Full | Uzantı mevcut |
+| **Terminal (CLI)** | ✅ Full | `spectra-cli` interaktif kabuk |
 | **JADX** | ✅ Full | APK analizi CLI |
+| **VSCode** | 🚧 Planlandı | Uzantı henüz yayınlanmadı — Yol Haritası'na bakın |
 
 ---
 
@@ -198,7 +205,7 @@ IDADIR=/path/to/ida-pro-9.1 ./install_ida.sh
 ## Özellikler
 
 
-### 🤖 Aracı Döngüsü (Temel Projeden Miras Alınmış)
+### 🤖 Aracı Döngüsü (Rikugan'dan Miras Alınmış)
 
 Akıcı yanıtlar için **generator tabanlı dönüş döngüsü**:
 - Gerçek zamanlı token akışı — Yapay zekanın düşünüşünü görün
@@ -215,8 +222,8 @@ python spectra_cli.py dir_loc /hedef/yolu
 ```
 
 **Özellikler:**
-- **39 yerleşik yetenek** — CLI'dan tüm güvenlik yeteneklerine erişim
-- **170+ araç** — Dosya işlemleri, shell komutları, kod analizi
+- **63 yerleşik yetenek** — CLI'dan tüm güvenlik yeteneklerine erişim
+- **Ajan araç seti** — Dosya işlemleri, shell komutları, kod analizi
 - **SSH entegrasyonu** — Uzaktan komut yürütme, dosya transferi (SCP)
 - **Oturum yönetimi** — Analiz oturumlarını kaydet/yükle
 - **Plan/Araştırma modları** — Yapılandırılmış analiz iş akışları
@@ -253,22 +260,24 @@ spectra> /config_edit           # Config'i editörde aç
 - `glm` — Zhipu AI (GLM-4, GLM-5)
 - `lmstudio` — LM Studio (yerel modeller)
 
-### 🛠️ 170+ Araç
+### 🛠️ 240+ Araç
 
-**IDA Pro (84 araç):**
+**IDA Pro (123 araç):**
 - Navigasyon, decompilation, disassembly
 - Cross-references, strings, imports, exports
 - Annotations (rename, comment, set type)
 - Microcode manipulation (Hex-Rays IL)
+- Cihaz etkileşimi — ADB (Android) + iOS (libimobiledevice)
 - Onaylı Python scripting
 
-**Binary Ninja (86 araç):**
+**Binary Ninja (125 araç):**
 - Navigasyon, decompilation, HLIL
 - Cross-references, strings, veritabanı sorguları
 - IL okuma/yazma/dönüştürme
+- Cihaz etkileşimi — ADB (Android) + iOS (libimobiledevice)
 - Onaylı Python scripting
 
-### 📚 39 Yerleşik Yetenek
+### 📚 63 Yerleşik Yetenek
 
 **Exploit & Güvenlik:**
 - `memory-corruption` — UAF, OOB, PAC, ASLR, CFI, CET, MTE bypass
