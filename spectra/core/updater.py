@@ -231,7 +231,7 @@ class Updater:
 
                 with open(download_path, "wb") as f:
                     while True:
-                        chunk = response.read(8192)
+                        chunk = response.read(65536)
                         if not chunk:
                             break
                         f.write(chunk)

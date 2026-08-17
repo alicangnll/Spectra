@@ -182,9 +182,17 @@ class _AddProviderDialog(QDialog):
 
 
 class UpdateSignals(QObject):
-    """Thread-safe signals for update progress."""
+    """Thread-safe signals for update progress and state transitions.
+
+    QTimer.singleShot scheduled from a plain Python worker thread never
+    fires — the timer is created in a thread without a Qt event loop, so
+    the callback is silently dropped. Signals emitted from the worker are
+    delivered to main-thread slots as queued connections instead.
+    """
 
     download_progress = Signal(int, int)  # downloaded, total
+    check_result = Signal(object, str)  # UpdateInfo | None, error | None
+    install_result = Signal(object, str)  # UpdateInfo | None, message
 
 
 class SettingsDialog(QDialog):
@@ -223,6 +231,8 @@ class SettingsDialog(QDialog):
         # Create update signals for thread-safe progress updates
         self._update_signals = UpdateSignals()
         self._update_signals.download_progress.connect(self._update_download_progress)
+        self._update_signals.check_result.connect(self._update_check_result)
+        self._update_signals.install_result.connect(self._update_install_result)
 
         self._build_ui()
         self._remove_provider_btn.setEnabled(self._config.is_custom_provider(self._config.provider.name))
@@ -1244,35 +1254,15 @@ class SettingsDialog(QDialog):
             try:
                 updater = Updater()
                 update_info = updater.check_for_updates()
-
-                # Store result for UI update
-                self._pending_update_info = update_info
-                self._pending_update_error = None if update_info else "No update info available"
-
-                # Schedule UI update on main thread
-                QTimer.singleShot(0, self._process_update_check_result)
+                error = None if update_info else "No update info available"
             except Exception as e:
-                error_msg = str(e)
-                log_error(f"Failed to check for updates: {error_msg}")
-                self._pending_update_info = None
-                self._pending_update_error = error_msg
-                QTimer.singleShot(0, self._process_update_check_result)
+                log_error(f"Failed to check for updates: {e}")
+                update_info, error = None, str(e)
+
+            # Queued signal — QTimer.singleShot from this thread never fires
+            self._update_signals.check_result.emit(update_info, error)
 
         threading.Thread(target=_check_in_thread, daemon=True).start()
-
-    def _process_update_check_result(self) -> None:
-        """Process pending update check result on main thread."""
-        if not hasattr(self, "_pending_update_info"):
-            return
-
-        update_info = self._pending_update_info
-        error = self._pending_update_error
-
-        # Clear pending state
-        delattr(self, "_pending_update_info")
-        delattr(self, "_pending_update_error")
-
-        self._update_check_result(update_info, error)
 
     def _on_update(self) -> None:
         """Install Spectra update with live progress bar feedback."""
@@ -1297,36 +1287,34 @@ class SettingsDialog(QDialog):
                     update_info = updater.check_for_updates()
 
                 if update_info is None:
-                    QTimer.singleShot(0, lambda: self._update_install_result(None, "No update info available"))
+                    self._update_signals.install_result.emit(None, "No update info available")
                     return
-
-                ui = update_info
-                QTimer.singleShot(0, lambda: self._update_install_result(ui, "Downloading update..."))
 
                 download_path = updater.download_update(update_info, progress_callback=_on_dl_progress)
                 if download_path is None:
-                    QTimer.singleShot(0, lambda: self._update_install_result(None, "Download failed"))
+                    self._update_signals.install_result.emit(None, "Download failed")
                     return
 
-                QTimer.singleShot(0, lambda: self._update_install_result(ui, "Installing update..."))
+                self._update_signals.install_result.emit(update_info, "Installing update...")
 
                 success = updater.install_update(download_path)
 
                 if success:
-                    QTimer.singleShot(0, lambda: self._update_install_result(ui, "Update installed successfully"))
-                    QTimer.singleShot(0, lambda: self._load_current_version())
+                    self._update_signals.install_result.emit(update_info, "Update installed successfully")
                 else:
-                    QTimer.singleShot(0, lambda: self._update_install_result(None, "Installation failed"))
+                    self._update_signals.install_result.emit(None, "Installation failed")
 
             except Exception as e:
-                error_msg = str(e)
-                log_error(f"Failed to install update: {error_msg}")
-                QTimer.singleShot(0, lambda msg=error_msg: self._update_install_result(None, msg))
+                log_error(f"Failed to install update: {e}")
+                self._update_signals.install_result.emit(None, str(e))
 
         threading.Thread(target=_update_in_thread, daemon=True).start()
 
     def _update_download_progress(self, downloaded: int, total: int) -> None:
         """Update progress bar and status text during download (main thread)."""
+        if self._closed:
+            return
+
         if total > 0:
             pct = min(int(downloaded * 100 / total), 100)
             dl_mb = downloaded / (1024 * 1024)
@@ -1340,7 +1328,9 @@ class SettingsDialog(QDialog):
             self._update_status_label.setText(f"Downloading update: {dl_mb:.1f} MB")
 
     def _update_check_result(self, update_info: UpdateInfo | None, error: str | None) -> None:
-        """Handle update check result (called from background thread)."""
+        """Handle update check result (main thread, via queued signal)."""
+        if self._closed:
+            return
         self._check_update_btn.setEnabled(True)
 
         self._cached_update_info = update_info
@@ -1365,7 +1355,10 @@ class SettingsDialog(QDialog):
             self._update_btn.setEnabled(False)
 
     def _update_install_result(self, update_info: UpdateInfo | None, message: str) -> None:
-        """Handle update installation result (called from background thread)."""
+        """Handle update installation result (main thread, via queued signal)."""
+        if self._closed:
+            return
+
         if message.startswith("Installing"):
             self._update_progress_bar.setRange(0, 0)  # Busy mode for extraction / git pull
             self._update_status_label.setText("Installing update (applying files)...")
@@ -1376,6 +1369,7 @@ class SettingsDialog(QDialog):
             self._update_progress_bar.setValue(100)
             self._update_status_label.setText(f"Updated to {update_info.latest_version}! Please restart IDA Pro.")
             self._update_btn.setEnabled(False)
+            self._load_current_version()
         elif "failed" in message.lower() or "error" in message.lower():
             self._update_progress_bar.setVisible(False)
             self._update_status_label.setText(f"Error: {message}")

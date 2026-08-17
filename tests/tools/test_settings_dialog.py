@@ -383,5 +383,155 @@ class TestDeferredInit(unittest.TestCase):
         # No way to verify directly but ensure it doesn't crash
 
 
+# ---------------------------------------------------------------------------
+# Update flow — worker thread must report state via UpdateSignals
+# ---------------------------------------------------------------------------
+
+
+class _SyncThread:
+    """threading.Thread stand-in that runs the target synchronously."""
+
+    def __init__(self, target=None, args=(), kwargs=None, daemon=None):
+        self._target = target
+
+    def start(self):
+        if self._target is not None:
+            self._target()
+
+
+def _make_update_dialog():
+    dlg = _make_settings()
+    dlg._update_signals = MagicMock()
+    dlg._check_update_btn = MagicMock()
+    dlg._update_btn = MagicMock()
+    dlg._update_status_label = MagicMock()
+    dlg._update_progress_bar = MagicMock()
+    dlg._current_version_label = MagicMock()
+    dlg._load_current_version = MagicMock()
+    return dlg
+
+
+def _make_update_info(**overrides):
+    from spectra.ui.settings_dialog import UpdateInfo
+
+    defaults = dict(
+        current_version="1.3.8",
+        latest_version="1.3.9",
+        download_url="https://example.com/spectra.zip",
+        changelog=[],
+        min_compatible_version="1.0.0",
+        update_required=False,
+        is_newer=True,
+    )
+    defaults.update(overrides)
+    return UpdateInfo(**defaults)
+
+
+class TestUpdateFlowUsesSignals(unittest.TestCase):
+    """Regression: the update worker runs in a plain Python thread with no
+    Qt event loop, so QTimer.singleShot(0, lambda) scheduled from it never
+    fires — the Update tab used to freeze at "Downloading update: X MB"
+    forever. All state transitions must go through queued signals.
+    """
+
+    def test_check_emits_signal_with_info(self):
+        dlg = _make_update_dialog()
+        info = _make_update_info()
+        with (
+            patch("spectra.ui.settings_dialog.Updater") as updater_cls,
+            patch("spectra.ui.settings_dialog.threading.Thread", _SyncThread),
+        ):
+            updater_cls.return_value.check_for_updates.return_value = info
+            dlg._on_check_updates()
+
+        dlg._update_signals.check_result.emit.assert_called_once_with(info, None)
+        self.assertTrue(dlg._check_update_btn.setEnabled.called)
+
+    def test_check_emits_error_signal(self):
+        dlg = _make_update_dialog()
+        with (
+            patch("spectra.ui.settings_dialog.Updater") as updater_cls,
+            patch("spectra.ui.settings_dialog.threading.Thread", _SyncThread),
+        ):
+            updater_cls.return_value.check_for_updates.return_value = None
+            dlg._on_check_updates()
+
+        dlg._update_signals.check_result.emit.assert_called_once_with(None, "No update info available")
+
+    def test_update_success_emits_install_states(self):
+        from pathlib import Path
+
+        dlg = _make_update_dialog()
+        info = _make_update_info()
+        dlg._cached_update_info = info
+
+        def _fake_download(update_info, progress_callback=None, **kwargs):
+            progress_callback(500, 1000)
+            progress_callback(1000, 1000)
+            return Path("/tmp/spectra_update.zip")
+
+        with (
+            patch("spectra.ui.settings_dialog.Updater") as updater_cls,
+            patch("spectra.ui.settings_dialog.threading.Thread", _SyncThread),
+        ):
+            updater = updater_cls.return_value
+            updater.download_update.side_effect = _fake_download
+            updater.install_update.return_value = True
+            dlg._on_update()
+
+        emit = dlg._update_signals.install_result.emit
+        self.assertEqual(
+            emit.call_args_list,
+            [
+                unittest.mock.call(info, "Installing update..."),
+                unittest.mock.call(info, "Update installed successfully"),
+            ],
+        )
+        # Progress must flow through the download_progress signal too.
+        self.assertEqual(
+            dlg._update_signals.download_progress.emit.call_args_list,
+            [unittest.mock.call(500, 1000), unittest.mock.call(1000, 1000)],
+        )
+
+    def test_download_failure_emits_download_failed(self):
+        dlg = _make_update_dialog()
+        dlg._cached_update_info = _make_update_info()
+        with (
+            patch("spectra.ui.settings_dialog.Updater") as updater_cls,
+            patch("spectra.ui.settings_dialog.threading.Thread", _SyncThread),
+        ):
+            updater_cls.return_value.download_update.return_value = None
+            dlg._on_update()
+
+        dlg._update_signals.install_result.emit.assert_called_once_with(None, "Download failed")
+
+    def test_worker_exception_emits_error(self):
+        dlg = _make_update_dialog()
+        dlg._cached_update_info = _make_update_info()
+        with (
+            patch("spectra.ui.settings_dialog.Updater") as updater_cls,
+            patch("spectra.ui.settings_dialog.threading.Thread", _SyncThread),
+        ):
+            updater_cls.return_value.download_update.side_effect = RuntimeError("boom")
+            dlg._on_update()
+
+        dlg._update_signals.install_result.emit.assert_called_once_with(None, "boom")
+
+
+class TestUpdateInstallResultHandler(unittest.TestCase):
+    def test_success_sets_progress_and_refreshes_version(self):
+        dlg = _make_update_dialog()
+        info = _make_update_info()
+        dlg._update_install_result(info, "Update installed successfully")
+        dlg._update_progress_bar.setValue.assert_called_with(100)
+        dlg._load_current_version.assert_called_once()
+
+    def test_noop_when_closed(self):
+        dlg = _make_update_dialog()
+        dlg._closed = True
+        dlg._update_install_result(None, "Download failed")
+        dlg._update_status_label.setText.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
