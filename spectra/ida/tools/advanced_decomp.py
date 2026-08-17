@@ -64,8 +64,8 @@ def analyze_function_xrefs(
         if curr_func:
             # Get callees
             for item in idautils.FuncItems(func_ea):
-                for xref in idautils.CodeRefsFrom(item, 0):
-                    target_func = ida_funcs.get_func(xref.to)
+                for target_ea in idautils.CodeRefsFrom(item, 0):
+                    target_func = ida_funcs.get_func(target_ea)
                     if target_func and target_func.start_ea != func_ea:
                         xrefs.append({"source": func_ea, "target": target_func.start_ea, "type": "call"})
 
@@ -134,8 +134,8 @@ def suggest_function_name(
 
     # Get callees
     for item in idautils.FuncItems(func.start_ea):
-        for xref in idautils.CodeRefsFrom(item, 0):
-            target_func = ida_funcs.get_func(xref.to)
+        for target_ea in idautils.CodeRefsFrom(item, 0):
+            target_func = ida_funcs.get_func(target_ea)
             if target_func and target_func.start_ea != func.start_ea:
                 callee_name = ida_name.get_name(target_func.start_ea)
                 if callee_name:
@@ -143,15 +143,13 @@ def suggest_function_name(
 
     # Get string refs
     for item in idautils.FuncItems(func.start_ea):
-        for xref in idautils.DataRefsFrom(item):
-            string_type = idaapi.get_type(xref.to) or idaapi.get_type(idaapi.get_full_flags(xref.to))
-            if string_type and "char" in str(string_type).lower():
-                try:
-                    str_val = ida_bytes.get_strlit_contents(xref.to)
-                    if str_val:
-                        xref_data["strings"].append(str_val.decode("utf-8", errors="ignore"))
-                except Exception:
-                    pass
+        for target_ea in idautils.DataRefsFrom(item):
+            try:
+                str_val = ida_bytes.get_strlit_contents(target_ea)
+                if str_val:
+                    xref_data["strings"].append(str_val.decode("utf-8", errors="ignore"))
+            except Exception:
+                pass
 
     # Extract features and get suggestions
     features = extract_function_features(func_data, xref_data)
@@ -209,8 +207,8 @@ def search_similar_functions(
         curr_func = ida_funcs.get_func(func_ea)
         if curr_func:
             for item in idautils.FuncItems(func_ea):
-                for xref in idautils.CodeRefsFrom(item, 0):
-                    target_func = ida_funcs.get_func(xref.to)
+                for target_ea in idautils.CodeRefsFrom(item, 0):
+                    target_func = ida_funcs.get_func(target_ea)
                     if target_func and target_func.start_ea != func_ea:
                         xrefs.append({"source": func_ea, "target": target_func.start_ea, "type": "call"})
 
