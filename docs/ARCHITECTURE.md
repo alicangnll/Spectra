@@ -84,6 +84,19 @@ This prevents cryptic TypeError messages and provides clear feedback to the LLM 
 - **Types** - Structure and type manipulation
 - **Scripting** - Python execution with approval
 
+### File-Level Analysis Tools
+
+A standalone family under `spectra/tools/` (checksec, entropy, binary_diff,
+crypto_detect, fingerprint_libs, ioc_collector, str_decode, yara_tools,
+file_meta) that never touches the host API. All format knowledge lives in
+one pure-Python parser — `spectra/tools/binary_format.py` (ELF / PE /
+Mach-O incl. fat binaries, stdlib-only) — and each tool follows the same
+engine idiom: a pure analyzer function, a markdown formatter, and a thin
+`@tool` entrypoint. Because they are host-agnostic, both the IDA and
+Binary Ninja registries register them through the same
+`register_module()` loop used for the device tools, and every one of
+them works on any path — not just the loaded database.
+
 ## Skills System
 
 ### Skill Format

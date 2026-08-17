@@ -76,6 +76,7 @@ Spectra is an **AI agent embedded in reverse engineering tools**. An assistant t
 - **Unsafe-Command Opt-In** — One Settings toggle bypasses every tool-level safety gate (ADB/iOS safe-lists, script guard, network approvals)
 - **MCP Server Management** — Add/remove MCP servers from Settings, with path & argument security validation
 - **Secure Auto-Updater** — SHA-256-checksummed update packages, startup update check, save-database & restart-host after install
+- **File-Level Analysis Tools** — 11 pure-Python triage tools on raw bytes (no OS commands): checksec, entropy/packer report, binary diff, crypto-constant detection, static-lib version fingerprinting, IOC collector, file metadata, string decoder, stack-string finder, YARA generate/scan
 - **Windows auto-install** — Automatic dependency installation
 
 ---

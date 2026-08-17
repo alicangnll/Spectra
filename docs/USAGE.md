@@ -2646,6 +2646,32 @@ Spectra keeps itself up to date without leaving the host:
 - **Save & restart** — after a successful install, Spectra offers to save
   the database (IDB/BNDB) and relaunch IDA Pro with the same file open.
 
+### 13.8 File-Level Analysis Tools
+
+A family of host-agnostic tools that work on the loaded binary's raw
+bytes (or any path you give) — available in both IDA Pro and Binary
+Ninja, registered alongside the device tools. Everything below parses
+ELF / PE / Mach-O (fat included) headers with a pure-Python parser
+(`spectra/tools/binary_format.py`); no external command is ever invoked.
+
+| Tool | What it answers |
+|---|---|
+| `checksec` | Which mitigations are compiled in? (PIE, NX, RELRO, canary, FORTIFY, CFG, signature) + exploitation-impact notes |
+| `entropy_report` | Is this packed/encrypted, and where? Per-section Shannon entropy + UPX/Themida/VMProtect fingerprints |
+| `binary_diff` | What changed between two builds of the same target? Symbol-level diff ranked by bytes changed |
+| `detect_crypto` | Which crypto primitives are embedded? (AES/DES/RC4/MD5/SHA tables, RSA/ECC constants) |
+| `fingerprint_libs` | Which libraries are statically linked and at which exact version? ("OpenSSL 1.0.2k-fips", "deflate 1.2.11"…) |
+| `collect_iocs` | IPs, domains, URLs, mutexes, registry keys, wallets — defanged output ready for a report |
+| `file_meta` | MD5/SHA-1/SHA-256, imphash, PDB path, Go build info, compile timestamp |
+| `decode_string` | One-shot decode of a value the agent found: hex/base32/base64/rot13/rot47/reverse/XOR-brute |
+| `find_stack_strings` | Stack-string immediates reconstructed from disassembly (`68 65 6C 6C 6F` → "hello") |
+| `yara_generate` | Turn found constants/strings into a ready-to-compile YARA rule |
+| `yara_scan` | Scan any file with a YARA rule (needs `pip install yara-python`; helpful install hint otherwise) |
+
+All of these leave the agent free of OS dependencies: the only optional
+pip package in the family is `yara-python`, and every tool degrades to
+an actionable message instead of failing when it is missing.
+
 ---
 
 ## 14. Performance & Optimization

@@ -76,6 +76,7 @@ Spectra, **reverse engineering araçlarına gömülü bir yapay zeka aracısıd�
 - **Güvensiz Komut İzni** — Tek bir Ayarlar anahtarı tüm araç düzeyi güvenlik geçitlerini atlar (ADB/iOS güvenli listeleri, betik koruması, ağ onayları)
 - **MCP Sunucu Yönetimi** — Ayarlar'dan MCP sunucuları ekle/kaldır; yol ve argüman güvenlik doğrulamasıyla
 - **Güvenli Otomatik Güncelleyici** — SHA-256 sağlama toplamı doğrulanmış güncelleme paketleri, açılışta güncelleme kontrolü, kurulum sonrası veritabanını kaydet & uygulamayı yeniden başlat
+- **Dosya Düzeyi Analiz Araçları** — Ham baytlar üzerinde 11 saf-Python triyaj aracı (OS komutu yok): checksec, entropi/packer raporu, binary diff, kripto sabiti tespiti, statik kütüphane sürüm parmak izi, IOC toplayıcı, dosya üst verisi, string çözücü, yığın-string bulucu, YARA üret/tara
 - **Windows otomatik kurulum** — Otomatik bağımlılık kurulumu
 
 ---

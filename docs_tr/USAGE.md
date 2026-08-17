@@ -2739,6 +2739,32 @@ Spectra, hosttan çıkmadan kendini güncel tutar:
   (IDB/BNDB) kaydetmeyi ve IDA Pro'yu aynı dosya açık şekilde yeniden
   başlatmayı önerir.
 
+### 13.8 Dosya Düzeyi Analiz Araçları
+
+Host'tan bağımsız bir araç ailesi: yüklü binary'nin ham baytlarıyla
+(veya verdiğiniz herhangi bir yolla) çalışır — hem IDA Pro hem Binary
+Ninja'da kayıtlıdır. Aşağıdakilerin tümü ELF / PE / Mach-O (fat dahil)
+başlıklarını saf-Python çözümleyiciyle (`spectra/tools/binary_format.py`)
+okur; hiçbir harici komut çağrılmaz.
+
+| Araç | Yanıtladığı soru |
+|---|---|
+| `checksec` | Hangi korumalar derlenmiş? (PIE, NX, RELRO, canary, FORTIFY, CFG, imza) + sömürü etkisi notları |
+| `entropy_report` | Bu paketlenmiş/şifreli mi, nerede? Bölüm başına Shannon entropisi + UPX/Themida/VMProtect parmak izleri |
+| `binary_diff` | Aynı hedefin iki derlemesi arasında ne değişti? Sembol düzeyinde, değişen bayta göre sıralı fark |
+| `detect_crypto` | Gömülü kripto primitifleri hangileri? (AES/DES/RC4/MD5/SHA tabloları, RSA/ECC sabitleri) |
+| `fingerprint_libs` | Hangi kütüphaneler statik bağlı ve hangi kesin sürümde? ("OpenSSL 1.0.2k-fips", "deflate 1.2.11"…) |
+| `collect_iocs` | IP, alan adı, URL, mutex, kayıt defteri anahtarı, cüzdan — rapora hazır masumlaştırılmış çıktı |
+| `file_meta` | MD5/SHA-1/SHA-256, imphash, PDB yolu, Go build bilgisi, derleme zaman damgası |
+| `decode_string` | Bulunan bir değeri tek atışta çöz: hex/base32/base64/rot13/rot47/ters/XOR-brute |
+| `find_stack_strings` | Ayrıştırıcıdan yığın-string immediate'leri ("68 65 6C 6C 6F" → "hello") |
+| `yara_generate` | Bulunan sabitleri/dizeleri derlemeye hazır bir YARA kuralına dönüştür |
+| `yara_scan` | Bir YARA kuralıyla dosya tara (`pip install yara-python` gerekir; yoksa yararlı kurulum ipucu döner) |
+
+Bu araçların hepsi agent'ı OS bağımlılıklarından arındırır: ailedeki tek
+isteğe bağlı pip paketi `yara-python`'dır ve eksik olduğunda her araç
+hata vermek yerine eyleme dönüştürülebilir bir mesaj döndürür.
+
 ---
 
 ## 14. Performans ve Optimizasyon

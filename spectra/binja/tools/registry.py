@@ -6,7 +6,19 @@ Wires Binary Ninja-specific tool modules into the shared ToolRegistry.
 from __future__ import annotations
 
 from ...core.thread_safety import idasync
-from ...tools import adb, ios  # Device tools (standalone, shared across hosts)
+from ...tools import (  # standalone device + file-level tools, shared across hosts
+    adb,
+    binary_diff,
+    checksec,
+    crypto_detect,
+    entropy,
+    file_meta,
+    fingerprint_libs,
+    ioc_collector,
+    ios,
+    str_decode,
+    yara_tools,
+)
 from ...tools.registry import ToolRegistry
 from . import (  # type: ignore[assignment]
     advanced_decomp,
@@ -62,6 +74,19 @@ _TOOL_MODULES = (
     ai_features,
 )
 
+# Standalone file-level analysis tools — host-agnostic, shared with IDA.
+_FILE_TOOL_MODULES = (
+    checksec,
+    entropy,
+    binary_diff,
+    crypto_detect,
+    ioc_collector,
+    str_decode,
+    yara_tools,
+    file_meta,
+    fingerprint_libs,
+)
+
 
 def create_default_registry() -> ToolRegistry:
     """Create a Binary Ninja registry with all built-in BN tools."""
@@ -71,4 +96,7 @@ def create_default_registry() -> ToolRegistry:
     # Register standalone device tools
     registry.register_module(adb)
     registry.register_module(ios)
+    # Register standalone file-level analysis tools
+    for mod in _FILE_TOOL_MODULES:
+        registry.register_module(mod)
     return registry

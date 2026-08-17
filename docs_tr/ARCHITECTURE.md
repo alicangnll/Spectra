@@ -84,6 +84,19 @@ Bu, anlaşılır olmayan TypeError mesajlarını önler ve LLM'e hangi parametre
 - **Types** - Yapı ve tür manipülasyonu
 - **Scripting** - Onay ile Python yürütme
 
+### Dosya Düzeyi Analiz Araçları
+
+`spectra/tools/` altında, host API'sine hiç dokunmayan bağımsız bir araç
+ailesi (checksec, entropy, binary_diff, crypto_detect, fingerprint_libs,
+ioc_collector, str_decode, yara_tools, file_meta). Tüm format bilgisi tek
+bir saf-Python çözümleyicide yaşar — `spectra/tools/binary_format.py`
+(ELF / PE / Mach-O, fat dahil; yalnızca stdlib) — ve her araç aynı motor
+idasını izler: saf bir çözümleyici fonksiyon, bir markdown biçimlendirici
+ve ince bir `@tool` giriş noktası. Host'tan bağımsız oldukları için IDA ve
+Binary Ninja kayıt defterleri, cihaz araçlarında kullanılan aynı
+`register_module()` döngüsüyle bunları kaydeder; hepsi yalnızca yüklü
+veritabanında değil, verilen herhangi bir yolda çalışır.
+
 ## Yetenekler Sistemi
 
 ### Yetenek Formatı

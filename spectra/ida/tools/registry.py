@@ -4,7 +4,19 @@ from __future__ import annotations
 
 from spectra.core.host import HAS_HEXRAYS
 from spectra.core.thread_safety import idasync
-from spectra.tools import adb, ios  # Device tools (standalone, shared across hosts)
+from spectra.tools import (  # standalone device + file-level tools, shared across hosts
+    adb,
+    binary_diff,
+    checksec,
+    crypto_detect,
+    entropy,
+    file_meta,
+    fingerprint_libs,
+    ioc_collector,
+    ios,
+    str_decode,
+    yara_tools,
+)
 from spectra.tools.registry import ToolRegistry
 
 from . import (
@@ -57,6 +69,19 @@ _TOOL_MODULES = (
     ai_features,
 )
 
+# Standalone file-level analysis tools — host-agnostic, shared with Binary Ninja.
+_FILE_TOOL_MODULES = (
+    checksec,
+    entropy,
+    binary_diff,
+    crypto_detect,
+    ioc_collector,
+    str_decode,
+    yara_tools,
+    file_meta,
+    fingerprint_libs,
+)
+
 
 def create_default_registry() -> ToolRegistry:
     """Create a registry with all built-in IDA tools."""
@@ -64,7 +89,10 @@ def create_default_registry() -> ToolRegistry:
     registry.set_capabilities({"hexrays": HAS_HEXRAYS})
     for mod in _TOOL_MODULES:
         registry.register_module(mod)
-    # Register standalone device tools
+        # Register standalone device tools
     registry.register_module(adb)
     registry.register_module(ios)
+    # Register standalone file-level analysis tools
+    for mod in _FILE_TOOL_MODULES:
+        registry.register_module(mod)
     return registry
