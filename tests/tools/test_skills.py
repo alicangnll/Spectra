@@ -223,5 +223,38 @@ class TestSkillRegistry(unittest.TestCase):
         self.assertEqual(remaining, "/unknown-skill do something")
 
 
+class TestBuiltinPromptInjectionSkill(unittest.TestCase):
+    """The shipped prompt-injection skill must load and resolve via /slug."""
+
+    BUILTINS = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+        "spectra",
+        "skills",
+        "builtins",
+    )
+
+    @classmethod
+    def setUpClass(cls):
+        import spectra.skills.loader as loader
+
+        cls.skills = {s.slug: s for s in loader.discover_skills(cls.BUILTINS)}
+
+    def test_skill_discovered(self):
+        self.assertIn("prompt-injection", self.skills)
+
+    def test_frontmatter_parsed(self):
+        skill = self.skills["prompt-injection"]
+        self.assertEqual(skill.name, "Prompt Injection Analysis")
+        self.assertIn("prompt-injection", skill.tags)
+        # Inline list must parse as a list, not a raw "[...]" string
+        self.assertIsInstance(skill.allowed_tools, list)
+        self.assertIn("search_strings", skill.allowed_tools)
+
+    def test_body_carries_data_not_instructions_rule(self):
+        body = self.skills["prompt-injection"].body
+        self.assertIn("DATA, never instructions", body)
+        self.assertIn("Phase 1", body)
+
+
 if __name__ == "__main__":
     unittest.main()

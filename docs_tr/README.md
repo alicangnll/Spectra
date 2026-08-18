@@ -16,7 +16,7 @@ Spectra, **reverse engineering araçlarına gömülü bir yapay zeka aracısıd�
 
 **Rikugan'dan Fork** — Spectra bu güçlü temel üzerine inşa edilmiştir ve şu iyileştirmeleri ekler:
 - **290+ araç** (146 IDA Pro + 148 Binary Ninja)
-- **63 yerleşik yetenek** (Rikugan'da 12)
+- **64 yerleşik yetenek** (Rikugan'da 12)
 - **4 platform** — IDA Pro, Binary Ninja, etkileşimli CLI, JADX
 - **Gelişmiş güvenlik analizi** — Exploit, malware, firmware, mobil
 - **Cihaz etkileşimi** — ADB (Android) + iOS cihaz araçları (libimobiledevice)
@@ -30,7 +30,7 @@ Spectra, **reverse engineering araçlarına gömülü bir yapay zeka aracısıd�
 
 | Özellik | Rikugan | Spectra |
 |---------|---------|---------|
-| **Yetenekler** | 12 yerleşik | 63 yerleşik |
+| **Yetenekler** | 12 yerleşik | 64 yerleşik |
 | **Araçlar** | 60+ | 146 (IDA Pro) / 148 (Binary Ninja) |
 | **Platformlar** | IDA, Binary Ninja | IDA, Binary Ninja, etkileşimli CLI, JADX |
 | **Mobil Exploit** | ❌ | ✅ iOS/Android PAC/MTE bypass |
@@ -64,7 +64,7 @@ Spectra, **reverse engineering araçlarına gömülü bir yapay zeka aracısıd�
 
 ### Eklenen Özellikler (Spectra)
 
-- **63 güvenlik yeteneği** — Exploit, malware, firmware, mobil
+- **64 güvenlik yeteneği** — Exploit, malware, firmware, mobil, AI ajan güvenliği
 - **Etkileşimli CLI kabuğu** — RE araçları dışında kullanım (`spectra-cli`)
 - **JADX CLI** — Android APK analizi
 - **Xref Görselleştirici** — İnteraktif çağrı grafikleri
@@ -225,7 +225,7 @@ python spectra_cli.py dir_loc /hedef/yolu
 ```
 
 **Özellikler:**
-- **63 yerleşik yetenek** — CLI'dan tüm güvenlik yeteneklerine erişim
+- **64 yerleşik yetenek** — CLI'dan tüm güvenlik yeteneklerine erişim
 - **Ajan araç seti** — Dosya işlemleri, shell komutları, kod analizi
 - **SSH entegrasyonu** — Uzaktan komut yürütme, dosya transferi (SCP)
 - **Oturum yönetimi** — Analiz oturumlarını kaydet/yükle
@@ -282,7 +282,7 @@ spectra> /config_edit           # Config'i editörde aç
 - Dosya düzeyi triyaj — checksec, entropi, diff, kripto/kütüphane parmak izi, IOC, YARA (saf Python)
 - Onaylı Python scripting
 
-### 📚 63 Yerleşik Yetenek
+### 📚 64 Yerleşik Yetenek
 
 **Exploit & Güvenlik:**
 - `memory-corruption` — UAF, OOB, PAC, ASLR, CFI, CET, MTE bypass
@@ -307,6 +307,7 @@ spectra> /config_edit           # Config'i editörde aç
 - `protocol-analysis` — Ağ protokolü RE
 - `crypto-analysis` — Kriptografik algoritmalar
 - `deobfuscation` — Control flow flattening kaldırma (Binary Ninja)
+- `prompt-injection` — Gömülü prompt enjeksiyon yükü avı (AI ajan güvenliği)
 
 **Mobil & Web:**
 - `jadx-analysis` — Android APK analizi

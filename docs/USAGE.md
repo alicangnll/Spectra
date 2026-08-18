@@ -926,7 +926,7 @@ User: [Clicks Allow]
 | Mobile Malware | `/mobile-malware-analysis` | Mobile malware | Mobile threat analysis |
 | Firmware RE | `/firmware-re` | Extraction and analysis | Embedded systems analysis |
 
-**Analysis & Audit (5 skills):**
+**Analysis & Audit (6 skills):**
 
 | Skill | Slug | Description | Use Case |
 |-------|------|-------------|----------|
@@ -935,6 +935,7 @@ User: [Clicks Allow]
 | Protocol Analysis | `/protocol-analysis` | Network protocol RE | Protocol reverse engineering |
 | Crypto Analysis | `/crypto-analysis` | Cryptographic algorithms | Crypto implementation review |
 | Deobfuscation | `/deobfuscation` | Control flow flattening removal | Deobfuscating protected code |
+| Prompt Injection | `/prompt-injection` | Embedded prompt-injection payload hunting | AI-agent security analysis |
 
 **Mobile & Web (6 skills):**
 

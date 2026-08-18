@@ -973,7 +973,7 @@ Kullanıcı: [İzin Ver düğmesine tıklar]
 | Mobil Kötü Amaçlı Yazılımı | `/mobile-malware-analysis` | Mobil kötü amaçlı yazılım | Mobil tehdit analizi |
 | Donanım Yazılımı RE | `/firmware-re` | Çıkarım ve analiz | Gömülü sistem analizi |
 
-**Analiz ve Denetim (5 yetenek):**
+**Analiz ve Denetim (6 yetenek):**
 
 | Yetenek | Slug | Açıklama | Kullanım Durumu |
 |---------|------|-------------|----------|
@@ -982,6 +982,7 @@ Kullanıcı: [İzin Ver düğmesine tıklar]
 | Protokol Analizi | `/protocol-analysis` | Ağ protokolü RE | Protokol tersine mühendisliği |
 | Kripto Analizi | `/crypto-analysis` | Kriptografik algoritmalar | Kripto uygulama incelemesi |
 | De-obfuskasyon | `/deobfuscation` | Kontrol akışı düzleştirme kaldırma | Korunmuş kodu de-obfuskasyon etme |
+| Prompt Enjeksiyonu | `/prompt-injection` | Gömülü prompt enjeksiyon yükü avı | AI ajan güvenliği analizi |
 
 **Mobil ve Web (6 yetenek):**
 

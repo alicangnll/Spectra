@@ -16,7 +16,7 @@ Spectra is an **AI agent embedded in reverse engineering tools**. An assistant t
 
 **Forked from Rikugan** — Spectra is built on this powerful foundation and adds the following enhancements:
 - **290+ tools** (146 IDA Pro + 148 Binary Ninja)
-- **63 built-in skills** (12 in Rikugan)
+- **64 built-in skills** (12 in Rikugan)
 - **4 platforms** — IDA Pro, Binary Ninja, interactive CLI, JADX
 - **Advanced security analysis** — Exploitation, malware, firmware, mobile
 - **Device interaction** — ADB (Android) + iOS device tools (libimobiledevice)
@@ -30,7 +30,7 @@ Spectra is an **AI agent embedded in reverse engineering tools**. An assistant t
 
 | Feature | Rikugan | Spectra |
 |---------|---------|---------|
-| **Skills** | 12 built-in | 63 built-in |
+| **Skills** | 12 built-in | 64 built-in |
 | **Tools** | 60+ | 146 (IDA Pro) / 148 (Binary Ninja) |
 | **Platforms** | IDA, Binary Ninja | IDA, Binary Ninja, interactive CLI, JADX |
 | **Mobile Exploitation** | ❌ | ✅ iOS/Android PAC/MTE bypass |
@@ -64,7 +64,7 @@ Spectra is an **AI agent embedded in reverse engineering tools**. An assistant t
 
 ### Added Features (Spectra)
 
-- **63 security skills** — Exploitation, malware, firmware, mobile
+- **64 security skills** — Exploitation, malware, firmware, mobile, AI-agent security
 - **Interactive CLI shell** — Use outside RE tools (`spectra-cli`)
 - **JADX CLI** — Android APK analysis
 - **Xref Visualizer** — Interactive call graphs
@@ -260,7 +260,7 @@ python spectra_cli.py dir_loc /path/to/target
 ```
 
 **Features:**
-- **63 built-in skills** — Access all security skills from CLI
+- **64 built-in skills** — Access all security skills from CLI
 - **Agent toolset** — File operations, shell commands, code analysis
 - **SSH integration** — Remote command execution, file transfer (SCP)
 - **Session management** — Save/load analysis sessions
@@ -374,6 +374,7 @@ System:
 - `protocol-analysis` — Network protocol RE
 - `crypto-analysis` — Cryptographic algorithms
 - `deobfuscation` — Control flow flattening removal (Binary Ninja)
+- `prompt-injection` — Embedded prompt-injection payload hunting (AI-agent security)
 
 **Mobile & Web:**
 - `jadx-analysis` — Android APK analysis
