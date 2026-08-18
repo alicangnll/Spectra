@@ -290,6 +290,74 @@ def adb_connect(device_id: str = "") -> str:
         return f"Failed to connect to device: {e}"
 
 
+# Wireless-debugging pair target: IPv4/IPv6 address plus port (e.g. 192.168.1.50:37027).
+_PAIR_TARGET_RE = re.compile(r"^[0-9A-Fa-f:.]+$")
+# Pairing code shown on the device (6 characters on stock Android).
+# Must start alphanumeric so it can never be parsed as an adb switch.
+_PAIR_CODE_RE = re.compile(r"^[0-9A-Za-z][0-9A-Za-z-]{3,15}$")
+
+
+def _validate_pair_target(ip_port: str, code: str) -> str | None:
+    """Validate wireless-debugging pairing inputs; return an error message or None.
+
+    Kept strict (no whitespace, shell metacharacters or leading dashes) so the
+    values can never be mistaken for adb command-line switches.
+    """
+    ip_port = (ip_port or "").strip()
+    code = (code or "").strip()
+    if not ip_port or not code:
+        return "Both ip_port (e.g. 192.168.1.50:37027) and the pairing code are required."
+    if ":" not in ip_port or not _PAIR_TARGET_RE.match(ip_port):
+        return (
+            f"Invalid pairing address: {ip_port!r} — expected the IP:PORT shown under "
+            "'Developer options → Wireless debugging → Pair device with pairing code'."
+        )
+    if not _PAIR_CODE_RE.match(code):
+        return f"Invalid pairing code: {code!r} — use the code shown on the device's pairing dialog."
+    return None
+
+
+@tool(
+    name="adb_pair",
+    description=(
+        "Pair with an Android device for wireless (TCP) debugging — Android 11+ one-time setup. "
+        "Takes the IP:port and pairing code from 'Developer options → Wireless debugging → "
+        "Pair device with pairing code'. After pairing, call adb_connect with the IP:port shown "
+        "on the main Wireless debugging screen (the pairing port and connection port differ)."
+    ),
+    category="adb",
+)
+def adb_pair(ip_port: str, code: str) -> str:
+    """Pair with a device for wireless debugging (one-time operation)."""
+    error = _validate_pair_target(ip_port, code)
+    if error:
+        return error
+
+    manager = get_adb_manager()
+    target = ip_port.strip()
+    try:
+        result = subprocess.run(
+            [manager._adb_path, "pair", target, code.strip()],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        output = ((result.stdout or "") + (result.stderr or "")).strip()
+        if "Successfully paired" in output:
+            log_info(f"Paired with Android device for wireless debugging: {target}")
+            return (
+                "Successfully paired with the device.\n"
+                "Next step: the pairing port is NOT the connection port — open the main "
+                "'Wireless debugging' screen and call adb_connect(\"<ip>:<port>\") with the "
+                "address shown there."
+            )
+        return f"Pairing failed: {output or 'unknown error'}"
+    except subprocess.TimeoutExpired:
+        return "Pairing timed out after 30s. Check that the device and this machine are on the same network."
+    except Exception as e:
+        return f"Pairing failed: {e}"
+
+
 @tool(
     name="adb_install",
     description="Install an APK file on the connected Android device",

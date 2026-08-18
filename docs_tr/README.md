@@ -15,7 +15,7 @@
 Spectra, **reverse engineering araçlarına gömülü bir yapay zeka aracısıdır**. IDA Pro ve Binary Ninja içinde, terminalinizde ve JADX üzerinden Android APK'larda doğrudan çalışan, birden fazla LLM sağlayıcısını destekleyen bir asistandır.
 
 **Rikugan'dan Fork** — Spectra bu güçlü temel üzerine inşa edilmiştir ve şu iyileştirmeleri ekler:
-- **290+ araç** (146 IDA Pro + 148 Binary Ninja)
+- **290+ araç** (147 IDA Pro + 149 Binary Ninja)
 - **64 yerleşik yetenek** (Rikugan'da 12)
 - **4 platform** — IDA Pro, Binary Ninja, etkileşimli CLI, JADX
 - **Gelişmiş güvenlik analizi** — Exploit, malware, firmware, mobil
@@ -31,7 +31,7 @@ Spectra, **reverse engineering araçlarına gömülü bir yapay zeka aracısıd�
 | Özellik | Rikugan | Spectra |
 |---------|---------|---------|
 | **Yetenekler** | 12 yerleşik | 64 yerleşik |
-| **Araçlar** | 60+ | 146 (IDA Pro) / 148 (Binary Ninja) |
+| **Araçlar** | 60+ | 147 (IDA Pro) / 149 (Binary Ninja) |
 | **Platformlar** | IDA, Binary Ninja | IDA, Binary Ninja, etkileşimli CLI, JADX |
 | **Mobil Exploit** | ❌ | ✅ iOS/Android PAC/MTE bypass |
 | **APK Analizi** | ❌ | ✅ Tam JADX entegrasyonu |
@@ -265,7 +265,7 @@ spectra> /config_edit           # Config'i editörde aç
 
 ### 🛠️ 290+ Araç
 
-**IDA Pro (146 araç):**
+**IDA Pro (147 araç):**
 - Navigasyon, decompilation, disassembly
 - Cross-references, strings, imports, exports
 - Annotations (rename, comment, set type)
@@ -274,7 +274,7 @@ spectra> /config_edit           # Config'i editörde aç
 - Dosya düzeyi triyaj — checksec, entropi, diff, kripto/kütüphane parmak izi, IOC, YARA (saf Python)
 - Onaylı Python scripting
 
-**Binary Ninja (148 araç):**
+**Binary Ninja (149 araç):**
 - Navigasyon, decompilation, HLIL
 - Cross-references, strings, veritabanı sorguları
 - IL okuma/yazma/dönüştürme

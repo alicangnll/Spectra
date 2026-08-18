@@ -349,6 +349,7 @@ Spectra: [get_binary_info çağırır, yapıyı analiz eder]
 
 **Ana Bileşenler:**
 - **Sohbet Görünümü** - Akışlı yanıtlar ile mesaj geçmişi
+- **Sohbet Arama** - Sohbette **Ctrl+F** ile yüzen arama çubuğu açılır (Enter/▼ sonraki, Shift+Enter/▲ önceki, Esc kapatır; geçerli eşleşme altın çerçeveyle vurgulanır)
 - **Giriş Alanı** - Yetenek otomatik tamamlamalı metin girişi
 - **Bağlam Çubuğu** - Mevcut model, token kullanımı, adres
 - **Sekme Çubuğu** - Çoklu oturum yönetimi
@@ -2672,6 +2673,8 @@ Sisteminizde bir şey çalıştırabilen her araç bir güvenlik geçidinin arka
 | Python betik koruması | `run_script`, betik araçları | AST denetimi `subprocess`/`os.system`/`exec`/`eval`/dinamik içe aktarmayı engeller; yerleşikler kısıtlanır |
 | Komut güvenliği | paylaşılan `ToolSafety` | Yıkıcı komutlar engellenir; bilinmeyen komutlar onay ister |
 | Ağ güvenliği | scapy (`send`/`sniff`/`scan`), mitmproxy (`intercept`) | Flood/inject engellenir; sniff/scan onay ister |
+
+**Kablosuz (TCP) bağlantı.** `adb_connect("IP:PORT")` cihaza ağ üzerinden erişir (`adb connect`). Android 11+ kablosuz hata ayıklama için önce *Geliştirici seçenekleri → Kablosuz hata ayıklama → Eşleştirme koduyla cihaz eşleştir* ekranında gösterilen adres ve kodla bir kez `adb_pair("IP:EŞLEŞME_PORTU", "KOD")` çağırın — eşleşme portu, sonrasında `adb_connect` ile kullanacağın bağlantı portundan farklıdır. Eşleşme yalnızca host anahtarını cihaza kaydeder; cihazda shell komutu çalıştırmaz, bu yüzden shell geçidinin arkasında değildir.
 
 **Güvensiz komut modu.** Ayarlar → Davranış → **"Allow unsafe commands (all tools)"** (config anahtarı `allow_unsafe_commands`) yukarıdaki tüm geçitleri tek seferde kapatır — `adb_shell`/`ios_shell` her komutu kabul eder, betik araçları `subprocess`/`os.system` kullanabilir, ağ/fuzzing araçları onay sorularını atlar. Ayar her çağrıda diskten okunduğu için checkbox'ı işaretlemek eklentiyi yeniden başlatmadan hemen etkili olur.
 

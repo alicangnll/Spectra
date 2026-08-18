@@ -66,6 +66,7 @@ _WIDGET_NAMES = [
     "QPushButton",
     "QRadioButton",
     "QScrollArea",
+    "QShortcut",
     "QSizePolicy",
     "QSpinBox",
     "QSplitter",
@@ -86,6 +87,7 @@ _GUI_NAMES = [
     "QColor",
     "QFont",
     "QIntValidator",
+    "QKeySequence",
     "QSyntaxHighlighter",
     "QTextCharFormat",
 ]

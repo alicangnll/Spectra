@@ -15,7 +15,7 @@
 Spectra is an **AI agent embedded in reverse engineering tools**. An assistant that works directly inside IDA Pro and Binary Ninja, in your terminal, and on Android APKs via JADX — with support for multiple LLM providers.
 
 **Forked from Rikugan** — Spectra is built on this powerful foundation and adds the following enhancements:
-- **290+ tools** (146 IDA Pro + 148 Binary Ninja)
+- **290+ tools** (147 IDA Pro + 149 Binary Ninja)
 - **64 built-in skills** (12 in Rikugan)
 - **4 platforms** — IDA Pro, Binary Ninja, interactive CLI, JADX
 - **Advanced security analysis** — Exploitation, malware, firmware, mobile
@@ -31,7 +31,7 @@ Spectra is an **AI agent embedded in reverse engineering tools**. An assistant t
 | Feature | Rikugan | Spectra |
 |---------|---------|---------|
 | **Skills** | 12 built-in | 64 built-in |
-| **Tools** | 60+ | 146 (IDA Pro) / 148 (Binary Ninja) |
+| **Tools** | 60+ | 147 (IDA Pro) / 149 (Binary Ninja) |
 | **Platforms** | IDA, Binary Ninja | IDA, Binary Ninja, interactive CLI, JADX |
 | **Mobile Exploitation** | ❌ | ✅ iOS/Android PAC/MTE bypass |
 | **APK Analysis** | ❌ | ✅ Full JADX integration |
@@ -332,7 +332,7 @@ System:
 
 ### 🛠️ 290+ Tools
 
-**IDA Pro (146 tools):**
+**IDA Pro (147 tools):**
 - Navigation, decompilation, disassembly
 - Cross-references, strings, imports, exports
 - Annotations (rename, comment, set type)
@@ -341,7 +341,7 @@ System:
 - File-level triage — checksec, entropy, diff, crypto/lib fingerprint, IOCs, YARA (pure Python)
 - Python scripting with approval
 
-**Binary Ninja (148 tools):**
+**Binary Ninja (149 tools):**
 - Navigation, decompilation, HLIL
 - Cross-references, strings, database queries
 - IL read/write/transform

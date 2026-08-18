@@ -21,7 +21,14 @@ from .message_widgets import (
 )
 from .plan_view import PlanView
 from .qt_compat import (
+    QFrame,
+    QHBoxLayout,
+    QKeySequence,
+    QLabel,
+    QLineEdit,
+    QPushButton,
     QScrollArea,
+    QShortcut,
     QSizePolicy,
     Qt,
     QTimer,
@@ -36,6 +43,35 @@ _THINKING_MIN_DISPLAY_MS = 500
 # A single tool call is shown inline with its name visible;
 # only 2+ consecutive calls get grouped into a collapsible widget.
 _TOOL_GROUP_MIN_CALLS = 2
+
+# Floating find-in-conversation bar (Ctrl+F), styled for the dark theme.
+_FIND_BAR_STYLE = """
+QFrame#chat_find_bar {
+    background: #2d2d30;
+    border: 1px solid #3c3c3c;
+    border-radius: 6px;
+}
+QLineEdit {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    border: 1px solid #3c3c3c;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 12px;
+}
+QLabel {
+    color: #9d9d9d;
+    font-size: 11px;
+}
+QPushButton {
+    background: #3c3c3c;
+    color: #d4d4d4;
+    border: none;
+    border-radius: 4px;
+    font-size: 11px;
+}
+QPushButton:hover { background: #4a4a4d; }
+"""
 
 
 def _is_hidden_system_user_message(content: str) -> bool:
@@ -105,6 +141,19 @@ class ChatView(QScrollArea):
         self._relayout_timer.setSingleShot(True)
         self._relayout_timer.setInterval(0)
         self._relayout_timer.timeout.connect(self._relayout_content)
+
+        # In-conversation search (Ctrl+F).  The bar is built lazily on first
+        # open so that headless import paths never construct widgets.
+        self._find_bar: QFrame | None = None
+        self._find_edit: QLineEdit | None = None
+        self._find_count_label: QLabel | None = None
+        self._find_matches: list[QWidget] = []
+        self._find_index = -1
+        self._find_highlight_widget: QWidget | None = None
+        self._find_highlight_style: str | None = None
+
+        find_sc = QShortcut(QKeySequence("Ctrl+F"), self)
+        find_sc.activated.connect(self._open_find_bar)
 
         # Plain Python callbacks avoid extra Qt signal traffic in the hot chat path.
         self._tool_approval_callback = None
@@ -454,6 +503,154 @@ class ChatView(QScrollArea):
         if self._user_answer_callback is not None:
             self._user_answer_callback(answer)
 
+    # ------------------------------------------------------------------
+    # Find-in-conversation (Ctrl+F)
+    # ------------------------------------------------------------------
+
+    def _open_find_bar(self) -> None:
+        """Show the floating search bar (Ctrl+F) and focus its input."""
+        if self._find_bar is None:
+            self._build_find_bar()
+        self._find_bar.show()
+        self._find_bar.raise_()
+        self._position_find_bar()
+        self._find_edit.setFocus()
+        self._find_edit.selectAll()
+
+    def _build_find_bar(self) -> None:
+        """Construct the floating find bar (once, on first Ctrl+F)."""
+        bar = QFrame(self)
+        bar.setObjectName("chat_find_bar")
+        bar.setStyleSheet(_FIND_BAR_STYLE)
+        bar.hide()
+
+        layout = QHBoxLayout(bar)
+        layout.setContentsMargins(8, 4, 8, 4)
+        layout.setSpacing(4)
+
+        self._find_edit = QLineEdit()
+        self._find_edit.setPlaceholderText("Find in conversation…")
+        self._find_edit.setFixedWidth(200)
+        self._find_edit.textChanged.connect(self._on_find_text_changed)
+        self._find_edit.returnPressed.connect(self._on_find_next)
+        layout.addWidget(self._find_edit)
+
+        self._find_count_label = QLabel("")
+        self._find_count_label.setFixedWidth(40)
+        layout.addWidget(self._find_count_label)
+
+        for text, slot in (
+            ("▲", self._on_find_prev),
+            ("▼", self._on_find_next),
+            ("✕", self._close_find_bar),
+        ):
+            btn = QPushButton(text)
+            btn.setFixedSize(24, 24)
+            btn.clicked.connect(slot)
+            layout.addWidget(btn)
+
+        # Shift+Enter steps backwards; Enter alone (returnPressed) steps forward.
+        prev_sc = QShortcut(QKeySequence("Shift+Return"), self._find_edit)
+        prev_sc.activated.connect(self._on_find_prev)
+        close_sc = QShortcut(QKeySequence("Escape"), bar)
+        close_sc.activated.connect(self._close_find_bar)
+
+        self._find_bar = bar
+
+    def _position_find_bar(self) -> None:
+        """Pin the bar to the top-right corner of the chat area."""
+        if self._find_bar is None or not self._find_bar.isVisible():
+            return
+        try:
+            width = self._find_bar.sizeHint().width()
+            self._find_bar.move(max(8, self.width() - width - 20), 8)
+        except RuntimeError:
+            pass
+
+    def _collect_find_matches(self, query: str) -> list[QWidget]:
+        """Widgets whose searchable text contains the query, in visual order."""
+        q = (query or "").strip().lower()
+        if not q:
+            return []
+        matches: list[QWidget] = []
+        for i in range(self._layout.count()):
+            item = self._layout.itemAt(i)
+            widget = item.widget() if item else None
+            if widget is None or not hasattr(widget, "search_text"):
+                continue
+            try:
+                text = widget.search_text()
+            except RuntimeError:
+                continue  # underlying C++ object already deleted
+            if text and q in text.lower():
+                matches.append(widget)
+        return matches
+
+    def _on_find_text_changed(self, text: str) -> None:
+        self._find_matches = self._collect_find_matches(text)
+        self._find_index = -1
+        if self._find_matches:
+            self._go_to_find_match(0)
+        else:
+            self._clear_find_highlight()
+            self._find_count_label.setText("0/0" if text.strip() else "")
+
+    def _on_find_next(self) -> None:
+        if self._find_matches:
+            self._go_to_find_match(self._find_index + 1)
+
+    def _on_find_prev(self) -> None:
+        if self._find_matches:
+            self._go_to_find_match(self._find_index - 1)
+
+    def _go_to_find_match(self, index: int) -> None:
+        if not self._find_matches:
+            return
+        self._find_index = index % len(self._find_matches)
+        widget = self._find_matches[self._find_index]
+        self._apply_find_highlight(widget)
+        try:
+            self.ensureWidgetVisible(widget, 0, 12)
+        except RuntimeError:
+            pass
+        self._find_count_label.setText(f"{self._find_index + 1}/{len(self._find_matches)}")
+
+    def _apply_find_highlight(self, widget: QWidget) -> None:
+        """Emphasize the current match with a golden border (reversible)."""
+        self._clear_find_highlight()
+        name = widget.objectName()
+        if not name:
+            return
+        try:
+            self._find_highlight_style = widget.styleSheet() or ""
+            self._find_highlight_widget = widget
+            widget.setStyleSheet(
+                self._find_highlight_style + f"\n#{name} {{ border: 2px solid #f5c518; border-radius: 8px; }}"
+            )
+        except RuntimeError:
+            pass
+
+    def _clear_find_highlight(self) -> None:
+        """Restore the previously highlighted message's original style."""
+        if self._find_highlight_widget is not None:
+            try:
+                self._find_highlight_widget.setStyleSheet(self._find_highlight_style or "")
+            except RuntimeError:
+                pass
+        self._find_highlight_widget = None
+        self._find_highlight_style = None
+
+    def _close_find_bar(self) -> None:
+        """Hide the search bar and drop all search state."""
+        self._clear_find_highlight()
+        self._find_matches = []
+        self._find_index = -1
+        if self._find_bar is not None:
+            try:
+                self._find_bar.hide()
+            except RuntimeError:
+                pass
+
     def restore_from_messages(self, messages: list[Message]) -> None:
         """Replay saved Message objects into the chat view."""
         self.clear_chat()
@@ -499,6 +696,7 @@ class ChatView(QScrollArea):
         self._relayout_timer.start()
 
     def clear_chat(self) -> None:
+        self._close_find_bar()
         self._force_hide_thinking()
         self._thinking_hide_timer.stop()
         while self._layout.count() > 1:
@@ -528,6 +726,7 @@ class ChatView(QScrollArea):
         super().resizeEvent(event)
         if self._container is not None:
             self._container.setFixedWidth(self.viewport().width())
+        self._position_find_bar()
 
     def showEvent(self, event) -> None:
         """Redo the layout when the view becomes visible.

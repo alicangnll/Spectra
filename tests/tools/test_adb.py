@@ -62,6 +62,64 @@ class TestUnsafeCommandsBypass(unittest.TestCase):
         self.assertTrue(ok)
 
 
+class TestAdbPair(unittest.TestCase):
+    """Wireless-debugging pairing tool: input validation and adb invocation."""
+
+    def test_valid_target_passes_validation(self):
+        from spectra.tools.adb import _validate_pair_target
+
+        self.assertIsNone(_validate_pair_target("192.168.1.50:37027", "482913"))
+        self.assertIsNone(_validate_pair_target(" 10.0.0.3:40112 ", " ab12cd "))
+
+    def test_missing_inputs_rejected(self):
+        from spectra.tools.adb import _validate_pair_target
+
+        self.assertIn("required", _validate_pair_target("", "482913"))
+        self.assertIn("required", _validate_pair_target("192.168.1.50:37027", ""))
+
+    def test_address_without_port_rejected(self):
+        from spectra.tools.adb import _validate_pair_target
+
+        self.assertIn("Invalid pairing address", _validate_pair_target("192.168.1.50", "482913"))
+
+    def test_shell_metacharacters_rejected(self):
+        from spectra.tools.adb import _validate_pair_target
+
+        self.assertIn("Invalid pairing address", _validate_pair_target("192.168.1.50;rm", "482913"))
+        self.assertIn("Invalid pairing code", _validate_pair_target("192.168.1.50:37027", "-rf"))
+
+    def _run_pair(self, ip_port, code, stdout="", stderr="", returncode=0):
+        import spectra.tools.adb as adb_mod
+
+        manager = _manager_without_init()
+        manager._adb_path = "/usr/bin/adb"
+
+        fake_result = type("_R", (), {"returncode": returncode, "stdout": stdout, "stderr": stderr})()
+        with (
+            patch("spectra.tools.adb.get_adb_manager", return_value=manager),
+            patch("spectra.tools.adb.subprocess.run", return_value=fake_result) as fake_run,
+        ):
+            result = adb_mod.adb_pair(ip_port, code)
+        return result, fake_run
+
+    def test_successful_pair_reports_next_step(self):
+        result, _ = self._run_pair("192.168.1.50:37027", "482913", stdout="Successfully paired to 192.168.1.50:37027")
+        self.assertIn("Successfully paired", result)
+        self.assertIn("adb_connect", result)
+
+    def test_failed_pair_reports_adb_output(self):
+        result, _ = self._run_pair(
+            "192.168.1.50:37027", "000000", stderr="failed to authenticate to 192.168.1.50:37027"
+        )
+        self.assertIn("Pairing failed", result)
+        self.assertIn("failed to authenticate", result)
+
+    def test_invalid_input_never_invokes_adb(self):
+        result, fake_run = self._run_pair("not-an-address", "482913")
+        self.assertIn("Invalid pairing address", result)
+        fake_run.assert_not_called()
+
+
 class TestConfigRoundTrip(unittest.TestCase):
     """Persisted-flag plumbing for allow_unsafe_commands.
 

@@ -302,6 +302,7 @@ Spectra: [Calls get_binary_info, analyzes structure]
 
 **Main Components:**
 - **Chat View** - Message history with streaming responses
+- **Chat Search** - Press **Ctrl+F** in the chat to open a floating find bar (Enter/▼ next, Shift+Enter/▲ previous, Esc closes; the current match gets a golden border)
 - **Input Area** - Text input with skill autocomplete
 - **Context Bar** - Current model, token usage, address
 - **Tab Bar** - Multi-session management
@@ -2583,6 +2584,8 @@ Every tool that could run something on your system sits behind a safety gate. By
 | Python script guard | `run_script`, script tools | AST check blocks `subprocess`/`os.system`/`exec`/`eval`/dynamic imports; builtins restricted |
 | Command safety | shared `ToolSafety` | Destructive commands blocked; unknown commands require approval |
 | Network safety | scapy (`send`/`sniff`/`scan`), mitmproxy (`intercept`) | Flood/inject blocked; sniff/scan require approval |
+
+**Wireless (TCP) connections.** `adb_connect("IP:PORT")` reaches a device over the network (`adb connect`). For Android 11+ wireless debugging, pair once with `adb_pair("IP:PAIR_PORT", "CODE")` using the address and code shown under *Developer options → Wireless debugging → Pair device with pairing code* — the pairing port differs from the connection port you use afterwards with `adb_connect`. Pairing only registers the host key with the device; it runs no shell command, so it is not behind the shell gate.
 
 **Unsafe-command mode.** Settings → Behavior → **"Allow unsafe commands (all tools)"** (config key `allow_unsafe_commands`) turns every gate above off at once — `adb_shell`/`ios_shell` accept any command, script tools may use `subprocess`/`os.system`, and network/fuzzing tools skip their approval prompts. The setting is read from disk on every call, so toggling the checkbox takes effect immediately without restarting the plugin.
 

@@ -112,6 +112,7 @@ if QT_BINDING == "PySide6":
         QColor,
         QFont,
         QIntValidator,
+        QKeySequence,
         QSyntaxHighlighter,
         QTextCharFormat,
     )
@@ -142,6 +143,7 @@ if QT_BINDING == "PySide6":
         QPushButton,
         QRadioButton,
         QScrollArea,
+        QShortcut,
         QSizePolicy,
         QSpinBox,
         QSplitter,
@@ -169,6 +171,7 @@ elif QT_BINDING == "PySide2":
         QColor,
         QFont,
         QIntValidator,
+        QKeySequence,
         QSyntaxHighlighter,
         QTextCharFormat,
     )
@@ -198,6 +201,7 @@ elif QT_BINDING == "PySide2":
         QPushButton,
         QRadioButton,
         QScrollArea,
+        QShortcut,
         QSizePolicy,
         QSpinBox,
         QSplitter,
@@ -221,6 +225,7 @@ else:
         QColor,
         QFont,
         QIntValidator,
+        QKeySequence,
         QSyntaxHighlighter,
         QTextCharFormat,
     )
@@ -250,6 +255,7 @@ else:
         QPushButton,
         QRadioButton,
         QScrollArea,
+        QShortcut,
         QSizePolicy,
         QSpinBox,
         QSplitter,

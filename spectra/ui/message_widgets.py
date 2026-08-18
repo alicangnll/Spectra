@@ -127,6 +127,10 @@ class UserMessageWidget(QFrame):
         self._content.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         layout.addWidget(self._content)
 
+    def search_text(self) -> str:
+        """Plain text of the message for in-conversation search (Ctrl+F)."""
+        return self._content.text()
+
 
 # ---------------------------------------------------------------------------
 # Thinking content parser
@@ -428,6 +432,14 @@ class AssistantMessageWidget(QFrame):
         # Track current content widgets
         self._content_widgets: list[QWidget] = []
         self._current_assistant_content = []  # Track mixed content widgets
+
+    def search_text(self) -> str:
+        """Plain text of the message for in-conversation search (Ctrl+F).
+
+        Returns the raw Markdown source (thinking block included), not the
+        rendered HTML, so search matches what was actually said.
+        """
+        return self._full_text
 
     def _render(self) -> None:
         thinking, visible = _split_thinking(self._full_text)
@@ -1216,3 +1228,7 @@ class ErrorMessageWidget(QFrame):
         self._content.setMinimumWidth(0)
         self._content.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         layout.addWidget(self._content)
+
+    def search_text(self) -> str:
+        """Plain text of the message for in-conversation search (Ctrl+F)."""
+        return self._content.text()
