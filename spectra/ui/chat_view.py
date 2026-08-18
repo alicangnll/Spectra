@@ -96,6 +96,16 @@ class ChatView(QScrollArea):
         self._thinking_hide_timer.setSingleShot(True)
         self._thinking_hide_timer.timeout.connect(self._force_hide_thinking)
 
+        # Deferred relayout for restored content.  Session restore can run
+        # while the panel is still hidden (OnCreate), so word-wrapped labels
+        # keep stale pre-show geometry and paint nothing until an unrelated
+        # insert forces a relayout.  Re-running the layout once the view has
+        # its real size makes restored history visible immediately.
+        self._relayout_timer = QTimer(self)
+        self._relayout_timer.setSingleShot(True)
+        self._relayout_timer.setInterval(0)
+        self._relayout_timer.timeout.connect(self._relayout_content)
+
         # Plain Python callbacks avoid extra Qt signal traffic in the hot chat path.
         self._tool_approval_callback = None
         self._user_answer_callback = None
@@ -486,6 +496,7 @@ class ChatView(QScrollArea):
         self._current_assistant = None
         self._reset_tool_run()
         self._scroll_to_bottom()
+        self._relayout_timer.start()
 
     def clear_chat(self) -> None:
         self._force_hide_thinking()
@@ -518,6 +529,29 @@ class ChatView(QScrollArea):
         if self._container is not None:
             self._container.setFixedWidth(self.viewport().width())
 
+    def showEvent(self, event) -> None:
+        """Redo the layout when the view becomes visible.
+
+        Widgets restored while the dock form was hidden were laid out
+        against the pre-show (default) width; without this, the chat can
+        paint empty until the next user interaction inserts a widget and
+        forces a full relayout.
+        """
+        super().showEvent(event)
+        self._relayout_timer.start()
+
+    def _relayout_content(self) -> None:
+        """Re-run the container layout and re-pin its width to the viewport."""
+        if self._container is None:
+            return
+        try:
+            self._container.setFixedWidth(self.viewport().width())
+            self._layout.activate()
+        except RuntimeError:
+            # Underlying C++ object already deleted (panel tearing down)
+            return
+        self._scroll_to_bottom()
+
     def _is_near_bottom(self) -> bool:
         """True if the user hasn't scrolled up (within ~60px of bottom)."""
         sb = self.verticalScrollBar()
@@ -534,6 +568,7 @@ class ChatView(QScrollArea):
     def shutdown(self) -> None:
         self._scroll_timer.stop()
         self._thinking_hide_timer.stop()
+        self._relayout_timer.stop()
         self._force_hide_thinking()
         self._tool_approval_callback = None
         self._user_answer_callback = None
