@@ -1306,7 +1306,13 @@ class SpectraPanelCore(QWidget):
         self._polling = True
         try:
             for _ in range(20):
-                event = self._ctrl.get_event(timeout=0)
+                try:
+                    event = self._ctrl.get_event(timeout=0)
+                except Exception as e:
+                    # A transient queue error must not kill the Qt timer slot;
+                    # log it and retry on the next tick.
+                    log_debug(f"panel_core get_event failed: {e}")
+                    return
                 if event is None:
                     if not self._ctrl.is_agent_running:
                         self._on_agent_finished()

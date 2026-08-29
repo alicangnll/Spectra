@@ -122,6 +122,47 @@ class TestRunGuardedScript(unittest.TestCase):
         assert len(calls) == 2
 
 
+class TestSystemExitHandling(unittest.TestCase):
+    """SystemExit is a BaseException, not Exception — it must not escape the
+    guard or it corrupts the host interpreter's exception state across the
+    idasync/execute_sync C boundary (Python 3.14 raises
+    'SystemError: ... returned a result with an exception set' afterwards)."""
+
+    def test_sys_exit_caught_and_reported(self):
+        result = run_guarded_script("import sys\nsys.exit(0)", _empty_ns)
+        assert "SystemExit" in result
+        assert "sys.exit(0)" in result
+        assert "stderr" in result
+
+    def test_sys_exit_no_arg(self):
+        result = run_guarded_script("import sys\nsys.exit()", _empty_ns)
+        assert "sys.exit()" in result
+
+    def test_sys_exit_with_message(self):
+        result = run_guarded_script("import sys\nsys.exit('bye')", _empty_ns)
+        assert "'bye'" in result
+
+    def test_bare_exit_call_caught(self):
+        result = run_guarded_script("raise SystemExit(1)", _empty_ns)
+        assert "SystemExit" in result
+        assert "sys.exit(1)" in result
+
+    def test_stdout_before_exit_preserved(self):
+        code = "import sys\nprint('before exit')\nsys.exit(0)"
+        result = run_guarded_script(code, _empty_ns)
+        assert "before exit" in result
+        assert "stdout" in result
+        assert "SystemExit" in result
+
+    def test_sys_exit_does_not_propagate(self):
+        # The guard must swallow SystemExit entirely — no exception escapes.
+        try:
+            result = run_guarded_script("import sys\nsys.exit(2)", _empty_ns)
+        except SystemExit:
+            raise AssertionError("SystemExit escaped run_guarded_script")
+        assert isinstance(result, str)
+
+
 class TestUnsafeCommandsBypass(unittest.TestCase):
     """The global unsafe-command opt-in skips both the AST guard and the
     builtins restriction."""

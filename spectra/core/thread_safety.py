@@ -74,7 +74,12 @@ def idasync(func: F) -> F:
                     _log(f"idasync: {fname} _thunk executing on main thread")
                     result_holder.append(func(*args, **kwargs))
                     _log(f"idasync: {fname} _thunk OK")
-                except Exception as exc:
+                except BaseException as exc:
+                    # BaseException, not Exception: SystemExit/KeyboardInterrupt
+                    # must not escape into execute_sync's C callback — a stale
+                    # exception indicator corrupts the main thread's state and
+                    # later raises "SystemError: ... returned a result with an
+                    # exception set". It is re-raised on the calling thread below.
                     _log(f"idasync: {fname} _thunk ERROR: {exc}")
                     error_holder.append(exc)
                 return 0
@@ -105,7 +110,9 @@ def idasync(func: F) -> F:
                     _log(f"bnsync: {fname} _thunk executing on main thread")
                     result_holder.append(func(*args, **kwargs))
                     _log(f"bnsync: {fname} _thunk OK")
-                except Exception as exc:
+                except BaseException as exc:
+                    # See the IDA _thunk above: BaseException must not escape
+                    # into Binary Ninja's C-level main-thread dispatch.
                     _log(f"bnsync: {fname} _thunk ERROR: {exc}")
                     error_holder.append(exc)
 

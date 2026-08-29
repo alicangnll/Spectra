@@ -143,6 +143,14 @@ def run_guarded_script(code: str, namespace_factory: Callable[[], dict[str, Any]
     with contextlib.redirect_stdout(stdout_buf), contextlib.redirect_stderr(stderr_buf):
         try:
             exec(code, namespace)
+        except SystemExit as e:
+            # sys.exit() raises SystemExit (a BaseException, not Exception).
+            # Letting it escape corrupts the host interpreter's exception
+            # state when it crosses the idasync/execute_sync C boundary.
+            call = "sys.exit()" if e.code is None else f"sys.exit({e.code!r})"
+            stderr_buf.write(f"SystemExit: script called {call} — exit is not permitted inside the sandbox; finish normally instead\n")
+        except KeyboardInterrupt:
+            stderr_buf.write("KeyboardInterrupt: script interrupted\n")
         except Exception as e:
             stderr_buf.write(f"{type(e).__name__}: {e}\n")
 
