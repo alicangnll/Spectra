@@ -29,6 +29,32 @@ from ..core.types import (
 from .base import LLMProvider
 
 
+_SAMPLING_SUPPORTED: bool | None = None
+
+
+def _sampling_supported() -> bool:
+    """True if the installed anthropic SDK still accepts temperature/top_p.
+
+    anthropic SDK 1.x removed the sampling parameters from Messages.create()
+    and Messages.stream() (the API dropped them for current models). Passing
+    them on 1.x raises TypeError before any request is sent:
+    ``Messages.stream() got an unexpected keyword argument 'temperature'``.
+    Result is cached after the first check.
+    """
+    global _SAMPLING_SUPPORTED
+    if _SAMPLING_SUPPORTED is None:
+        try:
+            import inspect
+
+            messages_res = importlib.import_module("anthropic.resources.messages")
+            sig = inspect.signature(messages_res.Messages.create)
+            _SAMPLING_SUPPORTED = "temperature" in sig.parameters
+        except Exception:
+            # SDK missing or not inspectable — keep legacy behavior.
+            _SAMPLING_SUPPORTED = True
+    return _SAMPLING_SUPPORTED
+
+
 def _read_oauth_from_keychain() -> str | None:
     """Read the Claude OAuth access token from macOS Keychain.
 
@@ -410,8 +436,11 @@ class AnthropicProvider(LLMProvider):
             "model": self.model,
             "messages": formatted_messages,
             "max_tokens": max_tokens,
-            "temperature": temperature,
         }
+        # Sampling params were removed in anthropic SDK 1.x (and the API
+        # rejects them on current models) — only send when the SDK accepts them.
+        if _sampling_supported():
+            kwargs["temperature"] = temperature
 
         # System prompt with cache_control for prompt caching
         if system:

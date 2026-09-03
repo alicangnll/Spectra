@@ -6,6 +6,7 @@ import os
 import sys
 import unittest
 from types import SimpleNamespace
+from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from tests.mocks.ida_mock import install_ida_mocks
@@ -257,6 +258,50 @@ class TestAnthropicAuthResolution(unittest.TestCase):
         label, status = p.auth_status()
         self.assertEqual(status, "ok")
         self.assertEqual(label, "OAuth")
+
+
+class TestSamplingParamGating(unittest.TestCase):
+    """Regression: anthropic SDK 1.x removed temperature from
+    Messages.create/stream — passing it raises TypeError before any request
+    is sent ("Messages.stream() got an unexpected keyword argument
+    'temperature'"). The provider must gate sampling kwargs on SDK support."""
+
+    def _build_kwargs(self):
+        # Make the provider (which reloads the module), then grab the *same*
+        # module object its class came from so patching takes effect.
+        p = _make_provider()
+        import spectra.providers.anthropic_provider as ap
+
+        return p, ap
+
+    def test_temperature_included_when_sdk_supports_it(self):
+        p, ap = self._build_kwargs()
+        with patch.object(ap, "_sampling_supported", return_value=True):
+            kwargs = p._build_request_kwargs(
+                [Message(role=Role.USER, content="hi")], None, 0.3, 1024, ""
+            )
+        self.assertEqual(kwargs["temperature"], 0.3)
+
+    def test_temperature_omitted_on_sdk_1x(self):
+        p, ap = self._build_kwargs()
+        with patch.object(ap, "_sampling_supported", return_value=False):
+            kwargs = p._build_request_kwargs(
+                [Message(role=Role.USER, content="hi")], None, 0.3, 1024, ""
+            )
+        self.assertNotIn("temperature", kwargs)
+        # Core request fields are unaffected
+        self.assertEqual(kwargs["model"], "claude-test")
+        self.assertEqual(kwargs["max_tokens"], 1024)
+
+    def test_fallback_true_when_sdk_uninspectable(self):
+        """When anthropic isn't installed / can't be inspected, keep legacy
+        behavior (include temperature) instead of silently dropping it."""
+        _reload_anthropic_provider_module()
+        import spectra.providers.anthropic_provider as ap
+
+        with patch.object(ap.importlib, "import_module", side_effect=ImportError):
+            ap._SAMPLING_SUPPORTED = None  # reset cache
+            self.assertTrue(ap._sampling_supported())
 
 
 if __name__ == "__main__":
