@@ -1,7 +1,11 @@
 {
-  "version": "1.4.0",
-  "release_date": "2026-08-17",
+  "version": "1.4.2",
+  "release_date": "2026-09-04",
   "changelog": [
+    "Fixed plugin crash when a Python tool script calls sys.exit(): SystemExit/KeyboardInterrupt are now caught by the script guard instead of corrupting the interpreter state (Python 3.14 'SystemError: returned a result with an exception set')",
+    "idasync/bnsync main-thread thunks now catch BaseException so SystemExit can never escape into the host's C callback",
+    "Chat panel event polling survives transient queue errors instead of raising inside the Qt timer slot",
+    "Anthropic SDK 1.x compatibility: temperature is only sent when the installed SDK accepts it (1.x removed sampling params from Messages.stream/create)",
     "Update packages are now verified against the published SHA-256 checksum before install",
     "MCP security validator: case/slash-insensitive path checks (c:/ and C:/ no longer bypass the root-path block), bounded validation history",
     "MCP manager: external servers (Claude/Codex sources) survive config reloads; hard-timeout capping is now logged",
