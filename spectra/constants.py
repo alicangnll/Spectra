@@ -30,7 +30,7 @@ try:
         _update_info = json.load(f)
         PLUGIN_VERSION = _update_info["version"]
 except (FileNotFoundError, KeyError, json.JSONDecodeError):
-    PLUGIN_VERSION = "1.3.9"  # Fallback version — keep in sync with update.json
+    PLUGIN_VERSION = "1.4.2"  # Fallback version — keep in sync with update.json
 
 PLUGIN_NAME = "Spectra"
 PLUGIN_HOTKEY = "Ctrl+Shift+I"

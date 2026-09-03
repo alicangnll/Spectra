@@ -1,3 +1,6 @@
+# Both 0.x and 1.x SDK lines are supported: sampling params (temperature)
+# are only sent when the installed SDK accepts them. Floor stays at 0.39.0
+# because 1.x requires Python >= 3.10 and some IDA installs bundle 3.9.
 anthropic>=0.39.0
 openai>=1.50.0
 google-genai>=1.0.0

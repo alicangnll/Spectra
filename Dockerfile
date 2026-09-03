@@ -6,7 +6,7 @@ FROM python:3.11-slim
 # Set metadata
 LABEL maintainer="alicangnll"
 LABEL description="Spectra - AI-Powered Reverse Engineering Agent"
-LABEL version="1.3.9"
+LABEL version="1.4.2"
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \

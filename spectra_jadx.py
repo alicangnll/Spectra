@@ -44,7 +44,7 @@ sys.path.insert(0, str(spectra_path))
 try:
     from spectra.constants import PLUGIN_VERSION as __version__
 except ImportError:
-    __version__ = "1.3.9"  # standalone fallback
+    __version__ = "1.4.2"  # standalone fallback
 
 # Try to import Spectra components
 try:
