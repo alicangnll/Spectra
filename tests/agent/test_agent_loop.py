@@ -298,6 +298,81 @@ class TestAgentLoop(unittest.TestCase):
         self.assertTrue(done.exception.value)
 
 
+class TestMaxTokensTruncationWarning(unittest.TestCase):
+    """Regression: a stream that ends with finish_reason=max_tokens/length
+    previously looked identical to a normal completion — the answer stopped
+    mid-sentence and the UI flipped Stop→Send with no explanation. The loop
+    must surface a visible truncation warning (ERROR event)."""
+
+    def _make_loop(self, provider: MockProvider) -> AgentLoop:
+        config = SpectraConfig()
+        config.auto_context = False
+        session = SessionState(provider_name="mock", model_name="mock-model")
+        return AgentLoop(provider, ToolRegistry(), config, session)
+
+    @staticmethod
+    def _truncated_response(reason: str) -> list[StreamChunk]:
+        return [
+            StreamChunk(text="A very long answer that got cut mid-sent"),
+            StreamChunk(finish_reason=reason),
+            StreamChunk(usage=TokenUsage(prompt_tokens=10, completion_tokens=16384, total_tokens=16394)),
+        ]
+
+    def test_anthropic_max_tokens_reason_warns(self):
+        provider = MockProvider(responses=[self._truncated_response("max_tokens")])
+        events = list(self._make_loop(provider).run("Write a long report"))
+        errors = [e.error for e in events if e.type == TurnEventType.ERROR]
+        self.assertTrue(any("max output token limit" in err for err in errors), f"no truncation warning in {errors}")
+
+    def test_openai_length_reason_warns(self):
+        provider = MockProvider(responses=[self._truncated_response("length")])
+        events = list(self._make_loop(provider).run("Write a long report"))
+        errors = [e.error for e in events if e.type == TurnEventType.ERROR]
+        self.assertTrue(any("max output token limit" in err for err in errors))
+
+    def test_gemini_MAX_TOKENS_reason_warns(self):
+        provider = MockProvider(responses=[self._truncated_response("MAX_TOKENS")])
+        events = list(self._make_loop(provider).run("Write a long report"))
+        errors = [e.error for e in events if e.type == TurnEventType.ERROR]
+        self.assertTrue(any("max output token limit" in err for err in errors))
+
+    def test_normal_completion_has_no_truncation_warning(self):
+        provider = MockProvider(
+            responses=[
+                [
+                    StreamChunk(text="Complete answer."),
+                    StreamChunk(finish_reason="end_turn"),
+                    StreamChunk(usage=TokenUsage(prompt_tokens=10, completion_tokens=5, total_tokens=15)),
+                ]
+            ]
+        )
+        events = list(self._make_loop(provider).run("Hi"))
+        errors = [e.error for e in events if e.type == TurnEventType.ERROR]
+        self.assertFalse(any("max output token limit" in err for err in errors), f"unexpected warning: {errors}")
+
+    def test_truncation_with_tool_calls_does_not_warn(self):
+        """A turn that ends in tool calls is not a truncated answer — the
+        follow-up iteration continues the response."""
+        registry = ToolRegistry()
+        registry.register(
+            ToolDefinition(
+                name="echo_tool",
+                description="Echo the input",
+                parameters=[ParameterSchema(name="text", type="string", description="Text", required=True)],
+                handler=lambda text: f"Echo: {text}",
+                category="test",
+            )
+        )
+        config = SpectraConfig()
+        config.auto_context = False
+        session = SessionState(provider_name="mock", model_name="mock-model")
+        provider = MockProvider(responses=[_tool_call_response("echo_tool", {"text": "hi"})])
+        loop = AgentLoop(provider, registry, config, session)
+        events = list(loop.run("Use the tool"))
+        errors = [e.error for e in events if e.type == TurnEventType.ERROR]
+        self.assertFalse(any("max output token limit" in err for err in errors), f"unexpected warning: {errors}")
+
+
 class TestBackgroundAgentRunner(unittest.TestCase):
     def test_run_in_background(self):
         provider = MockProvider(responses=[_text_response("Background response")])

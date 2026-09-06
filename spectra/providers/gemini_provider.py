@@ -315,6 +315,14 @@ class GeminiProvider(LLMProvider):
             last_usage: TokenUsage | None = None
             _in_thought = False
             for chunk in client.models.generate_content_stream(**kwargs):
+                # Capture finish_reason before the content check — the final
+                # chunk can carry only the truncation marker (MAX_TOKENS) with
+                # empty content and would be skipped below.
+                if chunk.candidates:
+                    fr = getattr(chunk.candidates[0], "finish_reason", None)
+                    fr_name = getattr(fr, "name", None)
+                    if fr is not None and fr_name not in (None, "FINISH_REASON_UNSPECIFIED"):
+                        yield StreamChunk(finish_reason=fr_name or str(fr))
                 if not chunk.candidates or not chunk.candidates[0].content:
                     continue
                 parts = chunk.candidates[0].content.parts
