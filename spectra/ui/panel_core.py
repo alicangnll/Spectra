@@ -655,11 +655,25 @@ class SpectraPanelCore(QWidget):
             if result == "no":
                 return
             if result == "clear":
-                # Clear current tab instead of creating a new one
+                # Clear current tab instead of creating a new one.
+                # new_chat() also cancels the tab's running agent, so reset
+                # every piece of interaction state tied to that old run —
+                # otherwise a pending approval/question can capture the next
+                # message and route it to the cleared conversation.
                 self._ctrl.new_chat()
                 chat_view = self._active_chat_view()
                 if chat_view:
                     chat_view.clear_chat()
+                # A pending answer/approval belonged to the cancelled run
+                self._pending_answer = False
+                self._awaiting_button_approval = False
+                # Drop events buffered for the old run before they replay
+                self._tab_event_buffers.pop(self._ctrl.active_tab_id, None)
+                # Stop polling the cancelled runner and restore the idle UI
+                if self._poll_timer:
+                    self._poll_timer.stop()
+                if hasattr(self, "_set_running"):
+                    self._set_running(False)
                 self._update_token_display(0)
                 self._update_tab_label(self._ctrl.active_tab_id)
                 return

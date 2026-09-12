@@ -405,6 +405,13 @@ class SessionControllerBase:
     def new_chat(self) -> None:
         """Reset the active tab to a fresh session."""
         self._pending_messages.pop(self._active_tab_id, None)
+        # Stop any agent still running in this tab. The runner's AgentLoop
+        # holds a reference to the OLD session — left alive it would keep
+        # streaming the cleared conversation into the emptied chat view and
+        # answer follow-ups from the old context.
+        runner = self._runners.pop(self._active_tab_id, None)
+        if runner:
+            runner.cancel()
         session = self._sessions.get(self._active_tab_id)
         if session and self.config.checkpoint_auto_save and session.messages:
             try:

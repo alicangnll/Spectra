@@ -6,7 +6,7 @@ import os
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from tests.mocks.ida_mock import install_ida_mocks
@@ -32,9 +32,76 @@ for _mod_name in [
 ]:
     sys.modules.pop(_mod_name, None)
 
+from spectra.agent.loop import AgentLoop, BackgroundAgentRunner
 from spectra.core.config import SpectraConfig
-from spectra.core.types import Message, Role, TokenUsage, ToolCall, ToolResult
+from spectra.core.types import (
+    Message,
+    ProviderCapabilities,
+    Role,
+    StreamChunk,
+    TokenUsage,
+    ToolCall,
+    ToolResult,
+)
 from spectra.ida.ui.session_controller import IdaSessionController
+from spectra.providers.base import LLMProvider
+from spectra.tools.registry import ToolRegistry
+
+
+class _AskUserProvider(LLMProvider):
+    """Stub provider whose single response is an ask_user tool call.
+
+    The agent loop parks in _wait_for_queue waiting for the user's answer,
+    which is the state a "Clear Context" hit has to interrupt cleanly.
+    """
+
+    def __init__(self):
+        super().__init__(api_key="test", model="stub-model")
+
+    @property
+    def name(self) -> str:
+        return "stub"
+
+    @property
+    def capabilities(self) -> ProviderCapabilities:
+        return ProviderCapabilities()
+
+    def _get_client(self):
+        return None
+
+    def _fetch_models_live(self):
+        return []
+
+    @staticmethod
+    def _builtin_models():
+        return []
+
+    def _format_messages(self, messages):
+        return messages
+
+    def _normalize_response(self, raw):
+        return raw
+
+    def _build_request_kwargs(self, messages, tools, temperature, max_tokens, system):
+        return {}
+
+    def _call_api(self, client, kwargs):
+        return None
+
+    def _handle_api_error(self, e):
+        raise e
+
+    def _stream_chunks(self, client, kwargs):
+        yield from ()
+
+    def chat(self, messages, tools=None, temperature=0.3, max_tokens=4096, system=""):
+        return Message(role=Role.ASSISTANT, content="ok")
+
+    def chat_stream(self, messages, tools=None, temperature=0.3, max_tokens=4096, system=""):
+        yield StreamChunk(is_tool_call_start=True, tool_call_id="call_ask", tool_name="ask_user")
+        yield StreamChunk(tool_args_delta='{"question": "continue?"}', tool_call_id="call_ask")
+        yield StreamChunk(is_tool_call_end=True, tool_call_id="call_ask", tool_name="ask_user")
+        yield StreamChunk(usage=TokenUsage(prompt_tokens=1, completion_tokens=1, total_tokens=2))
 
 
 class TestIdaSessionController(unittest.TestCase):
@@ -87,6 +154,59 @@ class TestIdaSessionController(unittest.TestCase):
         self.ctrl.queue_message("pending")
         self.ctrl.new_chat()
         self.assertIsNone(self.ctrl.on_agent_finished())
+
+    def test_new_chat_cancels_running_agent(self):
+        """Regression: Clear Context must cancel the tab's running agent.
+
+        The runner's AgentLoop holds a reference to the OLD session — if it
+        is left alive it keeps streaming the cleared conversation and can
+        answer follow-ups from the old context.
+        """
+        runner = MagicMock()
+        runner.agent_loop.is_running = True
+        self.ctrl._runners[self.ctrl.active_tab_id] = runner
+
+        self.ctrl.new_chat()
+
+        runner.cancel.assert_called_once()
+        self.assertNotIn(self.ctrl.active_tab_id, self.ctrl._runners)
+        self.assertFalse(self.ctrl.is_agent_running)
+        self.assertEqual(len(self.ctrl.session.messages), 0)
+
+    def test_new_chat_stops_agent_blocked_on_ask_user(self):
+        """A live agent parked on ask_user must terminate after new_chat().
+
+        Previously the loop kept waiting on the answer queue with the old
+        session, so the next user message could be routed into the cleared
+        conversation.
+        """
+        import time
+
+        self.cfg.auto_context = False
+        loop = AgentLoop(
+            _AskUserProvider(),
+            ToolRegistry(),
+            self.cfg,
+            self.ctrl.session,
+            host_name="test",
+        )
+        runner = BackgroundAgentRunner(loop)
+        runner.start("hello?")
+        self.ctrl._runners[self.ctrl.active_tab_id] = runner
+
+        # Wait until the loop is running (parked in ask_user's answer wait)
+        deadline = time.time() + 5.0
+        while not loop.is_running and time.time() < deadline:
+            time.sleep(0.02)
+        self.assertTrue(loop.is_running)
+
+        self.ctrl.new_chat()
+
+        runner._thread.join(timeout=5.0)
+        self.assertFalse(runner._thread.is_alive())
+        self.assertFalse(loop.is_running)
+        # Session is fresh: the cleared run's messages are gone
+        self.assertEqual(len(self.ctrl.session.messages), 0)
 
     def test_update_settings_syncs_session(self):
         self.cfg.provider.name = "test_provider"
