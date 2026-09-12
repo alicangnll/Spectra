@@ -36,6 +36,7 @@ class CommandType(Enum):
     APIKEY_SET = "apikey_set"  # /apikey <key>
     SHELL_CONFIG = "shell_config"  # /shellconfig or /shelllimit
     TOGGLE = "toggle"  # /toggle
+    THINKING = "thinking"  # /thinking (also Ctrl+O)
     HELP = "help"  # /help
     NATURAL_LANGUAGE = "natural_language"  # Any other input
 
@@ -154,6 +155,9 @@ def parse_command(input_text: str) -> Command:
     if text == "/toggle":
         return Command(CommandType.TOGGLE, "", "")
 
+    if text in ("/thinking", "/think"):
+        return Command(CommandType.THINKING, "", "")
+
     if text == "/help":
         return Command(CommandType.HELP, "", "")
 
@@ -208,6 +212,7 @@ CONFIG_COMMANDS = [
 SYSTEM_COMMANDS = [
     ("/skills", "List all available skills"),
     ("/toggle", "Toggle collapse/expand of last tool result"),
+    ("/thinking", "Toggle display of model <think> reasoning (also Ctrl+O)"),
     ("/help", "Show this help message"),
     ("!command", "Execute shell command"),
 ]

@@ -1,9 +1,11 @@
 """Shell REPL - Enhanced interactive command loop.
 
-Custom REPL with termios raw mode for Ctrl+O support:
+Custom REPL with keybinding support:
 - Tab completion for skills and commands
 - Command history (persistent via readline)
-- Ctrl+O to toggle tool result collapse/expand
+- Ctrl+O to toggle <think> reasoning display (best-effort readline macro
+  that runs /thinking; terminals delivering the raw 0x0F byte are caught
+  in onecmd_plus_hooks)
 - Slash command parsing
 - Shell command execution
 - Session commands
@@ -101,6 +103,19 @@ class ShellREPL(cmd.Cmd):
             readline.set_completer_delims(" \t\n")  # Only space, tab, newline as delimiters
             readline.set_completer(self.complete)
             readline.parse_and_bind("tab: complete")
+
+            # Ctrl+O toggles <think> reasoning display. Bind as a macro that
+            # types /thinking (+ Enter where supported). On terminals where
+            # the key reaches the line buffer as a raw 0x0F byte instead,
+            # onecmd_plus_hooks catches it.
+            for bind in (
+                '"\\C-o": "/thinking\\n"',  # GNU readline (Linux)
+                "bind -s '^O' '/thinking'",  # editline/libedit (macOS)
+            ):
+                try:
+                    readline.parse_and_bind(bind)
+                except Exception:
+                    pass
 
     def _flush_input(self) -> None:
         """Flush any pending input from stdin buffer.
@@ -348,6 +363,14 @@ class ShellREPL(cmd.Cmd):
             hist_file = Path.home() / ".spectra_history"
             readline.write_history_file(hist_file)
 
+        # Raw Ctrl+O (0x0F) from terminals that deliver the byte into the
+        # line buffer: strip it and treat the keypress as /thinking.
+        if "\x0f" in line:
+            line = line.replace("\x0f", "").strip()
+            self._handle_thinking()
+            if not line:
+                return False
+
         # Parse command
         cmd = parse_command(line)
 
@@ -410,6 +433,10 @@ class ShellREPL(cmd.Cmd):
 
         elif cmd.type == CommandType.TOGGLE:
             self._handle_toggle()
+            return False
+
+        elif cmd.type == CommandType.THINKING:
+            self._handle_thinking()
             return False
 
         elif cmd.type == CommandType.SHELL:
@@ -892,6 +919,13 @@ class ShellREPL(cmd.Cmd):
     def _handle_toggle(self) -> bool:
         """Handle /toggle command - collapse/expand last tool result."""
         self.ui.toggle_collapse()
+        return False
+
+    def _handle_thinking(self) -> bool:
+        """Handle /thinking command (and Ctrl+O) - show/hide <think> reasoning."""
+        enabled = self.ui.toggle_thinking()
+        state = "ON (streams live; last turn shown above)" if enabled else "OFF"
+        print(f"\033[90m🧠 Thinking display: {state}\033[0m")
         return False
 
     def _handle_skill(self, slug: str, args: str) -> bool:
