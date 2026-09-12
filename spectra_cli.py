@@ -36,6 +36,7 @@ Version: see update.json (single source of truth)
 __author__ = "Ali Can Gönüllü"
 
 import argparse
+import getpass
 import os
 import sys
 from pathlib import Path
@@ -95,6 +96,31 @@ def check_api_key_from_config(config) -> tuple[bool, str]:
     return False, "local"
 
 
+def prompt_decrypt_password(config) -> bool:
+    """Prompt for the config encryption password (mirrors the IDA panel).
+
+    The API key itself is already stored — only the password is needed to
+    decrypt it into this session. Three attempts; empty input, Ctrl-C or
+    Ctrl-D cancels and leaves the keys locked. The stored key stays
+    encrypted on disk; nothing is re-saved here.
+    """
+    print()
+    print("🔐 Your Spectra config stores the API key encrypted.")
+    for _attempt in range(3):
+        try:
+            password = getpass.getpass("Decryption password (empty to cancel): ")
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return False
+        if not password:
+            return False
+        if config.decrypt_stored_keys(password):
+            print("✓ API key decrypted")
+            return True
+        print("✗ Wrong password.")
+    return False
+
+
 def cmd_dir_loc(directory: str) -> int:
     """Start CLI in directory context mode.
 
@@ -122,11 +148,32 @@ def cmd_dir_loc(directory: str) -> int:
         # Initialize configuration
         config = SpectraConfig.load_or_create()
 
+        # Encrypted keys are deferred-decrypted at load: unlock them before
+        # the key check so a key already saved (e.g. via the IDA plugin) is
+        # found instead of falling through to first-run onboarding.
+        env_key = bool(
+            os.getenv("SPECTRA_API_KEY")
+            or os.getenv("ANTHROPIC_API_KEY")
+            or os.getenv("OPENAI_API_KEY")
+            or os.getenv("GEMINI_API_KEY")
+        )
+        stored_key_locked = False
+        if config.has_encrypted_keys() and not env_key:
+            stored_key_locked = not prompt_decrypt_password(config)
+
         # Check for API key (from env or config)
         has_key, _provider = check_api_key_from_config(config)
 
         # If no API key, prompt user
-        if not has_key:
+        if not has_key and stored_key_locked:
+            # A key IS stored, just locked. The first-run onboarding would
+            # invite entering a NEW key and its save() (no password) would
+            # drop the encryption — keep the stored key and continue.
+            print()
+            print("⚠️  Stored API key could not be decrypted (wrong password).")
+            print("Restart to try again, or use /apikey in the CLI to replace it.")
+            print()
+        elif not has_key:
             print()
             print("⚠️  No API key found in environment or config.")
             print()
