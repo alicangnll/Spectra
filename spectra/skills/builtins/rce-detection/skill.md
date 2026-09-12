@@ -2,10 +2,11 @@
 name: RCE Detection
 description: Remote Code Execution vulnerability detection — identify command injection, deserialization, template injection, and eval injection vectors
 tags: [rce, code-execution, command-injection, deserialization, ssti, security]
-includes: [doctrine, bypass-protocol]
+includes: [doctrine, bypass-protocol, rce-poc-verification]
 tailoring:
   doctrine: "Prefer directives 2-3: RCE novelty lives in glue parsers, converters and protocol bridges — not in strcpy hits everyone already scans."
   bypass-protocol: "A remote code path behind anti-analysis is still RCE surface: bypass first, then judge reachability."
+  rce-poc-verification: "This skill's findings are the primary trigger: every confirmed vector here ends in a calculator launch and a frozen PoC."
 ---
 ---
 

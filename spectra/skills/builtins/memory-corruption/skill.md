@@ -2,10 +2,11 @@
 name: Memory Corruption
 description: Memory corruption & mitigation bypass — UAF, OOB, PAC, ASLR, CFI, CET, RCE, binary exploit
 tags: [memory, corruption, uaf, oob, out-of-bounds, heap, overflow, use-after-free, rce, remote-code-execution, binary-exploit, double-free, stack overflow, pac, pointer-authentication, aslr, cfi, control-flow-integrity, cet, shadow-stack, mte, memory-tagging, relro, pie, canary, bypass, exploitation]
-includes: [doctrine, bypass-protocol]
+includes: [doctrine, bypass-protocol, rce-poc-verification]
 tailoring:
   doctrine: "Directives 4-6 are the frontier here: compositional UAF/double-free chains, lifetime across callbacks, and width-transition overflows inside allocator logic."
   bypass-protocol: "Exploit-mitigation bypass techniques (ROP, heap grooming, canary leak) live in this skill's own phases; this protocol governs the ANALYSIS-time protections encountered before you reach them."
+  rce-poc-verification: "Post-corruption shellcode proves itself the same way: spawn the calculator, nothing beyond it."
 ---
 ---
 

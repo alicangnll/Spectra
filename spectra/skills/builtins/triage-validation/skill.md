@@ -1,10 +1,11 @@
 ---
 name: triage-validation
 description: Finding validation before writing any report — 7-Question Gate (all 7 questions), 4 pre-submission gates, always-rejected list, conditionally valid with chain table, CVSS 3.1 quick reference, severity decision guide, report title formula, 60-second pre-submit checklist. Use BEFORE writing any report. One wrong answer = kill the finding and move on. Saves N/A ratio.
-includes: [doctrine, bypass-protocol]
+includes: [doctrine, bypass-protocol, rce-poc-verification]
 tailoring:
   doctrine: "Directive 8 governs validation output: a NOVEL-class finding is validated by its documented reasoning chain plus PoC — the chain is part of the evidence."
   bypass-protocol: "A finding reachable only through an un-bypassed protection is UNVERIFIED, not invalid: either bypass to prove it, or downgrade with the blocker explicitly named."
+  rce-poc-verification: "Validation verdicts for command-execution findings require the benign-launch evidence; without it the verdict is unverified, not confirmed."
 ---
 
 # TRIAGE & VALIDATION

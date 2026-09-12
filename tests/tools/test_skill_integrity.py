@@ -82,11 +82,11 @@ ALLOWED_TOKENS = {
     "binaryninja", "binaryninjaui", "ida", "idaapi", "idautils", "idc", "aws",
     # External security tools
     "afl", "amass", "angr", "arjun", "byp4xx", "cewl", "curl", "dalfox",
-    "frida", "gau", "gdb", "ghauri", "httpx", "jsluice", "katana", "kxss",
-    "libfuzzer", "mantra", "naabu", "nomore403", "objdump", "paramspider",
-    "puredns", "radare2", "readelf", "rustscan", "s3scanner", "scapy",
-    "subfinder", "subjack", "subzy", "uro", "wafw00f", "waymore", "wget",
-    "whatwaf", "wireshark", "xmrig",
+    "frida", "gau", "gdb", "ghauri", "httpx", "jsluice", "katana", "kcalc",
+    "kxss", "libfuzzer", "mantra", "naabu", "nomore403", "objdump",
+    "paramspider", "puredns", "radare2", "readelf", "rustscan", "s3scanner",
+    "scapy", "subfinder", "subjack", "subzy", "uro", "wafw00f", "waymore",
+    "wget", "whatwaf", "wireshark", "xmrig", "xcalc",
     # C / POSIX APIs and syscalls
     "accept", "bind", "clone", "connect", "capset", "crontab", "dlopen",
     "dlsym", "execve", "execvp", "fork", "getdents64", "listen", "memcpy",
@@ -161,8 +161,9 @@ class TestSharedBlockComposition(unittest.TestCase):
                 body = self.skills[slug].body
                 self.assertIn("## Novel Vulnerability Discovery Doctrine", body)
                 self.assertIn("## Protection Encountered During Analysis", body)
+                self.assertIn("## Command Execution Verification", body)
                 # Per-skill tailoring rendered once per block, with own slug
-                self.assertEqual(body.count(f"**In this skill ({slug}):**"), 2)
+                self.assertEqual(body.count(f"**In this skill ({slug}):**"), 3)
 
     def test_raw_files_do_not_duplicate_shared_blocks(self):
         """On-disk SKILL.md must NOT carry an inline doctrine copy — the
@@ -174,6 +175,7 @@ class TestSharedBlockComposition(unittest.TestCase):
             with self.subTest(slug=slug):
                 self.assertNotIn("## Novel Vulnerability Discovery Doctrine", raw)
                 self.assertNotIn("## Protection Encountered During Analysis", raw)
+                self.assertNotIn("## Command Execution Verification", raw)
 
     def test_skill_without_includes_is_untouched(self):
         body = self.skills["prompt-injection"].body
@@ -210,6 +212,14 @@ class TestDoctrineDrift(unittest.TestCase):
 
     def test_provenance_requirement_present(self):
         self.assertIn("**Provenance (mandatory).**", self.doctrine)
+
+    def test_rce_poc_discipline_present(self):
+        """The calculator-proof + immediate-PoC block must stay intact."""
+        body = self.skills["vuln-audit"].body
+        self.assertIn("Rule 1 — Prove execution by launching the calculator", body)
+        self.assertIn("calc.exe", body)
+        self.assertIn("Rule 2 — Benign effects only", body)
+        self.assertIn("Rule 3 — Freeze the PoC at the moment of confirmation", body)
 
     def test_bypass_protocol_rules_present(self):
         body = self.skills["vuln-audit"].body
@@ -264,7 +274,9 @@ class TestReferentialIntegrity(unittest.TestCase):
         body = self.skills["vuln-audit"].body
         for ref in ["entropy_report", "file_meta", "find_stack_strings",
                     "decode_string", "decompile_function", "checksec",
-                    "get_ssl_bypass", "binary_diff"]:
+                    "get_ssl_bypass", "binary_diff",
+                    # RCE PoC verification block: execution tools
+                    "execute_python", "adb_shell", "ios_shell"]:
             with self.subTest(ref=ref):
                 self.assertIn(ref, self.tool_names)
                 self.assertIn(f"`{ref}`", body)

@@ -1,10 +1,11 @@
 ---
 name: bug-bounty
 description: Complete bug bounty workflow — recon (subdomain enumeration, asset discovery, fingerprinting, HackerOne scope, source code audit), pre-hunt learning (disclosed reports, tech stack research, mind maps, threat modeling), vulnerability hunting (IDOR, SSRF, XSS, auth bypass, CSRF, race conditions, SQLi, XXE, file upload, business logic, GraphQL, HTTP smuggling, cache poisoning, OAuth, timing side-channels, OIDC, SSTI, subdomain takeover, cloud misconfig, ATO chains, agentic AI), LLM/AI security testing (chatbot IDOR, prompt injection, indirect injection, ASCII smuggling, exfil channels, RCE via code tools, system prompt extraction, ASI01-ASI10), A-to-B bug chaining (IDOR→auth bypass, SSRF→cloud metadata, XSS→ATO, open redirect→OAuth theft, S3→bundle→secret→OAuth), bypass tables (SSRF IP bypass, open redirect bypass, file upload bypass), language-specific grep (JS prototype pollution, Python pickle, PHP type juggling, Go template.HTML, Ruby YAML.load, Rust unwrap), and reporting (7-Question Gate, 4 validation gates, human-tone writing, templates by vuln class, CVSS 3.1, PoC generation, always-rejected list, conditional chain table, submission checklist). Use for ANY bug bounty task — starting a new target, doing recon, hunting specific vulns, auditing source code, testing AI features, validating findings, or writing reports. 中文触发词：漏洞赏金、安全测试、渗透测试、漏洞挖掘、信息收集、子域名枚举、XSS测试、SQL注入、SSRF、安全审计、漏洞报告
-includes: [doctrine, bypass-protocol]
+includes: [doctrine, bypass-protocol, rce-poc-verification]
 tailoring:
   doctrine: "Programs pay for what other hunters miss: prioritize directives 2-5 on in-scope assets — a novel class beats a known-class duplicate every time."
   bypass-protocol: "If an in-scope target binary is protected, report the protection and your bypass attempt alongside the finding — programs reward documented bypasses, and 'packed' alone is not a finding-blocker."
+  rce-poc-verification: "Program rules override payload choice: if even benign execution proofs are out of scope, deliver the PoC as a written reproducer and mark it unverified-in-env."
 ---
 
 # Bug Bounty Master Workflow

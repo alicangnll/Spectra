@@ -2,10 +2,11 @@
 name: Vulnerability Audit
 description: Security audit — buffer overflows, format strings, integer issues, memory safety
 tags: [vulnerability, security, audit, exploit]
-includes: [doctrine, bypass-protocol]
+includes: [doctrine, bypass-protocol, rce-poc-verification]
 tailoring:
   doctrine: "Run Phase 1-2 pattern scans as triage only; spend the majority of audit effort on directives 1-7 — they are what produces NOVEL findings instead of CWE duplicates."
   bypass-protocol: "Insert this loop between Phase 2 (Input Tracing) and Phase 3 (Vulnerability Classes): a protection-locked path is a report item, not an audit abort."
+  rce-poc-verification: "Calculator proof applies the moment any audit finding reaches a command sink — do not stop at probably-exploitable."
 ---
 ---
 

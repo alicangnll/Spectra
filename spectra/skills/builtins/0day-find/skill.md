@@ -4,10 +4,11 @@ description: Next-generation 0day discovery — novel overflow patterns, allocat
 tags: [0day, exploit, vulnerability, security, RCE, buffer-overflow, heap-overflow, next-gen-overflow, allocator-exploit, compiler-bug, bounds-check-bypass, SIMD-overflow, vector-overflow, JIT-overflow, integer-wrapping, sign-extension, UAF, OOB, race-condition, type-confusion, ASLR-bypass, kASLR-bypass, code-execution, privilege-escalation, exploit-development, PoC, weaponized-exploit, heap-spray, ROP, shellcode, novel-vulnerability, unknown-vulnerability, root-access, backdoor, reverse-shell, post-exploitation, persistence]
 author: Spectra Security Research
 version: 2.1
-includes: [doctrine, bypass-protocol]
+includes: [doctrine, bypass-protocol, rce-poc-verification]
 tailoring:
   doctrine: "This doctrine is this skill's operating baseline. Apply it to every phase, and extend directives 4-7 into the skill's own novel territories: SIMD/vector paths, JIT internals, custom allocators, compiler-induced UB."
   bypass-protocol: "For novel-vulnerability hunting the protection itself is also 0day surface: custom packers, obfuscator bugs and flawed checks have their own CVE history — bypass first, then audit, and consider bugs IN the protection."
+  rce-poc-verification: "A novel command-execution class is only claimed after the calculator (or stated substitute) actually launches — novelty without a benign demo stays a hypothesis."
 ---
 ---
 

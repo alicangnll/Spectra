@@ -2,10 +2,11 @@
 name: LPE Detection
 description: Local Privilege Escalation vulnerability detection — identify kernel exploits, service abuse, SUID/GUID, path hijacking, and cron job vulnerabilities
 tags: [lpe, privilege-escalation, kernel, service, security, local-exploit]
-includes: [doctrine, bypass-protocol]
+includes: [doctrine, bypass-protocol, rce-poc-verification]
 tailoring:
   doctrine: "Apply directives 5-7 at the user/kernel edge: ioctl parsers, syscall argument validation, reference-counting assumptions."
   bypass-protocol: "Kernel-hardening bypasses (SMEP/SMAP/KPTI/CFG) are covered in this skill's own sections; packed or obfuscated drivers must be lifted before syscall-path analysis begins."
+  rce-poc-verification: "Privilege escalation completes at command execution: prove the elevated context by launching the calculator as the elevated user, then write the PoC."
 ---
 ---
 

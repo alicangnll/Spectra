@@ -2,10 +2,11 @@
 name: Race Condition
 description: Race condition exploitation — TOCTOU, double-fetch, thread safety
 tags: [race, toctou, concurrency, thread, exploit]
-includes: [doctrine, bypass-protocol]
+includes: [doctrine, bypass-protocol, rce-poc-verification]
 tailoring:
   doctrine: "Directive 4 (compositional reasoning) plus temporal TOCTOU windows ARE this skill's novelty engine — same input, different time."
   bypass-protocol: "If locking/ordering logic is hidden behind obfuscation, lift it first — a race window behind un-lifted obfuscation is unprovable."
+  rce-poc-verification: "TOCTOU-to-execution chains confirm with the calculator like any other RCE finding."
 ---
 ---
 
