@@ -104,6 +104,15 @@ class _AskUserProvider(LLMProvider):
         yield StreamChunk(usage=TokenUsage(prompt_tokens=1, completion_tokens=1, total_tokens=2))
 
 
+class _FinishProvider(_AskUserProvider):
+    """Stub provider whose single response is plain text — the run
+    completes immediately instead of parking on ask_user."""
+
+    def chat_stream(self, messages, tools=None, temperature=0.3, max_tokens=4096, system=""):
+        yield StreamChunk(text="done")
+        yield StreamChunk(usage=TokenUsage(prompt_tokens=1, completion_tokens=1, total_tokens=2))
+
+
 class TestIdaSessionController(unittest.TestCase):
     def setUp(self):
         self.cfg = SpectraConfig()
@@ -128,19 +137,16 @@ class TestIdaSessionController(unittest.TestCase):
         self.ctrl.queue_message("first")
         self.ctrl.queue_message("second")
 
-        # on_agent_finished discards all pending messages
-        next_msg = self.ctrl.on_agent_finished()
-        self.assertIsNone(next_msg)
+        # on_agent_finished drains the queue, oldest first
+        self.assertEqual(self.ctrl.on_agent_finished(), ["first", "second"])
 
-        # Subsequent calls also return None (queue was cleared)
-        next_msg = self.ctrl.on_agent_finished()
-        self.assertIsNone(next_msg)
+        # Subsequent calls return an empty list (queue was drained)
+        self.assertEqual(self.ctrl.on_agent_finished(), [])
 
     def test_cancel_clears_pending_messages(self):
         self.ctrl.queue_message("will be cancelled")
         self.ctrl.cancel()
-        next_msg = self.ctrl.on_agent_finished()
-        self.assertIsNone(next_msg)
+        self.assertEqual(self.ctrl.on_agent_finished(), [])
 
     def test_new_chat_creates_fresh_session(self):
         old_id = self.ctrl.session.id
@@ -153,7 +159,41 @@ class TestIdaSessionController(unittest.TestCase):
     def test_new_chat_clears_pending_messages(self):
         self.ctrl.queue_message("pending")
         self.ctrl.new_chat()
-        self.assertIsNone(self.ctrl.on_agent_finished())
+        self.assertEqual(self.ctrl.on_agent_finished(), [])
+
+    def test_queued_message_runs_after_agent_finishes(self):
+        """Regression: a message queued while the agent runs must be
+        processed as soon as the agent finishes its answer — previously
+        on_agent_finished discarded the queue, so queued messages sat in
+        the UI forever and were never answered.
+        """
+        self.cfg.auto_context = False
+        with patch.object(
+            self.ctrl._provider_registry, "get_or_create", return_value=_FinishProvider()
+        ):
+            self.assertIsNone(self.ctrl.start_agent("first question"))
+            tab = self.ctrl.active_tab_id
+            runner = self.ctrl._runners[tab]
+
+            # User queues follow-ups while the agent is still working
+            self.ctrl.queue_message("follow-up one")
+            self.ctrl.queue_message("follow-up two")
+
+            # Agent finishes its answer → queue drains, oldest first
+            runner._thread.join(timeout=5.0)
+            self.assertFalse(runner._thread.is_alive())
+            self.assertTrue(
+                any(m.content == "done" for m in self.ctrl.session.messages),
+                "first run never produced its answer",
+            )
+            queued = self.ctrl.on_agent_finished()
+            self.assertEqual(queued, ["follow-up one", "follow-up two"])
+
+            # The drained message immediately starts the next run
+            self.assertIsNone(self.ctrl.start_agent(queued[0]))
+            next_runner = self.ctrl._runners[tab]
+            next_runner._thread.join(timeout=5.0)
+            self.assertFalse(next_runner._thread.is_alive())
 
     def test_new_chat_cancels_running_agent(self):
         """Regression: Clear Context must cancel the tab's running agent.

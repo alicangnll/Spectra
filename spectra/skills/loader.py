@@ -161,8 +161,13 @@ def _load_body(md_path: str) -> str:
     except OSError as e:
         raise SkillError(f"Cannot read skill file {md_path}: {e}") from e
 
-    _fm, body = _split_frontmatter(text)
+    fm_text, body = _split_frontmatter(text)
     body = body.strip()
+
+    # Compose shared blocks declared via frontmatter `includes:` (single
+    # source of truth for doctrine/bypass-protocol text reused across skills)
+    fm = _parse_frontmatter(fm_text) if fm_text else {}
+    body = _apply_includes(body, fm, os.path.basename(os.path.dirname(md_path)))
 
     # Append reference files from <skill>/references/ if they exist
     refs = _load_references(os.path.dirname(md_path))
@@ -170,6 +175,56 @@ def _load_body(md_path: str) -> str:
         body += "\n\n" + refs
 
     return body
+
+
+# Directory holding shared, composable skill blocks (<name>.md with
+# {{SLUG}} / {{TAILORING}} placeholders), single-sourced across skills.
+_SHARED_BLOCKS_DIR = os.path.join(os.path.dirname(__file__), "shared")
+
+# Matches the per-skill tailoring line template inside a shared block
+_TAILORING_LINE_RE = re.compile(r"^\*\*In this skill \([^)]*\):\*\* \{\{TAILORING\}\}\s*$")
+
+
+def _apply_includes(body: str, fm: dict[str, Any], slug: str) -> str:
+    """Append shared blocks listed in frontmatter ``includes:`` to *body*.
+
+    Each shared block lives at ``skills/shared/<name>.md`` and may contain
+    ``{{SLUG}}`` (the invoking skill's slug) and ``{{TAILORING}}`` (per-skill
+    text from the frontmatter ``tailoring:`` mapping). A missing block file is
+    logged and skipped — one broken include must not take the skill down.
+    """
+    includes = fm.get("includes", [])
+    if isinstance(includes, str):
+        includes = [includes]
+    if not includes:
+        return body
+
+    tailoring = fm.get("tailoring", {})
+    if not isinstance(tailoring, dict):
+        tailoring = {}
+
+    parts = [body] if body else []
+    for block_name in includes:
+        path = os.path.join(_SHARED_BLOCKS_DIR, f"{block_name}.md")
+        try:
+            with open(path, encoding="utf-8") as f:
+                block = f.read().strip()
+        except OSError as e:
+            log_error(f"Shared skill block not found, skipping: {path}: {e}")
+            continue
+        block = block.replace("{{SLUG}}", slug)
+        tailor_text = str(tailoring.get(block_name, "")).strip()
+        if tailor_text:
+            block = block.replace("{{TAILORING}}", tailor_text)
+        else:
+            # No per-skill tailoring — drop the placeholder line entirely
+            block = "\n".join(
+                line for line in block.splitlines() if not _TAILORING_LINE_RE.match(line)
+            ).strip()
+        if block:
+            parts.append(block)
+
+    return "\n\n---\n\n".join(parts)
 
 
 def _load_references(skill_dir: str) -> str:

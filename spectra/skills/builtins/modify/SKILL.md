@@ -20,7 +20,7 @@ Your goal is to build enough understanding of the binary to know WHERE and HOW t
 ### Step 1: Orientation (1-2 turns)
 - `get_binary_info` — architecture, format, size
 - `list_imports` + `list_exports` — what APIs does the binary use?
-- `search_strings` / `list_strings_filter` with keywords from the user's request
+- `search_strings` with keywords from the user's request
   - For a game mod request mentioning "snake", search for: "snake", "score", "point", "length", "size", "spawn", "init", "level", "life", "speed"
   - Cast a wide net with goal-relevant keywords
 

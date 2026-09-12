@@ -4,6 +4,10 @@ description: Next-generation 0day discovery — novel overflow patterns, allocat
 tags: [0day, exploit, vulnerability, security, RCE, buffer-overflow, heap-overflow, next-gen-overflow, allocator-exploit, compiler-bug, bounds-check-bypass, SIMD-overflow, vector-overflow, JIT-overflow, integer-wrapping, sign-extension, UAF, OOB, race-condition, type-confusion, ASLR-bypass, kASLR-bypass, code-execution, privilege-escalation, exploit-development, PoC, weaponized-exploit, heap-spray, ROP, shellcode, novel-vulnerability, unknown-vulnerability, root-access, backdoor, reverse-shell, post-exploitation, persistence]
 author: Spectra Security Research
 version: 2.1
+includes: [doctrine, bypass-protocol]
+tailoring:
+  doctrine: "This doctrine is this skill's operating baseline. Apply it to every phase, and extend directives 4-7 into the skill's own novel territories: SIMD/vector paths, JIT internals, custom allocators, compiler-induced UB."
+  bypass-protocol: "For novel-vulnerability hunting the protection itself is also 0day surface: custom packers, obfuscator bugs and flawed checks have their own CVE history — bypass first, then audit, and consider bugs IN the protection."
 ---
 ---
 
@@ -1246,82 +1250,3 @@ Before claiming 0day, systematically verify:
 - **Verification is critical**: Always confirm novelty before claiming 0day
 - **Weaponized exploits**: Generate working, reliable PoCs
 - **Responsible disclosure**: Mandatory for all findings
-
-
-
----
-
-## Novel Vulnerability Discovery Doctrine — Prefer Innovative Paths
-
-Known-pattern matching (CWE lists, signature scans) is the BASELINE, not the goal. The expected
-outcome of this skill is NEW vulnerability knowledge: unreported classes, novel instances,
-breaks of assumed-hardened behavior, and findings for which no CVE has ever been assigned. These directives are mandatory:
-
-1. **Reason from invariants, not signatures.** For every function, infer what the code ASSUMES
-   (buffer lifetime, index bounds, union variant, single-threaded use, trusted caller). Hunt for
-   ways those assumptions are violated from another context — the bug sits at the assumption
-   boundary, not at the memcpy.
-
-2. **Attack the glue nobody audits.** Parsers, protocol bridges, format converters, custom
-   allocators, error/cleanup paths, signal handlers, re-entry from callbacks, JIT/interpreter
-   loops. Unfashionable code holds unreported bugs.
-
-3. **Differential and temporal angles.** Diff versions with `binary_diff` — silently fixed bugs
-   are unreported bugs. Compare sibling implementations of the same format. Race and TOCTOU
-   windows are temporal novelty: same input, different time.
-
-4. **Compositional reasoning.** Two individually-safe operations can be unsafe in combination
-   (check-then-use across a yield point, free-then-realloc across a callback, truncation split
-   across two casts). Trace PAIRS of operations, not just single dangerous calls.
-
-5. **Assumption inversion on every check.** For each bounds/type/permission check ask: what does
-   this check presuppose, and can upstream data or state break the presupposition itself
-   (aliased pointers, reentrant mutation, signedness, locale, encoding)?
-
-6. **Extreme-value data flow.** Follow attacker-controlled sizes and indices through arithmetic:
-   0, 1, -1, MAX_INT, MAX_INT+1, chunk boundaries — and every cast width transition along the
-   way. Novel overflows live at width transitions.
-
-7. **Toolchain and ABI edge.** Struct padding/packing mismatches across trust boundaries,
-   endianness conversions, UB the optimizer relies on (signed overflow, strict aliasing),
-   varargs promotion mismatches.
-
-8. **Classify honestly.** Report each finding as `KNOWN-CLASS instance`, `NOVEL class`, or `CVE-FREE candidate`, with
-   the reasoning chain that produced it. A novel class with one weak instance is still valuable —
-   document the discovery heuristic so it can be reapplied elsewhere.
-
-9. **Hunt CVE-free ground.** Explicitly pursue findings for which no CVE has ever been assigned:
-   under-audited ecosystems (IoT firmware, closed-source drivers, vendor protocol stacks, mobile
-   shielding layers, ICS/SCADA), newly shipped attack surface, logic and invariant bugs that CWE
-   classifies poorly, and bugs IN the protection itself. Before applying the label, attempt a
-   known-CVE/CWE mapping from what you know — if nothing fits, mark the finding
-   `CVE-FREE candidate` and preserve full reproduction evidence. Unpublished findings follow
-   coordinated disclosure (vendor or CNA contact, embargo) before any public mention.
-
-**In this skill (0day-find):** This doctrine is this skill's operating baseline. Apply it to every phase, and extend directives 4-7 into the skill's own novel territories: SIMD/vector paths, JIT internals, custom allocators, compiler-induced UB.
----
-
-## Protection Encountered During Analysis: Attempt Bypass
-
-When a protection mechanism blocks auditing or exploitation, bypassing it is part of the
-workflow — do not stop at "it's packed / obfuscated / protected". Run the loop
-**IDENTIFY → BYPASS → RE-ANALYZE → DOCUMENT**:
-
-| Protection | Identify with | Bypass attempts |
-|---|---|---|
-| Packer / compression (UPX, Themida, VMProtect) | `entropy_report`, `file_meta` | generic unpack (`UPX -d`), memory dump at OEP, emulate the entry stub |
-| Obfuscation / control-flow flattening / VM code | `vm_obfuscation_detection` | `/deobfuscation` and `/vm-obfuscation-detection` skills: trace lifting, devirtualization, symbolic state recovery |
-| Encrypted / stack strings | `find_stack_strings`, `decode_string` | locate the decoder routine, run it under emulation, dump plaintext buffers |
-| Anti-debug / anti-VM / timing checks | `decompile_function` on checker routines, suspicious-API hints | patch the guard branch, spoof artifacts (PEB, rdtsc, IsDebuggerPresent), hook with frida |
-| NX/DEP, canary, PIE/ASLR, RELRO, CFI | `checksec` | ROP / ret2libc (NX), canary leak via format-string or OOB read, info leak + partial overwrite (PIE), GOT overwrite under partial RELRO |
-| SSL pinning / app shielding (mobile targets) | `get_ssl_bypass` catalog | `/ssl-pinning-bypass` and `/app-shielding-bypass` skills |
-
-Rules:
-
-1. Attempt **at least two different bypass approaches** before declaring a path blocked.
-2. Log every attempt in the report (technique, result, why it failed).
-3. If still blocked: mark that surface `blocked by <protection>` with its address, keep it in
-   the report, and **continue auditing the unprotected surface** — never abort the whole audit.
-4. Perform bypasses only on your local analysis copy, within your authorized engagement scope.
-
-**In this skill (0day-find):** For novel-vulnerability hunting the protection itself is also 0day surface: custom packers, obfuscator bugs and flawed checks have their own CVE history — bypass first, then audit, and consider bugs IN the protection.

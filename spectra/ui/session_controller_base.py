@@ -378,15 +378,19 @@ class SessionControllerBase:
         pending_count = len(self._pending_messages[self._active_tab_id])
         log_debug(f"Message queued for tab {self._active_tab_id}, {pending_count} pending")
 
-    def on_agent_finished(self) -> None:
-        """Clean up the runner for the current tab when agent finishes."""
+    def on_agent_finished(self) -> list[str]:
+        """Clean up the runner for the current tab when agent finishes.
+
+        Returns the messages that were queued while the agent ran (oldest
+        first) so the host can immediately continue the conversation with
+        them. The queue is drained either way; cancel() and new_chat()
+        discard their queues separately before this is reached.
+        """
         runner = self._runners.pop(self._active_tab_id, None)
         if runner:
             # Runner will be garbage collected
             pass
-        # Discard queued messages — context may have changed (error, cancel,
-        # model switch).  The user can re-send if still relevant.
-        self._pending_messages.pop(self._active_tab_id, None)
+        queued = self._pending_messages.pop(self._active_tab_id, None) or []
 
         # Re-persist the instance ID in the database.  For BN the BNDB may
         # not have existed at init time; writing again ensures the ID is
@@ -401,6 +405,8 @@ class SessionControllerBase:
                 log_debug(f"Session auto-saved: {path}")
             except (OSError, ValueError) as e:
                 log_error(f"Failed to auto-save session: {e}")
+
+        return queued
 
     def new_chat(self) -> None:
         """Reset the active tab to a fresh session."""

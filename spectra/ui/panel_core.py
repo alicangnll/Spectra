@@ -1461,8 +1461,9 @@ class SpectraPanelCore(QWidget):
         current_tab_id = self._ctrl.active_tab_id
         self._tab_agent_running[current_tab_id] = False
 
-        self._ctrl.on_agent_finished()
-        # Remove any [queued] widgets since the queue was cleared.
+        queued = self._ctrl.on_agent_finished()
+        # Remove the [queued] widgets; the first pending message restarts
+        # the conversation below and the rest are re-added right after.
         chat_view = self._active_chat_view()
         if chat_view is not None:
             chat_view.remove_queued_messages()
@@ -1470,6 +1471,16 @@ class SpectraPanelCore(QWidget):
         # Update UI state to reflect agent is finished
         if hasattr(self, "_set_running"):
             self._set_running(False)
+
+        # Drain the queue: the oldest pending message continues the
+        # conversation immediately; the rest stay queued (controller + UI)
+        # and drain one per subsequent finish.
+        if queued and not self._is_shutdown:
+            self._start_agent(queued[0])
+            for text in queued[1:]:
+                self._ctrl.queue_message(text)
+                if chat_view is not None:
+                    chat_view.add_queued_message(text)
 
     def _try_restore_session(self) -> None:
         restored = self._ctrl.restore_sessions()
