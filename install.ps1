@@ -349,13 +349,20 @@ function Test-PythonExecutable {
     # The Microsoft Store "App Installer" aliases under \WindowsApps\ are
     # stubs when Store Python is absent: they print "Python was not found"
     # and exit 9009. Only a binary that actually runs counts as a Python.
+    # Redirect to temp files: Start-Process requires real file paths (the
+    # NUL device is not universally accepted as one).
+    $outTmp = [System.IO.Path]::GetTempFileName()
+    $errTmp = [System.IO.Path]::GetTempFileName()
     try {
         $proc = Start-Process -FilePath $Path -ArgumentList "-c", "import sys" `
-            -NoNewWindow -Wait -PassThru -RedirectStandardOutput NUL -RedirectStandardError NUL
+            -NoNewWindow -Wait -PassThru -RedirectStandardOutput $outTmp -RedirectStandardError $errTmp
         return ($proc.ExitCode -eq 0)
     }
     catch {
         return $false
+    }
+    finally {
+        Remove-Item $outTmp, $errTmp -ErrorAction SilentlyContinue
     }
 }
 
@@ -440,6 +447,10 @@ function Ensure-IdaPythonSelection {
     # prerelease (no wheels for PySide6/anthropic), switch IDA to the
     # newest stable system Python via idapyswitch. A healthy current
     # selection is kept untouched.
+    #
+    # Returns the python.exe ALL pip installs must target: the freshly
+    # switched one, the already-good current one, or $null when nothing
+    # could be selected.
     param([string]$IdaInstallDir)
 
     if (-not $IdaInstallDir) {
@@ -455,7 +466,7 @@ function Ensure-IdaPythonSelection {
     $currentExe = Resolve-IdaPythonExecutable -TargetPath $currentTarget
     if ($currentExe -and (Test-PythonIsStable $currentExe)) {
         Write-Info "IDA already uses a stable Python: $currentExe (v$(Get-PythonVersionString $currentExe))"
-        return
+        return $currentExe
     }
 
     if ($currentExe) {
@@ -469,7 +480,7 @@ function Ensure-IdaPythonSelection {
     if (-not $stable) {
         Write-Warn "No stable system Python found - leaving IDA's Python selection unchanged."
         Write-Warn "Install one from https://www.python.org/downloads/ and rerun this installer."
-        return
+        return $null
     }
 
     $choice = @($stable)[0]
@@ -477,16 +488,17 @@ function Ensure-IdaPythonSelection {
     $dll = Join-Path $choiceDir ("python" + "$($choice.Version)".Replace(".", "") + ".dll")
     if (-not (Test-Path $dll -PathType Leaf)) {
         Write-Warn "No python DLL next to $($choice.Exe) - leaving selection unchanged"
-        return
+        return $null
     }
 
     Write-Info "Selecting Python $($choice.Version) for IDA (same as macOS/Linux setups): $($choice.Exe)"
     & $idapyswitch --force-path $dll
     if ($LASTEXITCODE -ne 0) {
         Write-Warn "idapyswitch failed (exit $LASTEXITCODE) - IDA keeps its current Python"
-        return
+        return $null
     }
     Write-Ok "IDA Python switched to v$($choice.Version): $dll"
+    return $choice.Exe
 }
 
 function Get-IdaPython {
@@ -713,13 +725,17 @@ function Install-IDA {
     # Make sure IDA runs against a stable system Python (macOS/Linux
     # parity): switch via idapyswitch when the current one is a
     # prerelease/missing, BEFORE resolving the python the deps go into.
+    # Every pip install below targets the SELECTED python.
+    $selectedPython = $null
     if ($env:IDADIR) {
-        Ensure-IdaPythonSelection -IdaInstallDir $env:IDADIR
+        $selectedPython = Ensure-IdaPythonSelection -IdaInstallDir $env:IDADIR
     }
 
     $setIdaPython = $false
     if (-not $env:IDA_PYTHON) {
-        $resolvedIdaPython = Get-IdaPython
+        # Prefer the just-selected python directly; fall back to the
+        # general discovery only when no selection could be made.
+        $resolvedIdaPython = if ($selectedPython) { $selectedPython } else { Get-IdaPython }
         if ($resolvedIdaPython) {
             Write-Info "Resolved IDA Python: $resolvedIdaPython"
             $env:IDA_PYTHON = $resolvedIdaPython

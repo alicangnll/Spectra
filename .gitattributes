@@ -1,0 +1,12 @@
+# Windows batch files REQUIRE CRLF — cmd.exe misparses LF-only batches
+# (skipped echo lines, mangled parenthesized blocks, "drive not found"
+# errors). eol=crlf forces CRLF on every checkout regardless of the
+# client's autocrlf setting.
+*.bat text eol=crlf
+
+# Shell scripts must stay LF (macOS/Linux).
+*.sh text eol=lf
+
+# PowerShell tolerates both; normalize to CRLF on checkout for Windows
+# consistency.
+*.ps1 text eol=crlf
