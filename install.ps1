@@ -479,7 +479,39 @@ function Ensure-IdaPythonSelection {
         return $null
     }
 
-    $choice = @($stable)[0]
+    # Ask which Python to pin IDA to — never auto-switch silently. All
+    # dependencies (requirements.txt, anthropic, PyQt5) are pip-installed
+    # into the chosen interpreter.
+    Write-Host ""
+    Write-Host "Select the Python IDA Pro should use (dependencies are installed into it):" -ForegroundColor Cyan
+    $idx = 1
+    foreach ($p in @($stable)) {
+        Write-Host "  [$idx] v$($p.Version)  $($p.Exe)"
+        $idx++
+    }
+    Write-Host "  [0] Skip - keep IDA's current Python"
+
+    $choice = $null
+    $answer = $null
+    try { $answer = Read-Host "Choice [1]" } catch {}
+    if ([string]::IsNullOrWhiteSpace($answer)) { $answer = "1" }
+    $picked = 0
+    if ([int]::TryParse($answer, [ref]$picked)) {
+        if ($picked -ge 1 -and $picked -le @($stable).Count) {
+            $choice = @($stable)[$picked - 1]
+        }
+        elseif ($picked -ne 0) {
+            Write-Warn "Invalid choice: $answer"
+        }
+    }
+    else {
+        Write-Warn "Invalid choice: $answer"
+    }
+    if (-not $choice) {
+        # Includes an explicit 0/skip and invalid input.
+        Write-Info "Keeping IDA's current Python"
+        return $null
+    }
     $choiceDir = Split-Path -Parent $choice.Exe
     $dll = Join-Path $choiceDir ("python" + "$($choice.Version)".Replace(".", "") + ".dll")
     if (-not (Test-Path $dll -PathType Leaf)) {
