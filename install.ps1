@@ -349,21 +349,11 @@ function Test-PythonExecutable {
     # The Microsoft Store "App Installer" aliases under \WindowsApps\ are
     # stubs when Store Python is absent: they print "Python was not found"
     # and exit 9009. Only a binary that actually runs counts as a Python.
-    # Redirect to temp files: Start-Process requires real file paths (the
-    # NUL device is not universally accepted as one).
-    $outTmp = [System.IO.Path]::GetTempFileName()
-    $errTmp = [System.IO.Path]::GetTempFileName()
-    try {
-        $proc = Start-Process -FilePath $Path -ArgumentList "-c", "import sys" `
-            -NoNewWindow -Wait -PassThru -RedirectStandardOutput $outTmp -RedirectStandardError $errTmp
-        return ($proc.ExitCode -eq 0)
-    }
-    catch {
-        return $false
-    }
-    finally {
-        Remove-Item $outTmp, $errTmp -ErrorAction SilentlyContinue
-    }
+    # Run directly (no Start-Process): its file-redirect parameters reject
+    # device paths like NUL on some systems, which used to mark EVERY
+    # candidate as unusable ("No stable system Python found").
+    Invoke-Silent { & $Path -c "import sys" }
+    return ($LASTEXITCODE -eq 0)
 }
 
 function Test-PythonIsStable {
@@ -435,10 +425,16 @@ function Get-StableSystemPythons {
     }
 
     # "3.10" must outrank "3.9": compare major*100+minor, not a double
-    return ($stable | Sort-Object {
+    $sorted = @($stable | Sort-Object {
         $parts = "$($_.Version)".Split('.')
         if ($parts.Count -eq 2) { [int]$parts[0] * 100 + [int]$parts[1] } else { 0 }
     } -Descending)
+
+    if ($sorted.Count -gt 0) {
+        $listing = ($sorted | ForEach-Object { "v$($_.Version) ($($_.Exe))" }) -join ", "
+        Write-Info "Stable system Python found: $listing"
+    }
+    return $sorted
 }
 
 function Ensure-IdaPythonSelection {
