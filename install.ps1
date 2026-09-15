@@ -510,11 +510,15 @@ function Ensure-IdaPythonSelection {
 }
 
 function Get-IdaPython {
-    $userDir = Get-IdaUserDir
-    $pythonTarget = Get-IdaRegPythonTarget -UserDir $userDir
-    $resolved = Resolve-IdaPythonExecutable -TargetPath $pythonTarget
-    if (Test-PythonExecutable $resolved) {
-        return $resolved
+    # IDA's ida.reg carries the current Python target (this idapyswitch
+    # generation has no --show-current to ask). Scan every candidate
+    # user dir before falling back to bundled interpreters.
+    foreach ($uDir in (Get-IdaUserDirs)) {
+        $pythonTarget = Get-IdaRegPythonTarget -UserDir $uDir
+        $resolved = Resolve-IdaPythonExecutable -TargetPath $pythonTarget
+        if (Test-PythonExecutable $resolved) {
+            return $resolved
+        }
     }
 
     $installDir = Get-IdaInstallDir
@@ -543,30 +547,6 @@ function Get-IdaPython {
     )) {
         if (Test-PythonExecutable $candidate) {
             return $candidate
-        }
-    }
-
-    # Try idapyswitch
-    $idapyswitch = Join-Path $installDir "idapyswitch.exe"
-    if (Test-Path $idapyswitch -PathType Leaf) {
-        try {
-            $output = Invoke-Silent { & $idapyswitch --show-current }
-            if ($output) {
-                foreach ($line in $output) {
-                    $target = $line.Trim().Trim("'")
-                    if ($target -like "Path:*") {
-                        $target = $target.Substring(5).Trim()
-                    }
-                    if ($target) {
-                        $resolved = Resolve-IdaPythonExecutable -TargetPath $target
-                        if (Test-PythonExecutable $resolved) {
-                            return $resolved
-                        }
-                    }
-                }
-            }
-        } catch {
-            # idapyswitch failed, continue to fallbacks
         }
     }
 
