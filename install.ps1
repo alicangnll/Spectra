@@ -95,6 +95,7 @@ function Test-IDA {
     $idapro = Join-Path $HOME ".idapro"
     if (Test-Path $idapro) { return $true }
     # IDA in PATH
+    if (Get-Command "idapyswitch.exe" -ErrorAction SilentlyContinue) { return $true }
     if (Get-Command "ida64.exe" -ErrorAction SilentlyContinue) { return $true }
     if (Get-Command "idat64.exe" -ErrorAction SilentlyContinue) { return $true }
     return $false
@@ -197,7 +198,9 @@ function Get-IdaInstallDir {
         }
     }
 
-    foreach ($name in @("ida64.exe", "idat64.exe", "ida.exe", "idat.exe")) {
+    # idapyswitch.exe lives in the IDA install root — the strongest PATH
+    # signal (ida64.exe may be shimmed); check it first.
+    foreach ($name in @("idapyswitch.exe", "ida64.exe", "idat64.exe", "ida.exe", "idat.exe")) {
         $command = Get-Command $name -ErrorAction SilentlyContinue
         if ($command -and $command.Source) {
             return (Split-Path -Parent $command.Source)
@@ -691,6 +694,19 @@ function Install-IDA {
             Write-Info "Detected IDA installation directory: $resolvedIdaDir"
             $env:IDADIR = $resolvedIdaDir
             $setIdaDir = $true
+        }
+        else {
+            # Auto-detection failed — ask instead of guessing.
+            Write-Warn "Could not auto-detect the IDA Pro installation directory."
+            $answer = Read-Host "    Enter IDA Pro directory (Enter to skip)"
+            if ($answer -and (Test-Path $answer)) {
+                $env:IDADIR = (Resolve-Path $answer).Path
+                $setIdaDir = $true
+                Write-Info "Using provided IDA directory: $($env:IDADIR)"
+            }
+            elseif ($answer) {
+                Write-Warn "Directory not found: $answer - continuing without it"
+            }
         }
     }
 

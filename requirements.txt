@@ -13,8 +13,10 @@ textual>=3.0
 
 # NOTE: Qt bindings are deliberately NOT listed here. Inside IDA Pro /
 # Binary Ninja the host's own Qt is used (see spectra/ui/qt_compat.py), so
-# the plugin never needs a pip-installed binding. The standalone panel's
-# binding (PyQt5 on macOS, PySide6 elsewhere) is installed separately by
-# install.sh / install.ps1 (setup_cli_dependencies) and is allowed to
-# fail: PySide6 publishes no wheels for the newest CPython (3.14/3.15),
-# and that must never block plugin dependency installation.
+# the plugin never needs a pip-installed binding. Windows IDA bundles no
+# pip-usable Qt, so install_ida.bat installs PyQt5 into IDA's Python
+# (also what aiDAPal-style plugins expect); the standalone CLI panel's
+# binding is installed separately by install.sh / install.ps1
+# (setup_cli_dependencies) and is allowed to fail: PySide6 publishes no
+# wheels for the newest CPython (3.14/3.15), and that must never block
+# plugin dependency installation.

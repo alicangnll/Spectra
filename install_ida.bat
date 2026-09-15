@@ -116,6 +116,32 @@ if not defined IDA_INSTALL_DIR (
     for /f "tokens=2*" %%A in ('reg query "HKCU\Software\Hex-Rays SA\IDA Professional 9.1" /v "Location" 2^>nul') do set "IDA_INSTALL_DIR=%%B"
 )
 
+:: idapyswitch.exe on PATH → its directory IS the IDA install dir
+if not defined IDA_INSTALL_DIR (
+    for /f "delims=" %%P in ('where idapyswitch.exe 2^>nul') do (
+        if not defined IDA_INSTALL_DIR set "IDA_INSTALL_DIR=%%~dpP"
+    )
+    if defined IDA_INSTALL_DIR if "!IDA_INSTALL_DIR:~-1!"=="\" set "IDA_INSTALL_DIR=!IDA_INSTALL_DIR:~0,-1!"
+)
+
+:: Still nothing → ask the user (Enter to skip)
+if not defined IDA_INSTALL_DIR (
+    echo [!] Could not auto-detect the IDA Pro installation directory.
+    set "IDA_INPUT="
+    set /p IDA_INPUT="    Enter IDA Pro directory (Enter to skip): "
+    if defined IDA_INPUT (
+        if exist "!IDA_INPUT!\idapyswitch.exe" (
+            set "IDA_INSTALL_DIR=!IDA_INPUT!"
+            echo [*] Using provided IDA directory: !IDA_INSTALL_DIR!
+        ) else if exist "!IDA_INPUT!\" (
+            set "IDA_INSTALL_DIR=!IDA_INPUT!"
+            echo [*] Using provided IDA directory: !IDA_INSTALL_DIR! ^(no idapyswitch.exe there^)
+        ) else (
+            echo [!] Directory does not exist: !IDA_INPUT! - continuing without it
+        )
+    )
+)
+
 :: ── Find IDA's Python ─────────────────────────────────────────────────
 
 if not defined IDA_PYTHON if defined IDA_INSTALL_DIR (
