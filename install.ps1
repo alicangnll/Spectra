@@ -143,7 +143,10 @@ function Find-ByteSequenceIndex {
     return -1
 }
 
-function Get-IdaUserDir {
+function Get-IdaUserDirs {
+    # All EXISTING IDA user-dir candidates, most likely first. IDA keeps its
+    # registry (ida.reg — including the Python target idapyswitch writes) in
+    # one of these; which one varies by IDA version, so read them all.
     $candidates = @()
 
     if ($env:APPDATA) {
@@ -156,17 +159,13 @@ function Get-IdaUserDir {
         $candidates += $env:IDAUSR
     }
 
+    $found = @()
     foreach ($candidate in $candidates) {
-        if ($candidate -and (Test-Path $candidate)) {
-            return $candidate
+        if ($candidate -and (Test-Path $candidate) -and $found -notcontains $candidate) {
+            $found += $candidate
         }
     }
-
-    if ($env:APPDATA) {
-        return (Join-Path $env:APPDATA "Hex-Rays\IDA Pro")
-    }
-
-    return $null
+    return $found
 }
 
 function Get-IdaInstallDir {
@@ -275,6 +274,19 @@ function Get-IdaRegPythonTarget {
     $path = [System.Text.Encoding]::UTF8.GetString($valueBytes).Trim([char]0, ' ')
     if ($path -match '^(?:[A-Za-z]:\\|\\\\)') {
         return $path
+    }
+
+    # Fallback: IDA rewrites ida.reg on exit and can re-encode/re-layout the
+    # value so the strict key-based parse above misses it — even though
+    # idapyswitch itself still reads the target fine. The DLL path is
+    # unmistakable in the raw bytes: scan the whole file (ASCII and UTF-16LE
+    # views) for a Windows path ending in python*.dll.
+    foreach ($enc in @([System.Text.Encoding]::ASCII, [System.Text.Encoding]::Unicode)) {
+        $text = $enc.GetString($data)
+        $m = [regex]::Match($text, '(?i)[A-Za-z]:\\[^\x00-\x1f]+?python[^\x00-\x1f]+?\.dll')
+        if ($m.Success) {
+            return $m.Value
+        }
     }
 
     return $null
@@ -400,8 +412,16 @@ function Ensure-IdaPythonSelection {
         return
     }
 
-    $currentTarget = Get-IdaRegPythonTarget -UserDir (Get-IdaUserDir)
-    $currentExe = Resolve-IdaPythonExecutable -TargetPath $currentTarget
+    $currentExe = $null
+    foreach ($uDir in (Get-IdaUserDirs)) {
+        $target = Get-IdaRegPythonTarget -UserDir $uDir
+        if ($target) {
+            $currentExe = Resolve-IdaPythonExecutable -TargetPath $target
+            if ($currentExe) {
+                break
+            }
+        }
+    }
     if ($currentExe -and (Test-PythonIsStable $currentExe)) {
         Write-Info "IDA already uses a stable Python: $currentExe (v$(Get-PythonVersionString $currentExe))"
         $change = $null
