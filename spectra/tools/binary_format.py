@@ -158,17 +158,11 @@ def _elf_phdrs(data: bytes, is64: bool, little: bool) -> list[dict]:
         if off + phentsize > len(data):
             break
         if is64:
-            p_type, p_flags, p_offset, p_vaddr, _paddr, p_filesz = struct.unpack_from(
-                e + "IIQQQQ", data, off
-            )
+            p_type, p_flags, p_offset, p_vaddr, _paddr, p_filesz = struct.unpack_from(e + "IIQQQQ", data, off)
         else:
-            p_type, p_offset, p_vaddr, _paddr, p_filesz = struct.unpack_from(
-                e + "IIIII", data, off
-            )
+            p_type, p_offset, p_vaddr, _paddr, p_filesz = struct.unpack_from(e + "IIIII", data, off)
             p_flags = struct.unpack_from(e + "I", data, off + 24)[0]
-        phdrs.append(
-            {"type": p_type, "flags": p_flags, "offset": p_offset, "vaddr": p_vaddr, "filesz": p_filesz}
-        )
+        phdrs.append({"type": p_type, "flags": p_flags, "offset": p_offset, "vaddr": p_vaddr, "filesz": p_filesz})
     return phdrs
 
 
@@ -190,14 +184,10 @@ def _elf_sections(data: bytes, is64: bool, little: bool) -> list[dict]:
         for i in range(e_shnum):
             off = e_shoff + i * e_shentsize
             if is64:
-                sh_name, sh_type, sh_flags, sh_addr, sh_offset, sh_size = struct.unpack_from(
-                    e + "IIQQQQ", data, off
-                )
+                sh_name, sh_type, sh_flags, sh_addr, sh_offset, sh_size = struct.unpack_from(e + "IIQQQQ", data, off)
                 sh_link = struct.unpack_from(e + "I", data, off + 40)[0]
             else:
-                sh_name, sh_type, sh_flags, sh_addr, sh_offset, sh_size = struct.unpack_from(
-                    e + "IIIIII", data, off
-                )
+                sh_name, sh_type, sh_flags, sh_addr, sh_offset, sh_size = struct.unpack_from(e + "IIIIII", data, off)
                 sh_link = struct.unpack_from(e + "I", data, off + 24)[0]
             raw.append(
                 {
@@ -468,8 +458,9 @@ def _pe_exports(data: bytes, sections: list[dict], export_rva: int) -> list[dict
     base = _pe_rva_to_offset(sections, export_rva)
     if base is None or base + 40 > len(data):
         return []
-    (_chars, _ts, _maj, _min, _name_rva, _ord_base, _nfuncs, nnames,
-     addr_funcs, addr_names, addr_ords) = struct.unpack_from("<IIHHIIIIIII", data, base)
+    (_chars, _ts, _maj, _min, _name_rva, _ord_base, _nfuncs, nnames, addr_funcs, addr_names, addr_ords) = (
+        struct.unpack_from("<IIHHIIIIIII", data, base)
+    )
 
     def _read_rva_array(rva: int, count: int) -> list[int]:
         off = _pe_rva_to_offset(sections, rva)

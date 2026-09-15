@@ -73,30 +73,41 @@ def _detect_binding() -> str:
         except Exception:
             pass
 
-    # Default: try PySide6 -> PyQt5 -> PySide2.
+    # Default: try PySide6 -> PyQt5 -> PySide2. Probe each binding's
+    # QtCore, not the bare package: a binding installed for a DIFFERENT
+    # Python (reachable via a foreign site-packages on sys.path) can
+    # import at package level yet fail on its compiled core with
+    # "No module named 'PyQt5.sip'". A broken binding must fall through
+    # the cascade, not be selected and explode at widget time.
     try:
-        import PySide6  # noqa: F401
+        import PySide6.QtCore  # noqa: F401
 
         return "PySide6"
     except ImportError:
         pass
 
     try:
-        import PyQt5  # noqa: F401
+        import PyQt5.QtCore  # noqa: F401
 
         return "PyQt5"
     except ImportError:
         pass
 
     try:
-        import PySide2  # noqa: F401
+        import PySide2.QtCore  # noqa: F401
 
         return "PySide2"
     except ImportError:
         pass
 
     raise ImportError(
-        "Spectra requires a Qt binding (PySide6, PyQt5, or PySide2).\nPlease install PySide6 using: pip install PySide6"
+        "Spectra requires a working Qt binding (PySide6, PyQt5, or PySide2) "
+        f"for the current interpreter (Python {sys.version.split()[0]}).\n"
+        "IDA Pro / Binary Ninja normally ship one with their bundled Python. "
+        "If a site-packages for another Python version was added to sys.path, "
+        "its binding cannot be reused here — either switch the host to a "
+        "Python with binding wheels (idapyswitch) or install a binding "
+        "matching this interpreter."
     )
 
 

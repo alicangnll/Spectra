@@ -7,7 +7,6 @@ legal notice the legacy shell printed at startup.
 
 from __future__ import annotations
 
-from textual import events
 from textual.containers import Vertical, VerticalScroll
 from textual.screen import ModalScreen
 from textual.widgets import Button, DataTable, Static
@@ -150,11 +149,7 @@ class SessionPickerScreen(ModalScreen[str]):
             table.cursor_type = "row"
             for s in self.sessions:
                 created = s.get("timestamp", 0)
-                when = (
-                    _dt.datetime.fromtimestamp(created).strftime("%Y-%m-%d %H:%M")
-                    if created
-                    else "?"
-                )
+                when = _dt.datetime.fromtimestamp(created).strftime("%Y-%m-%d %H:%M") if created else "?"
                 sid = s.get("id", "")
                 table.add_row(
                     sid[:8],

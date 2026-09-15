@@ -70,7 +70,7 @@ class SpectraPlugmod(idaapi.plugmod_t):
         # QApplication::~QApplication() where their C++ destructors call
         # disconnectNotify -> PyErr_Occurred on a dead interpreter -> crash.
         try:
-            from PySide6.QtWidgets import QApplication
+            from spectra.ui.qt_compat import QApplication
 
             QApplication.processEvents()
         except Exception:
@@ -145,8 +145,7 @@ class SpectraPlugin(idaapi.plugin_t):
 
             def _notify_update(info) -> None:
                 text = (
-                    f"[Spectra] Update available: {info.current_version} → {info.latest_version} "
-                    "(Settings → Update)\n"
+                    f"[Spectra] Update available: {info.current_version} → {info.latest_version} (Settings → Update)\n"
                 )
                 try:
                     _kernwin = importlib.import_module("ida_kernwin")
@@ -289,12 +288,16 @@ class SpectraPlugin(idaapi.plugin_t):
             python_exe = None
             ida_dir = os.path.dirname(os.path.dirname(idaapi.__file__))
 
-            # Primary: Use sys.executable if it's a real Python (not IDA binary)
-            # IDA's embedded Python may have sys.executable pointing to ida64/ida
+            # Primary: Use sys.executable only when it IS a Python
+            # interpreter. Inside IDA, sys.executable points at the host
+            # binary (ida64.exe / ida64). Accepting any ".exe" here made
+            # "ida64.exe -m pip" launch NEW IDA processes on Windows — each
+            # one reloading this plugin and retrying this install, i.e. an
+            # IDA relaunch loop. Real interpreters always carry "python"
+            # in their basename (see spectra/core/interpreter.py).
             if sys.executable and os.path.exists(sys.executable):
-                # Check if it looks like a Python executable
                 exe_name = os.path.basename(sys.executable).lower()
-                if "python" in exe_name or (sys.platform == "win32" and exe_name.endswith(".exe")):
+                if "python" in exe_name:
                     # Verify it can run pip
                     test_result = subprocess.run(
                         [sys.executable, "-m", "pip", "--version"], capture_output=True, timeout=10

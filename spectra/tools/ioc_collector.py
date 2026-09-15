@@ -80,9 +80,7 @@ _VERSION_PREFIX_RE = re.compile(r"(?:^|\s)(?:v|ver|version|rev|build)\s*$", re.I
 
 # Domains: at least one dot, ending in a small common-TLD allowlist, and not
 # preceded by an alphanumeric (so "abc" of "xabc.example.com" does not match).
-_COMMON_TLDS = (
-    "com|net|org|io|xyz|info|biz|ru|cn|de|uk|top|online|site|cc|su|in|me|co"
-)
+_COMMON_TLDS = "com|net|org|io|xyz|info|biz|ru|cn|de|uk|top|online|site|cc|su|in|me|co"
 _DOMAIN_RE = re.compile(
     r"(?<![0-9A-Za-z-])((?:[0-9A-Za-z][0-9A-Za-z-]{0,61}\.)+(?:" + _COMMON_TLDS + r"))(?![0-9A-Za-z-])",
     re.IGNORECASE,

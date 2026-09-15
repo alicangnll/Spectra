@@ -13,7 +13,6 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-import sys
 import tempfile
 from typing import Any
 
@@ -30,7 +29,6 @@ class ScapyTool(ExternalTool):
 
     def __init__(self, required: bool = False):
         super().__init__(required)
-        self._python_path = sys.executable
 
     def find_tool(self) -> Any:
         """Check if Scapy Python module is available."""
@@ -103,11 +101,19 @@ def _run_scapy_script(script: str) -> str:
     _ensure_scapy()
 
     try:
+        # sys.executable is the IDA host binary under IDA — running it
+        # would spawn new IDA processes, never Python.
+        from ..core.interpreter import resolve_python_executable
+
+        python_exe = resolve_python_executable()
+        if not python_exe:
+            return "Error: no standalone Python found (install python3 and add it to PATH)"
+
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write(script)
             script_path = f.name
 
-        cmd = [sys.executable, script_path]
+        cmd = [python_exe, script_path]
 
         result = subprocess.run(
             cmd,

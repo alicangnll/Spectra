@@ -287,9 +287,7 @@ CRYPTO_SIGNATURES: list[dict[str, Any]] = [
         "patterns": [
             {
                 # Standard alphabet with a NUL byte after every character.
-                "bytes": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".encode(
-                    "utf-16-le"
-                ),
+                "bytes": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".encode("utf-16-le"),
                 "label": "Base64 standard alphabet (UTF-16LE)",
             }
         ],
@@ -445,9 +443,7 @@ def format_crypto_report(results: dict[str, Any]) -> str:
 
     for algo in algorithms:
         icon = _CONFIDENCE_ICONS.get(algo["confidence"], "[?]")
-        lines.append(
-            f"### {algo['name']} — {algo['category']} — {icon} {algo['confidence']}\n"
-        )
+        lines.append(f"### {algo['name']} — {algo['category']} — {icon} {algo['confidence']}\n")
         lines.append(f"**Constants matched:** {', '.join(algo['constants_matched'])}")
         lines.append(f"**Hint:** {algo['hint']}\n")
         for occ in algo["occurrences"]:

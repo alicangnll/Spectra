@@ -447,9 +447,7 @@ def _collect_facts_ida() -> dict[str, list[dict[str, Any]]]:
                     func = idaapi.get_func(ref.frm)
                     if func and func.start_ea not in seen:
                         seen.add(func.start_ea)
-                        callers.append(
-                            {"address": func.start_ea, "name": idc.get_func_name(func.start_ea)}
-                        )
+                        callers.append({"address": func.start_ea, "name": idc.get_func_name(func.start_ea)})
             except Exception:
                 pass
             imports.append({"address": ea, "symbol": name, "callers": callers})
@@ -590,25 +588,15 @@ def get_bypass_techniques(frameworks: list[str]) -> dict[str, Any]:
             bypass_lower = bypass.lower()
 
             if "frida" in bypass_lower:
-                techniques["frida"].append(
-                    {"framework": framework, "language": language, "technique": bypass}
-                )
+                techniques["frida"].append({"framework": framework, "language": language, "technique": bypass})
             elif "objection" in bypass_lower:
-                techniques["objection"].append(
-                    {"framework": framework, "language": language, "technique": bypass}
-                )
+                techniques["objection"].append({"framework": framework, "language": language, "technique": bypass})
             elif "hook" in bypass_lower:
-                techniques["hook"].append(
-                    {"framework": framework, "language": language, "technique": bypass}
-                )
+                techniques["hook"].append({"framework": framework, "language": language, "technique": bypass})
             elif "modify" in bypass_lower or "patch" in bypass_lower:
-                techniques["patch"].append(
-                    {"framework": framework, "language": language, "technique": bypass}
-                )
+                techniques["patch"].append({"framework": framework, "language": language, "technique": bypass})
             elif "config" in bypass_lower or "xml" in bypass_lower:
-                techniques["config"].append(
-                    {"framework": framework, "language": language, "technique": bypass}
-                )
+                techniques["config"].append({"framework": framework, "language": language, "technique": bypass})
 
     return techniques
 
@@ -642,9 +630,7 @@ def format_ssl_pinning_report(results: dict[str, Any]) -> str:
                 callers = f.get("callers", [])
                 caller_txt = f"{len(callers)} caller(s)" if callers else "no in-binary callers"
                 flag = "pinning-specific" if f.get("pinning_specific") else "generic verification"
-                lines.append(
-                    f"- `{addr_txt}` import **{f['symbol']}** ({f['framework']}, {flag}, {caller_txt})"
-                )
+                lines.append(f"- `{addr_txt}` import **{f['symbol']}** ({f['framework']}, {flag}, {caller_txt})")
                 for caller in callers[:3]:
                     caddr = caller["address"]
                     caddr_txt = hex(caddr) if isinstance(caddr, int) else str(caddr)

@@ -8,8 +8,8 @@ input widget can accept them blindly.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Iterable, Sequence
 
 from .commands import COMMAND_SPECS, CommandSpec
 
@@ -80,11 +80,9 @@ def compute(
     # Argument position — contextual per command.
     command = token[1:].casefold()
     if command in ("model",) and models:
-        return [
-            CompletionItem(insert=f"/model {m} ", label=m, hint="model")
-            for m in models
-            if fuzzy_match(arg, m)
-        ][:MAX_ITEMS]
+        return [CompletionItem(insert=f"/model {m} ", label=m, hint="model") for m in models if fuzzy_match(arg, m)][
+            :MAX_ITEMS
+        ]
     if command in ("load", "resume", "delete") and sessions:
         return [
             CompletionItem(insert=f"{token} {sid} ", label=sid, hint=summary[:50])

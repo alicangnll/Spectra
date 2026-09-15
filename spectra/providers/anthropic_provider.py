@@ -28,7 +28,6 @@ from ..core.types import (
 )
 from .base import LLMProvider
 
-
 _SAMPLING_SUPPORTED: bool | None = None
 
 

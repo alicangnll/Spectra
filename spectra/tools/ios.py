@@ -107,9 +107,7 @@ class _IosManager:
             for name in missing:
                 hint = _TOOL_HINTS.get(name, "device connectivity")
                 log_error(f"Missing libimobiledevice tool: {name} ({hint})")
-            raise RuntimeError(
-                f"Required tool(s) not found: {', '.join(missing)}. {_INSTALL_HINT}"
-            )
+            raise RuntimeError(f"Required tool(s) not found: {', '.join(missing)}. {_INSTALL_HINT}")
         return [self._binaries[n] for n in names]
 
     # ------------------------------------------------------------------
@@ -260,8 +258,7 @@ def ios_check() -> str:
         devices = manager._list_udids()
         if not devices:
             return (
-                "iOS tooling available but no devices connected. "
-                "Connect a device via USB and make sure it is unlocked."
+                "iOS tooling available but no devices connected. Connect a device via USB and make sure it is unlocked."
             )
 
         lines = ["iOS tooling available. Connected devices:"]
@@ -290,18 +287,14 @@ def ios_pair() -> str:
         idevicepair = manager._require("idevicepair")[0]
         udid = manager._resolve_udid()
 
-        pair = subprocess.run(
-            [idevicepair, "-u", udid, "pair"], capture_output=True, text=True, timeout=30
-        )
+        pair = subprocess.run([idevicepair, "-u", udid, "pair"], capture_output=True, text=True, timeout=30)
         if pair.returncode != 0:
             return (
                 f"Pairing failed: {pair.stderr.strip() or pair.stdout.strip()}\n"
                 "Unlock the device, tap Trust when prompted, then retry."
             )
 
-        validate = subprocess.run(
-            [idevicepair, "-u", udid, "validate"], capture_output=True, text=True, timeout=30
-        )
+        validate = subprocess.run([idevicepair, "-u", udid, "validate"], capture_output=True, text=True, timeout=30)
         if validate.returncode == 0:
             manager._connected_udid = udid
             return f"Paired and validated with device {udid}."
@@ -327,9 +320,7 @@ def ios_connect(udid: str = "") -> str:
         idevicepair = manager._require("idevicepair")[0]
         target = manager._resolve_udid(udid)
 
-        validate = subprocess.run(
-            [idevicepair, "-u", target, "validate"], capture_output=True, text=True, timeout=15
-        )
+        validate = subprocess.run([idevicepair, "-u", target, "validate"], capture_output=True, text=True, timeout=15)
         if validate.returncode != 0:
             return (
                 f"Device {target} is not paired (or pairing is stale): "
@@ -493,9 +484,7 @@ def ios_app_info(bundle_id: str) -> str:
         ideviceinstaller = manager._require("ideviceinstaller")[0]
         udid = manager._resolve_udid()
 
-        result = manager._run(
-            [ideviceinstaller, "-u", udid, "-l", "-o", "xml", "-o", "list_all"], timeout=60
-        )
+        result = manager._run([ideviceinstaller, "-u", udid, "-l", "-o", "xml", "-o", "list_all"], timeout=60)
         if result.returncode != 0:
             return f"Failed to query app list: {result.stderr.strip()}"
 
@@ -532,9 +521,7 @@ def ios_app_info(bundle_id: str) -> str:
             return "\n".join(lines)
 
         # Fallback: plain text grep of the non-XML listing
-        text_result = manager._run(
-            [ideviceinstaller, "-u", udid, "-l", "-o", "list_all"], timeout=60
-        )
+        text_result = manager._run([ideviceinstaller, "-u", udid, "-l", "-o", "list_all"], timeout=60)
         matches = [ln for ln in text_result.stdout.splitlines() if bundle_id in ln]
         if matches:
             return "\n".join(matches)
@@ -748,8 +735,19 @@ def ios_shell(
         log_warning(f"Blocked unsafe iOS shell command: {command} ({reason})")
         return f"Command not allowed for safety: {reason}"
 
-    cmd = [ssh, "-o", "StrictHostKeyChecking=no", "-o", "UserKnownHostsFile=/dev/null",
-           "-o", "ConnectTimeout=8", "-p", str(int(port)), f"{user}@{host}", command]
+    cmd = [
+        ssh,
+        "-o",
+        "StrictHostKeyChecking=no",
+        "-o",
+        "UserKnownHostsFile=/dev/null",
+        "-o",
+        "ConnectTimeout=8",
+        "-p",
+        str(int(port)),
+        f"{user}@{host}",
+        command,
+    ]
 
     if password:
         sshpass = manager._binaries.get("sshpass", "")

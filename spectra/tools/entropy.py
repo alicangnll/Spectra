@@ -14,8 +14,8 @@ from typing import Annotated
 from .base import tool
 from .binary_format import parse_binary
 
-HIGH_ENTROPY = 7.2          # bits/byte above which data looks packed/encrypted
-MIN_SECTION_BYTES = 64      # smaller regions carry no meaningful entropy
+HIGH_ENTROPY = 7.2  # bits/byte above which data looks packed/encrypted
+MIN_SECTION_BYTES = 64  # smaller regions carry no meaningful entropy
 PACKER_SCAN_BYTES = 2 * 1024 * 1024  # magic scan budget
 
 # Section-name fragments → packer family (checked case-insensitively).
@@ -108,8 +108,13 @@ def analyze_entropy(data: bytes) -> dict:
         off, size = sec.get("offset", 0), sec.get("size", 0)
         if size < MIN_SECTION_BYTES or off + size > len(data):
             continue
-        sections.append({**section_report(sec["name"], data[off : off + size]),
-                         "exec": bool(sec.get("exec")), "write": bool(sec.get("write"))})
+        sections.append(
+            {
+                **section_report(sec["name"], data[off : off + size]),
+                "exec": bool(sec.get("exec")),
+                "write": bool(sec.get("write")),
+            }
+        )
 
     packers = detect_packer(info, data)
     high_exec = [s for s in sections if s["high"] and s["exec"]]
@@ -145,11 +150,9 @@ def format_entropy_report(analysis: dict, path: str = "") -> str:
     out = [
         f"## Entropy analysis — {title}",
         "",
-        f"**Verdict:** {analysis['verdict']}"
-        + (f" ({', '.join(analysis['packers'])})" if analysis["packers"] else ""),
+        f"**Verdict:** {analysis['verdict']}" + (f" ({', '.join(analysis['packers'])})" if analysis["packers"] else ""),
         "",
-        f"Whole file: {analysis['file_entropy']:.3f} bits/byte · "
-        f"{analysis['file_size']:,} bytes",
+        f"Whole file: {analysis['file_entropy']:.3f} bits/byte · {analysis['file_size']:,} bytes",
         "",
         "| Section | Size | Entropy | Flags |",
         "|---|---|---|---|",
@@ -162,9 +165,7 @@ def format_entropy_report(analysis: dict, path: str = "") -> str:
             flags.append("write")
         if s["high"]:
             flags.append("**HIGH**")
-        out.append(
-            f"| {s['name']} | {s['size']:,} | {s['entropy']:.3f} | {', '.join(flags) or '—'} |"
-        )
+        out.append(f"| {s['name']} | {s['size']:,} | {s['entropy']:.3f} | {', '.join(flags) or '—'} |")
 
     ov = analysis["overlay"]
     if ov["size"]:

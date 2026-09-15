@@ -39,18 +39,32 @@ def _elf_checks(info: dict, checks: list[dict]) -> None:
     def add(name: str, ok: bool | None, status: str, note: str = "") -> None:
         checks.append({"name": name, "ok": ok, "status": status, "note": note})
 
-    add("PIE", info["pie"], "yes" if info["pie"] else "no",
-        "ET_DYN (position independent)" if info["pie"] else "ET_EXEC (fixed load address)")
-    add("NX", info["nx"], "yes" if info["nx"] else "no",
-        "non-executable stack" if info["nx"] else "executable stack (PT_GNU_STACK +X)")
+    add(
+        "PIE",
+        info["pie"],
+        "yes" if info["pie"] else "no",
+        "ET_DYN (position independent)" if info["pie"] else "ET_EXEC (fixed load address)",
+    )
+    add(
+        "NX",
+        info["nx"],
+        "yes" if info["nx"] else "no",
+        "non-executable stack" if info["nx"] else "executable stack (PT_GNU_STACK +X)",
+    )
     relro = info.get("relro")
     if relro is None:
         add("RELRO", None, "n/a")
     else:
-        add("RELRO", relro == "full", relro,
-            "GNU_RELRO + BIND_NOW" if relro == "full"
-            else "GNU_RELRO without BIND_NOW — GOT writable at runtime" if relro == "partial"
-            else "no RELRO — GOT overwrite viable")
+        add(
+            "RELRO",
+            relro == "full",
+            relro,
+            "GNU_RELRO + BIND_NOW"
+            if relro == "full"
+            else "GNU_RELRO without BIND_NOW — GOT writable at runtime"
+            if relro == "partial"
+            else "no RELRO — GOT overwrite viable",
+        )
 
     names = {s["name"] for s in info.get("symbols", [])}
     fortified = sorted(n for n in names if n.startswith("__") and n.endswith("_chk"))
@@ -59,8 +73,9 @@ def _elf_checks(info: dict, checks: list[dict]) -> None:
     else:
         add("Stack canary", False, "no", "no stack cookie — linear overflows")
     if fortified:
-        add("FORTIFY", True, f"{len(fortified)} funcs",
-            ", ".join(fortified[:10]) + ("…" if len(fortified) > 10 else ""))
+        add(
+            "FORTIFY", True, f"{len(fortified)} funcs", ", ".join(fortified[:10]) + ("…" if len(fortified) > 10 else "")
+        )
 
     interp = info.get("interpreter", "")
     add("Type", None, "static" if info.get("static") else "dynamic", interp)
@@ -70,20 +85,40 @@ def _pe_checks(info: dict, checks: list[dict]) -> None:
     def add(name: str, ok: bool | None, status: str, note: str = "") -> None:
         checks.append({"name": name, "ok": ok, "status": status, "note": note})
 
-    add("ASLR (DYNAMIC_BASE)", info["pie"], "yes" if info["pie"] else "no",
-        "relocatable image" if info["pie"] else "fixed ImageBase")
-    add("DEP (NX_COMPAT)", info["nx"], "yes" if info["nx"] else "no",
-        "" if info["nx"] else "no data-execution-prevention flag")
+    add(
+        "ASLR (DYNAMIC_BASE)",
+        info["pie"],
+        "yes" if info["pie"] else "no",
+        "relocatable image" if info["pie"] else "fixed ImageBase",
+    )
+    add(
+        "DEP (NX_COMPAT)",
+        info["nx"],
+        "yes" if info["nx"] else "no",
+        "" if info["nx"] else "no data-execution-prevention flag",
+    )
     if info.get("high_entropy_va"):
         add("High-entropy ASLR", True, "yes", "64-bit ASLR entropy")
-    add("CFG (GUARD_CF)", info.get("cfg"), "yes" if info.get("cfg") else "no",
-        "indirect-call guarded" if info.get("cfg") else "no Control Flow Guard")
+    add(
+        "CFG (GUARD_CF)",
+        info.get("cfg"),
+        "yes" if info.get("cfg") else "no",
+        "indirect-call guarded" if info.get("cfg") else "no Control Flow Guard",
+    )
     if info.get("no_seh"):
         add("SEH", None, "disabled", "NO_SEH flag set")
-    add("Stack cookie (/GS)", info["canary"], "yes" if info["canary"] else "no",
-        "load-config present" if info["canary"] else "no load config")
-    add("Authenticode", info.get("signed"), "signed" if info.get("signed") else "unsigned",
-        "" if info.get("signed") else "patchable without breaking a signature")
+    add(
+        "Stack cookie (/GS)",
+        info["canary"],
+        "yes" if info["canary"] else "no",
+        "load-config present" if info["canary"] else "no load config",
+    )
+    add(
+        "Authenticode",
+        info.get("signed"),
+        "signed" if info.get("signed") else "unsigned",
+        "" if info.get("signed") else "patchable without breaking a signature",
+    )
     if info.get("has_tls_callbacks"):
         add("TLS callbacks", None, "present", "inspect for anti-debug tricks")
 
@@ -92,18 +127,24 @@ def _macho_checks(info: dict, checks: list[dict]) -> None:
     def add(name: str, ok: bool | None, status: str, note: str = "") -> None:
         checks.append({"name": name, "ok": ok, "status": status, "note": note})
 
-    add("PIE", info["pie"], "yes" if info["pie"] else "no",
-        "MH_PIE" if info["pie"] else "fixed load addresses")
+    add("PIE", info["pie"], "yes" if info["pie"] else "no", "MH_PIE" if info["pie"] else "fixed load addresses")
     nx = info.get("nx")
-    add("NX", nx, "yes" if nx else ("no" if nx is False else "n/a"),
-        "__TEXT non-writable" if nx else "__TEXT writable")
+    add("NX", nx, "yes" if nx else ("no" if nx is False else "n/a"), "__TEXT non-writable" if nx else "__TEXT writable")
     wx = [s["name"] for s in info.get("sections", []) if s.get("exec") and s.get("write")]
     if wx:
         add("WX segments", False, "present", ", ".join(wx[:5]))
-    add("Stack canary", info["canary"], "yes" if info["canary"] else "no",
-        "___stack_chk_guard" if info["canary"] else "")
-    add("Code signature", info.get("signed"), "signed" if info.get("signed") else "unsigned",
-        "" if info.get("signed") else "patches do not require re-signing")
+    add(
+        "Stack canary",
+        info["canary"],
+        "yes" if info["canary"] else "no",
+        "___stack_chk_guard" if info["canary"] else "",
+    )
+    add(
+        "Code signature",
+        info.get("signed"),
+        "signed" if info.get("signed") else "unsigned",
+        "" if info.get("signed") else "patches do not require re-signing",
+    )
     if info.get("encrypted"):
         add("FairPlay encryption", None, "encrypted", "LC_ENCRYPTION_INFO cryptid set — dump from memory")
 
@@ -193,7 +234,10 @@ def format_checksec_report(analysis: dict, path: str = "") -> str:
     return "\n".join(out)
 
 
-@tool(category="analysis", description="Check binary mitigations (PIE, NX, RELRO, canary, CFG, signature) from the file headers")
+@tool(
+    category="analysis",
+    description="Check binary mitigations (PIE, NX, RELRO, canary, CFG, signature) from the file headers",
+)
 def checksec(
     path: Annotated[str, "Binary path (empty = current input file)"] = "",
 ) -> str:

@@ -127,9 +127,7 @@ def compare_sections(
             new_bytes = _raw_range(new_data, new_sec)
             if old_bytes is not None and new_bytes is not None:
                 identical = old_bytes == new_bytes
-        changes.append(
-            {"name": name, "old_size": old_size, "new_size": new_size, "identical": identical}
-        )
+        changes.append({"name": name, "old_size": old_size, "new_size": new_size, "identical": identical})
     return changes
 
 
@@ -327,8 +325,7 @@ def format_diff_report(result: dict) -> str:
 
     if totals.get("changed", 0):
         lines.append(
-            "Start with the most-changed functions above — in a 1-day patch these are "
-            "usually the fixed code paths."
+            "Start with the most-changed functions above — in a 1-day patch these are usually the fixed code paths."
         )
     return "\n".join(lines)
 

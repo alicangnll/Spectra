@@ -82,6 +82,7 @@ _SCHEME_ALIASES = {
     "byte_list": "decimal",
 }
 
+
 # Printable ASCII (0x20-0x7E) membership used for scoring everywhere.
 def _is_printable_byte(b: int) -> bool:
     return 0x20 <= b <= 0x7E
@@ -227,16 +228,96 @@ def _xor_source_bytes(value: str) -> bytes:
 # must outrank junk like "aLEFF" / "@mddg".
 _COMMON_BIGRAMS = frozenset(
     (
-        "th", "he", "in", "er", "an", "re", "on", "at", "en", "nd", "ti", "es", "or", "te",
-        "of", "ed", "is", "it", "al", "ar", "st", "to", "nt", "ng", "se", "ha", "as", "ou", "io",
+        "th",
+        "he",
+        "in",
+        "er",
+        "an",
+        "re",
+        "on",
+        "at",
+        "en",
+        "nd",
+        "ti",
+        "es",
+        "or",
+        "te",
+        "of",
+        "ed",
+        "is",
+        "it",
+        "al",
+        "ar",
+        "st",
+        "to",
+        "nt",
+        "ng",
+        "se",
+        "ha",
+        "as",
+        "ou",
+        "io",
     )
 )
 _OK_BIGRAMS = frozenset(
     (
-        "le", "ve", "co", "me", "de", "hi", "ri", "ro", "ic", "ne", "ea", "ra", "ce", "li", "ch",
-        "ll", "be", "ma", "si", "om", "ur", "ca", "el", "ta", "la", "ns", "di", "fo", "ho", "pe",
-        "ec", "pr", "no", "ct", "us", "ac", "ot", "il", "tr", "ly", "nc", "et", "ut", "ss", "so",
-        "rs", "un", "lo", "wa", "ge", "ie", "wh", "ee", "ld", "rl", "wo", "ol",
+        "le",
+        "ve",
+        "co",
+        "me",
+        "de",
+        "hi",
+        "ri",
+        "ro",
+        "ic",
+        "ne",
+        "ea",
+        "ra",
+        "ce",
+        "li",
+        "ch",
+        "ll",
+        "be",
+        "ma",
+        "si",
+        "om",
+        "ur",
+        "ca",
+        "el",
+        "ta",
+        "la",
+        "ns",
+        "di",
+        "fo",
+        "ho",
+        "pe",
+        "ec",
+        "pr",
+        "no",
+        "ct",
+        "us",
+        "ac",
+        "ot",
+        "il",
+        "tr",
+        "ly",
+        "nc",
+        "et",
+        "ut",
+        "ss",
+        "so",
+        "rs",
+        "un",
+        "lo",
+        "wa",
+        "ge",
+        "ie",
+        "wh",
+        "ee",
+        "ld",
+        "rl",
+        "wo",
+        "ol",
     )
 )
 
@@ -410,7 +491,9 @@ def format_decode_report(result: dict[str, Any]) -> str:
         key_txt = f", key 0x{cand['key']:02x}" if "key" in cand else ""
         printable_txt = "printable" if cand.get("printable") else "partial"
         shown = str(cand.get("result", "")).replace("`", "'")
-        lines.append(f"{i}. **{cand.get('scheme', '?')}** ({printable_txt}, score {cand.get('score', 0)}{key_txt}): `{shown}`")
+        lines.append(
+            f"{i}. **{cand.get('scheme', '?')}** ({printable_txt}, score {cand.get('score', 0)}{key_txt}): `{shown}`"
+        )
     if len(candidates) > 10:
         lines.append(f"\n...and {len(candidates) - 10} more candidate(s).")
     return "\n".join(lines)
@@ -787,7 +870,9 @@ def collect_stack_strings() -> dict[str, Any]:
 )
 def decode_string(
     value: Annotated[str, "The obfuscated string to decode"],
-    scheme: Annotated[str, "Specific scheme (hex/base32/base64/base64url/rot13/rot47/reverse/xor_brute/decimal) or 'auto'"] = "auto",
+    scheme: Annotated[
+        str, "Specific scheme (hex/base32/base64/base64url/rot13/rot47/reverse/xor_brute/decimal) or 'auto'"
+    ] = "auto",
 ) -> str:
     """Decode an obfuscated string and return ranked candidate decodings as markdown."""
     return format_decode_report(decode_value(value, scheme))

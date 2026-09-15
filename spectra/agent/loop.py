@@ -1049,7 +1049,7 @@ class AgentLoop:
             yield TurnEvent.error_event(
                 f"⚠️ Response cut off — the model reached the max output token limit "
                 f"({self.config.provider.max_tokens} tokens). Increase Settings → Provider → "
-                "Max tokens and resend, or ask to \"continue\"."
+                'Max tokens and resend, or ask to "continue".'
             )
 
         # Accumulate token usage for session tracking

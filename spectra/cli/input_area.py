@@ -16,7 +16,7 @@ and drives the completion popup indirectly: it posts
 
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 from textual import events
 from textual.message import Message
@@ -183,8 +183,7 @@ class PromptInput(TextArea, inherit_bindings=False):
                 # not an exact match of a suggestion.
                 typed = self.text.strip()
                 exact = any(
-                    typed == item.label.strip() or typed == item.insert.strip()
-                    for item in self._completion_items
+                    typed == item.label.strip() or typed == item.insert.strip() for item in self._completion_items
                 )
                 if exact:
                     self._submit()

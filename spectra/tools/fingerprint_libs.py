@@ -140,9 +140,7 @@ def format_lib_report(result: dict, path: str = "") -> str:
         )
         if result.get("presence_only"):
             out.append("")
-            out.append(
-                "Presence-only markers (no version): " + ", ".join(result["presence_only"])
-            )
+            out.append("Presence-only markers (no version): " + ", ".join(result["presence_only"]))
         return "\n".join(out)
 
     out.append("| Library | Version | Evidence |")
@@ -154,16 +152,11 @@ def format_lib_report(result: dict, path: str = "") -> str:
         out.append(f"| {lib} | {entry['version']} | `{ev}` |")
     if result.get("presence_only"):
         out.append("")
-        out.append(
-            f"Presence-only (version banner not found): {', '.join(result['presence_only'])}"
-        )
+        out.append(f"Presence-only (version banner not found): {', '.join(result['presence_only'])}")
 
     out.append("")
     out.append("### Next steps")
-    out.append(
-        "- Cross-check each exact version against known CVEs "
-        "(the version is now pinned — no guessing)"
-    )
+    out.append("- Cross-check each exact version against known CVEs (the version is now pinned — no guessing)")
     out.append(
         "- Statically-linked crypto stacks (OpenSSL family) are prime targets: "
         "find their import-style calls via the ssl_pinning detector"
@@ -187,7 +180,10 @@ def _current_input_file() -> str:
         return ""
 
 
-@tool(category="analysis", description="Fingerprint statically-linked libraries and their exact versions (OpenSSL, zlib, libcurl, sqlite, Boost, Qt...)")
+@tool(
+    category="analysis",
+    description="Fingerprint statically-linked libraries and their exact versions (OpenSSL, zlib, libcurl, sqlite, Boost, Qt...)",
+)
 def fingerprint_libs(
     path: Annotated[str, "Binary path (empty = current input file)"] = "",
 ) -> str:

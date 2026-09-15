@@ -181,8 +181,10 @@ class RecordingSink:
 
     def __getattr__(self, name: str):  # keeps the recording future-proof
         if name.startswith("on_"):
+
             def record(*args: Any) -> None:
                 self.calls.append((name, *args))
+
             return record
         raise AttributeError(name)
 

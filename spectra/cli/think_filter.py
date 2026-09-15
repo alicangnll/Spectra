@@ -12,7 +12,7 @@ TUI can route them to a collapsible widget instead of stdout.
 
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 _THINK_OPEN = "<think>"
 _THINK_CLOSE = "</think>"

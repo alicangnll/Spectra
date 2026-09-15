@@ -235,14 +235,16 @@ def format_match_report(matches: list, path: str) -> str:
 @tool(category="analysis", description="Generate a YARA rule from strings/hex patterns")
 def yara_generate(
     strings: Annotated[list[str] | None, "Literal strings to match"] = None,
-    hex_patterns: Annotated[list[str] | None, "Hex byte patterns, e.g. \"AA BB ?? CC\" (?/* wildcards)"] = None,
+    hex_patterns: Annotated[list[str] | None, 'Hex byte patterns, e.g. "AA BB ?? CC" (?/* wildcards)'] = None,
     name: Annotated[str, "Rule name (sanitized to a valid identifier)"] = "spectra_rule",
     condition: Annotated[str, "Optional extra condition, e.g. 'filesize < 100KB'"] = "",
 ) -> str:
     """Generate an exportable YARA rule from strings and/or hex patterns."""
 
     try:
-        rule = generate_yara_rule(name=name, strings=strings or [], hex_patterns=hex_patterns or [], condition=condition)
+        rule = generate_yara_rule(
+            name=name, strings=strings or [], hex_patterns=hex_patterns or [], condition=condition
+        )
     except ValueError as e:
         return f"Error: {e}"
 

@@ -394,19 +394,6 @@ class CLISessionController(SessionControllerBase):
         log_info("Shell approval bridge installed")
         return state, bridge
 
-    def resume_latest(self) -> SessionState | None:
-        """Load the most recent CLI session into the active tab.
-
-        Returns:
-            Restored SessionState, or None when no saved session exists
-        """
-        history = SessionHistory(self.config)
-        session = history.get_latest_session(idb_path="", db_instance_id=_CLI_DB_INSTANCE_ID)
-        if session:
-            self._sessions[self._active_tab_id] = session
-            log_info("Latest session resumed")
-        return session
-
     # --- Configuration Management ---
 
     def get_config(self) -> dict[str, Any]:

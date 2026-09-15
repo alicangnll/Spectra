@@ -101,9 +101,7 @@ class SpectraApp(App):
         yield Footer()
 
     def on_mount(self) -> None:
-        self._shell_state, self._shell_bridge = self._controller.install_shell_approval(
-            self, self.call_from_thread
-        )
+        self._shell_state, self._shell_bridge = self._controller.install_shell_approval(self, self.call_from_thread)
         self.set_interval(1 / PUMP_HZ, self._pump)
         self._prompt.focus()
         if not getattr(self._controller.config, "disclaimer_accepted", False):
@@ -123,9 +121,7 @@ class SpectraApp(App):
             self._controller.config.save()
         except OSError as e:
             log_debug(f"Could not persist disclaimer acceptance: {e}")
-        self._chat.add_system(
-            "Disclaimer accepted. Authorized security testing only — see /help."
-        )
+        self._chat.add_system("Disclaimer accepted. Authorized security testing only — see /help.")
         self._prompt.focus()
 
     # ------------------------------------------------------------------
@@ -139,9 +135,7 @@ class SpectraApp(App):
                 return
             skills = [s["slug"] for s in self._controller.list_skills()]
             models = [m["id"] for m in self._controller.list_available_models()]
-            sessions = [
-                (s.get("id", ""), str(s.get("description", ""))) for s in self._controller.list_sessions()
-            ]
+            sessions = [(s.get("id", ""), str(s.get("description", ""))) for s in self._controller.list_sessions()]
         except Exception as e:  # network down etc. — completion just stays empty
             log_debug(f"context init failed: {e}")
             return
@@ -160,9 +154,7 @@ class SpectraApp(App):
     def _refresh_sessions(self) -> None:
         """Worker thread: re-read the session list after save/delete."""
         try:
-            sessions = [
-                (s.get("id", ""), str(s.get("description", ""))) for s in self._controller.list_sessions()
-            ]
+            sessions = [(s.get("id", ""), str(s.get("description", ""))) for s in self._controller.list_sessions()]
         except Exception:
             return
         self.call_from_thread(self._apply_sessions, sessions)
@@ -484,7 +476,7 @@ class SpectraApp(App):
             self._start_run(f"/{parsed.slug} {parsed.arg}".strip())
 
         else:  # pragma: no cover — registry kinds all handled above
-            self._chat.add_system(f"Unknown command.")
+            self._chat.add_system("Unknown command.")
 
     def _toggle_thinking(self) -> None:
         live = self._think_filter.toggle()
@@ -573,7 +565,9 @@ class SpectraApp(App):
         for s in sessions[-20:]:  # newest last
             when = s.get("timestamp", 0)
             stamp = dt.datetime.fromtimestamp(when).strftime("%m-%d %H:%M") if when else "?"
-            lines.append(f"  {s.get('id', '')[:8]}  {stamp}  {s.get('message_count', 0):>3} msg  {str(s.get('description', 'Unnamed'))[:40]}")
+            lines.append(
+                f"  {s.get('id', '')[:8]}  {stamp}  {s.get('message_count', 0):>3} msg  {str(s.get('description', 'Unnamed'))[:40]}"
+            )
         lines.append("Use /load <id> or /load to pick interactively.")
         self._chat.add_system("\n".join(lines))
 
@@ -681,7 +675,7 @@ class SpectraApp(App):
     def _cmd_config_show(self) -> None:
         path = self._controller.config.config_path
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 content = f.read()
         except OSError as e:
             self._chat.add_error(f"Could not read config: {e}")
@@ -737,7 +731,7 @@ class SpectraApp(App):
             self._chat.add_system(f"Usage: {usage}")
             return
         if self._agent_active or self._controller.is_agent_running():
-            self._chat.add_system(f"Agent is busy — interrupt (Ctrl+C) first.")
+            self._chat.add_system("Agent is busy — interrupt (Ctrl+C) first.")
             return
         self._chat.add_user(f"/{mode} {arg}")
         self._mapper.begin_run()

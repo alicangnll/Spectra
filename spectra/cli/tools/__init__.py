@@ -1,9 +1,8 @@
-"""CLI tools - File operations, shell commands, and SSH.
+"""CLI tools - File operations and shell commands.
 
 These tools are specifically for the CLI environment and provide:
 - File system operations (read, write, edit, search)
 - Shell command execution (with safety checks)
-- SSH remote execution and file transfer
 """
 
 from .file_tools import (
@@ -16,13 +15,6 @@ from .file_tools import (
 from .shell_tools import (
     shell_command,
 )
-from .ssh_tools import (
-    ssh_connect,
-    ssh_download,
-    ssh_exec,
-    ssh_list,
-    ssh_upload,
-)
 
 __all__ = [
     "edit_file",
@@ -30,10 +22,5 @@ __all__ = [
     "read_file",
     "search_files",
     "shell_command",
-    "ssh_connect",
-    "ssh_download",
-    "ssh_exec",
-    "ssh_list",
-    "ssh_upload",
     "write_file",
 ]

@@ -102,9 +102,7 @@ class QueuedMessage(Static):
         self._text = text
 
     def on_mount(self) -> None:
-        self.update(
-            f"[b]You[/b] [i message--queued-badge]\\[queued — runs after current response][/]\n{self._text}"
-        )
+        self.update(f"[b]You[/b] [i message--queued-badge]\\[queued — runs after current response][/]\n{self._text}")
 
     def matches(self, text: str) -> bool:
         return self._text == text
@@ -338,9 +336,7 @@ class ToolCallBlock(Static):
         if len(shown) > 4000:
             shown = shown[:4000] + f"\n… ({len(result)} chars total)"
         self._result_view.update(shown)
-        self._result_view.set_classes(
-            "tool-result tool-result--error" if is_error else "tool-result"
-        )
+        self._result_view.set_classes("tool-result tool-result--error" if is_error else "tool-result")
         self._render(error=is_error)
 
     def _render(self, error: bool = False) -> None:
@@ -348,7 +344,9 @@ class ToolCallBlock(Static):
         summary = f" ({self._summary})" if self._summary else ""
         self._header.update(f"{state}{self.name}{summary}")
         self._header.set_classes(
-            "tool-header tool-header--error" if error and not self._running else "tool-header"
+            "tool-header tool-header--error"
+            if error and not self._running
+            else "tool-header"
             if not self._running
             else "tool-header tool-header--running"
         )

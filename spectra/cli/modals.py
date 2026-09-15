@@ -247,9 +247,6 @@ class ConfirmModal(ModalScreen[bool]):
     def action_decide(self, confirmed: bool) -> None:
         self.dismiss(bool(confirmed))
 
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        self.dismiss(event.button.id == "ok")
-
 
 def format_tool_args(args_json: str, metadata: dict[str, Any] | None = None) -> str:
     """Best-effort pretty text for tool args in modals."""

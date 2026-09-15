@@ -129,8 +129,7 @@ def format_meta_report(info: dict, extras: dict) -> str:
         lines.append(f"**Path:** `{path}`")
     lines.append(f"**Format:** {info.get('format', '?')} — {info.get('file_type', '?')}")
     lines.append(
-        f"**Architecture:** {info.get('arch', '?')} / {info.get('bits', '?')}-bit / "
-        f"{info.get('endian', '?')}-endian"
+        f"**Architecture:** {info.get('arch', '?')} / {info.get('bits', '?')}-bit / {info.get('endian', '?')}-endian"
     )
     if info.get("subsystem"):
         lines.append(f"**Subsystem:** {info['subsystem']}")

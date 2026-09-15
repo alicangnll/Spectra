@@ -40,11 +40,7 @@ class ShellApprovalState:
         """Increment the count; True when auto-approve just expired."""
         self.command_count += 1
         # Only check limit if limit > 0 (0 means unlimited)
-        if (
-            self.safe_auto_approve
-            and self.auto_approve_limit > 0
-            and self.command_count >= self.auto_approve_limit
-        ):
+        if self.safe_auto_approve and self.auto_approve_limit > 0 and self.command_count >= self.auto_approve_limit:
             self.safe_auto_approve = False
             self.command_count = 0
             return True
@@ -97,7 +93,9 @@ def decision_for_keystroke(key: str) -> str:
 class ApprovalPresenter(Protocol):
     """What the bridge needs from the UI side."""
 
-    def push_shell_approval(self, command: str, is_dangerous: bool, danger_reason: str, bridge: ShellApprovalBridge) -> None:
+    def push_shell_approval(
+        self, command: str, is_dangerous: bool, danger_reason: str, bridge: ShellApprovalBridge
+    ) -> None:
         """Show the shell-approval UI and later call ``bridge.resolve()``."""
         ...
 

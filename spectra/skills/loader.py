@@ -218,9 +218,7 @@ def _apply_includes(body: str, fm: dict[str, Any], slug: str) -> str:
             block = block.replace("{{TAILORING}}", tailor_text)
         else:
             # No per-skill tailoring — drop the placeholder line entirely
-            block = "\n".join(
-                line for line in block.splitlines() if not _TAILORING_LINE_RE.match(line)
-            ).strip()
+            block = "\n".join(line for line in block.splitlines() if not _TAILORING_LINE_RE.match(line)).strip()
         if block:
             parts.append(block)
 

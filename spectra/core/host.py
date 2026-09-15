@@ -362,11 +362,10 @@ def restart_host() -> bool:
             candidates.append(os.path.abspath(sys.argv[0]))
         try:
             idaapi = _idaapi
-            if idaapi is not None and getattr(idaapi, "__file__", None):
-                ida_dir = os.path.dirname(os.path.dirname(os.path.abspath(idaapi.__file__)))
-                names = (
-                    ("ida64.exe", "ida.exe") if sys.platform == "win32" else ("ida64", "ida")
-                )
+            idaapi_file = getattr(idaapi, "__file__", None) if idaapi is not None else None
+            if isinstance(idaapi_file, str) and idaapi_file:
+                ida_dir = os.path.dirname(os.path.dirname(os.path.abspath(idaapi_file)))
+                names = ("ida64.exe", "ida.exe") if sys.platform == "win32" else ("ida64", "ida")
                 candidates.extend(os.path.join(ida_dir, n) for n in names)
         except Exception:
             pass
