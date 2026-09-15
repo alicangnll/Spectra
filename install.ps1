@@ -391,6 +391,65 @@ function Get-PythonVersionString {
     return $null
 }
 
+function Get-IdaPythonTargetFromSwitch {
+    # This idapyswitch generation (IDA 9.1) has no --show-current, and on
+    # some machines there is no ida.reg file at all — but a DRY-RUN
+    # auto-apply prints the tool's own report of the current target,
+    #   'IDA previously used: "<path>\pythonXY.dll" (guessed version: ...)',
+    # without changing anything. That line IS the current selection.
+    param([string]$IdaInstallDir)
+
+    if (-not $IdaInstallDir) {
+        return $null
+    }
+
+    $idapyswitch = Join-Path $IdaInstallDir "idapyswitch.exe"
+    if (-not (Test-Path $idapyswitch -PathType Leaf)) {
+        return $null
+    }
+
+    $output = Invoke-Silent { & $idapyswitch --dry-run --auto-apply }
+    foreach ($line in @($output)) {
+        if (("$line") -match 'IDA previously used:\s*"([^"]+)"') {
+            return $Matches[1]
+        }
+    }
+    return $null
+}
+
+function Get-CurrentIdaPythonTarget {
+    # Current Python target, most-authoritative source first:
+    #   1. idapyswitch's own report (Get-IdaPythonTargetFromSwitch)
+    #   2. ida.reg scans across all candidate user dirs (older layout)
+    #   3. the real Windows registry (HKCU\Software\Hex-Rays*)
+    param([string]$IdaInstallDir)
+
+    $shown = Get-IdaPythonTargetFromSwitch -IdaInstallDir $IdaInstallDir
+    if ($shown) {
+        return $shown
+    }
+
+    foreach ($uDir in (Get-IdaUserDirs)) {
+        $target = Get-IdaRegPythonTarget -UserDir $uDir
+        if ($target) {
+            return $target
+        }
+    }
+
+    foreach ($regKey in @("HKCU:\Software\Hex-Rays\IDA", "HKCU:\Software\Hex-Rays\IDA Pro", "HKCU:\Software\Hex-Rays")) {
+        try {
+            $value = (Get-ItemProperty -Path $regKey -ErrorAction Stop).Python3TargetDLL
+            if ($value) {
+                return "$value"
+            }
+        }
+        catch {
+        }
+    }
+
+    return $null
+}
+
 function Ensure-IdaPythonSelection {
     # Windows counterpart of macOS/Linux, where IDA naturally runs against
     # a regular system Python. The selection itself is the USER's, made in
@@ -412,16 +471,7 @@ function Ensure-IdaPythonSelection {
         return
     }
 
-    $currentExe = $null
-    foreach ($uDir in (Get-IdaUserDirs)) {
-        $target = Get-IdaRegPythonTarget -UserDir $uDir
-        if ($target) {
-            $currentExe = Resolve-IdaPythonExecutable -TargetPath $target
-            if ($currentExe) {
-                break
-            }
-        }
-    }
+    $currentExe = Resolve-IdaPythonExecutable -TargetPath (Get-CurrentIdaPythonTarget -IdaInstallDir $IdaInstallDir)
     if ($currentExe -and (Test-PythonIsStable $currentExe)) {
         Write-Info "IDA already uses a stable Python: $currentExe (v$(Get-PythonVersionString $currentExe))"
         $change = $null
@@ -463,16 +513,7 @@ function Ensure-IdaPythonSelection {
             return $null
         }
 
-        $newExe = $null
-        foreach ($uDir in (Get-IdaUserDirs)) {
-            $target = Get-IdaRegPythonTarget -UserDir $uDir
-            if ($target) {
-                $newExe = Resolve-IdaPythonExecutable -TargetPath $target
-                if ($newExe) {
-                    break
-                }
-            }
-        }
+        $newExe = Resolve-IdaPythonExecutable -TargetPath (Get-CurrentIdaPythonTarget -IdaInstallDir $IdaInstallDir)
         if ($newExe -and (Test-PythonIsStable $newExe)) {
             Write-Ok "IDA Python selected via idapyswitch: $newExe (v$(Get-PythonVersionString $newExe))"
             return $newExe
@@ -483,13 +524,20 @@ function Ensure-IdaPythonSelection {
         }
         else {
             Write-Warn "IDA still has no usable Python selected"
-            # Diagnostics: what is actually stored in each candidate ida.reg?
+            # Diagnostics: idapyswitch's own dry-run report + ida.reg state.
+            $raw = Invoke-Silent { & $idapyswitch --dry-run --auto-apply }
+            if ($raw) {
+                foreach ($line in @($raw)) {
+                    Write-Warn "  idapyswitch: $line"
+                }
+            }
+            else {
+                Write-Warn "  idapyswitch --dry-run --auto-apply printed nothing"
+            }
             foreach ($uDir in (Get-IdaUserDirs)) {
                 $regFile = Join-Path $uDir "ida.reg"
                 if (Test-Path $regFile -PathType Leaf) {
-                    $found = Get-IdaRegPythonTarget -UserDir $uDir
-                    $shown = if ($found) { $found } else { "(no python dll path found)" }
-                    Write-Warn ("  {0} (modified {1}): {2}" -f $regFile, (Get-Item $regFile).LastWriteTime, $shown)
+                    Write-Warn ("  ida.reg: {0} (modified {1})" -f $regFile, (Get-Item $regFile).LastWriteTime)
                 }
                 else {
                     Write-Warn "  no ida.reg in $uDir"
@@ -510,18 +558,15 @@ function Ensure-IdaPythonSelection {
 }
 
 function Get-IdaPython {
-    # IDA's ida.reg carries the current Python target (this idapyswitch
-    # generation has no --show-current to ask). Scan every candidate
-    # user dir before falling back to bundled interpreters.
-    foreach ($uDir in (Get-IdaUserDirs)) {
-        $pythonTarget = Get-IdaRegPythonTarget -UserDir $uDir
-        $resolved = Resolve-IdaPythonExecutable -TargetPath $pythonTarget
-        if (Test-PythonExecutable $resolved) {
-            return $resolved
-        }
+    # Whatever IDA is actually set to (see Get-CurrentIdaPythonTarget), then
+    # bundled interpreters, then common system installs.
+    $installDir = Get-IdaInstallDir
+    $pythonTarget = Get-CurrentIdaPythonTarget -IdaInstallDir $installDir
+    $resolved = Resolve-IdaPythonExecutable -TargetPath $pythonTarget
+    if (Test-PythonExecutable $resolved) {
+        return $resolved
     }
 
-    $installDir = Get-IdaInstallDir
     if (-not $installDir) {
         return $null
     }
