@@ -50,8 +50,6 @@ sys.path.insert(0, str(spectra_path))
 # ============================================================================
 
 from spectra.cli.shell_controller import CLISessionController  # noqa: E402
-from spectra.cli.shell_repl import ShellREPL  # noqa: E402
-from spectra.cli.shell_ui import ShellUI  # noqa: E402
 from spectra.constants import PLUGIN_VERSION  # noqa: E402
 from spectra.core.config import SpectraConfig  # noqa: E402
 from spectra.core.logging import log_error, log_info  # noqa: E402
@@ -94,6 +92,31 @@ def check_api_key_from_config(config) -> tuple[bool, str]:
         return True, config.provider.name
 
     return False, "local"
+
+
+def prompt_decrypt_password(config) -> bool:
+    """Prompt for the config encryption password (mirrors the IDA panel).
+
+    The API key itself is already stored — only the password is needed to
+    decrypt it into this session. Three attempts; empty input, Ctrl-C or
+    Ctrl-D cancels and leaves the keys locked. The stored key stays
+    encrypted on disk; nothing is re-saved here.
+    """
+    print()
+    print("🔐 Your Spectra config stores the API key encrypted.")
+    for _attempt in range(3):
+        try:
+            password = getpass.getpass("Decryption password (empty to cancel): ")
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return False
+        if not password:
+            return False
+        if config.decrypt_stored_keys(password):
+            print("✓ API key decrypted")
+            return True
+        print("✗ Wrong password.")
+    return False
 
 
 def prompt_decrypt_password(config) -> bool:
@@ -224,43 +247,16 @@ def cmd_dir_loc(directory: str) -> int:
         # Create session controller
         controller = CLISessionController(config)
 
-        # Set up shell approval callback for interactive approval
-        controller.set_shell_approval_callback()
-
-        # Wait for runtime initialization
-        import time
-
-        max_wait = 10
-        waited = 0
-        while not controller._runtime_init_done.is_set() and waited < max_wait:
-            time.sleep(0.1)
-            waited += 0.1
-
-        if not controller._runtime_init_done.is_set():
+        # Wait for background runtime init (provider registry, skills).
+        if not controller.wait_for_runtime(timeout=10.0):
             print("Runtime initialization timeout")
             return 1
 
-        # Create UI
-        ui = ShellUI(use_colors=True, use_markdown=True)
+        # Hand off to the full-screen TUI. Deferred so --version and the
+        # onboarding path above stay importable without textual installed.
+        from spectra.cli.app import run_app
 
-        # Print header with controller (for disclaimer check)
-        ui.print_header(controller=controller)
-
-        # Print welcome with provider info
-        ui.print_welcome(
-            provider_name=config.provider.name,
-            model_name=config.provider.model,
-            has_api_key=has_key,
-        )
-
-        # Create and start REPL
-        repl = ShellREPL(
-            controller=controller,
-            ui=ui,
-        )
-
-        # Start command loop
-        repl.cmdloop()
+        run_app(controller)
 
         return 0
 

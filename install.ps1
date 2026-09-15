@@ -33,6 +33,26 @@ function Write-Ok      { param($Msg) Write-Host "[+] $Msg" -ForegroundColor Gree
 function Write-Warn    { param($Msg) Write-Host "[!] $Msg" -ForegroundColor Yellow }
 function Write-Err     { param($Msg) Write-Host "[-] $Msg" -ForegroundColor Red }
 
+# Run a native command with its stderr suppressed, safely under
+# $ErrorActionPreference = "Stop". PowerShell 5.1 wraps ANY redirected
+# native stderr line as an ErrorRecord, and "Stop" turns the first one
+# into a terminating RemoteException (bash — install.sh — never does
+# this; 2>/dev/null is purely cosmetic there). Equivalent of bash's
+# `cmd 2>/dev/null || true`.
+function Invoke-Silent {
+    param([scriptblock]$Command)
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        & $Command 2>$null
+    }
+    catch {
+    }
+    finally {
+        $ErrorActionPreference = $previous
+    }
+}
+
 function Show-Banner {
     Write-Host ""
     Write-Host "    +==========================================+" -ForegroundColor White
@@ -53,7 +73,7 @@ function Test-VSBuildTools {
     # Check for Visual Studio Build Tools
     $vsWhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
     if (Test-Path $vsWhere) {
-        $installation = & $vsWhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2>$null
+        $installation = Invoke-Silent { & $vsWhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath }
         return $installation -ne $null
     }
     return $false
@@ -357,7 +377,7 @@ function Get-IdaPython {
     $idapyswitch = Join-Path $installDir "idapyswitch.exe"
     if (Test-Path $idapyswitch -PathType Leaf) {
         try {
-            $output = & $idapyswitch --show-current 2>$null
+            $output = Invoke-Silent { & $idapyswitch --show-current }
             if ($output) {
                 foreach ($line in $output) {
                     $target = $line.Trim().Trim("'")
@@ -404,6 +424,13 @@ function Test-Prerequisites {
         Write-Err "Or: winget install Git.Git"
         exit 1
     }
+
+    # Parity with install.sh's check_prereqs: Python is not fatal — the
+    # per-host installer will attempt to find the bundled Python.
+    $hasPython = @("python3", "python", "py") | Where-Object { Get-Command $_ -ErrorAction SilentlyContinue }
+    if (-not $hasPython) {
+        Write-Warn "Python not found in PATH -- the per-host installer will attempt to find the bundled Python."
+    }
 }
 
 # ── Clone or update ──────────────────────────────────────────────────
@@ -411,9 +438,19 @@ function Install-Repository {
     $gitDir = Join-Path $InstallDir ".git"
     if (Test-Path $gitDir) {
         Write-Info "Updating existing installation at $InstallDir..."
-        git -C $InstallDir fetch origin $Branch --quiet 2>$null
-        git -C $InstallDir checkout $Branch --quiet 2>$null
-        git -C $InstallDir reset --hard "origin/$Branch" --quiet 2>$null
+        # Mirrors install.sh: fetch/reset failures abort with git's own
+        # error visible (no redirect); checkout is best-effort (|| true).
+        git -C $InstallDir fetch origin $Branch --quiet
+        if ($LASTEXITCODE -ne 0) {
+            Write-Err "git fetch failed"
+            exit 1
+        }
+        Invoke-Silent { git -C $InstallDir checkout $Branch --quiet }
+        git -C $InstallDir reset --hard "origin/$Branch" --quiet
+        if ($LASTEXITCODE -ne 0) {
+            Write-Err "git reset failed"
+            exit 1
+        }
         Write-Ok "Updated to latest $Branch"
     }
     else {
@@ -423,7 +460,13 @@ function Install-Repository {
             Rename-Item $InstallDir $backup
         }
         Write-Info "Cloning Spectra into $InstallDir..."
-        git clone --branch $Branch --depth 1 $RepoUrl $InstallDir --quiet 2>$null
+        # No stderr redirect: on failure git's message must stay visible
+        # instead of becoming a RemoteException.
+        git clone --branch $Branch --depth 1 $RepoUrl $InstallDir --quiet
+        if ($LASTEXITCODE -ne 0) {
+            Write-Err "git clone failed"
+            exit 1
+        }
         Write-Ok "Cloned successfully"
     }
 
@@ -509,10 +552,14 @@ function Install-IDA {
     # Run the batch installer
     Push-Location $InstallDir
     try {
-        $output = cmd.exe /c $script 2>&1
-        foreach ($line in $output) {
-            Write-Host $line
-        }
+        # Same approach as install.sh's run_ida_installer (`bash "$script"`):
+        # stream the installer's output directly to the console and judge
+        # success by exit code. Do NOT capture with 2>&1 — PowerShell 5.1
+        # wraps redirected native stderr as ErrorRecords, and under
+        # $ErrorActionPreference = "Stop" the first one (e.g. pip's benign
+        # "script ... not on PATH" WARNING) becomes a terminating
+        # RemoteException. Unredirected stderr simply prints, like bash.
+        & cmd.exe /c $script
         $success = $LASTEXITCODE -eq 0
     }
     finally {
@@ -537,6 +584,7 @@ function Install-BinaryNinja {
     Write-Host ""
     Push-Location $InstallDir
     try {
+        # Same as Install-IDA: stream output directly, judge by exit code.
         & cmd.exe /c $script
         $success = $LASTEXITCODE -eq 0
     }
@@ -583,12 +631,31 @@ function Setup-Skills {
 function Setup-CLIDependencies {
     Write-Info "Setting up CLI dependencies..."
 
-    # Windows uses PySide6 (Qt6) by default
-    # Ensure PySide6 is installed
-    $pyside6Installed = python3 -m pip show PySide6 2>$null
+    # Windows uses PySide6 (Qt6) by default — same as install.sh's
+    # non-macOS branch. Resolve which Python drives pip (python3 ->
+    # python -> py -3), mirroring install.sh's pip3 fallback chain.
+    $showCmd = $installCmd = $null
+    if (Get-Command "python3" -ErrorAction SilentlyContinue) {
+        $showCmd = { python3 -m pip show PySide6 }
+        $installCmd = { python3 -m pip install PySide6 --disable-pip-version-check }
+    }
+    elseif (Get-Command "python" -ErrorAction SilentlyContinue) {
+        $showCmd = { python -m pip show PySide6 }
+        $installCmd = { python -m pip install PySide6 --disable-pip-version-check }
+    }
+    elseif (Get-Command "py" -ErrorAction SilentlyContinue) {
+        $showCmd = { py -3 -m pip show PySide6 }
+        $installCmd = { py -3 -m pip install PySide6 --disable-pip-version-check }
+    }
+    else {
+        Write-Warn "No Python found - skipping CLI dependencies"
+        return
+    }
+
+    $pyside6Installed = Invoke-Silent $showCmd
     if (-not $pyside6Installed) {
         Write-Info "Installing PySide6..."
-        python3 -m pip install PySide6 --disable-pip-version-check 2>$null | Out-Null
+        Invoke-Silent $installCmd | Out-Null
         if ($LASTEXITCODE -eq 0) {
             Write-Ok "PySide6 installed successfully"
         }

@@ -5,7 +5,7 @@ Extends SessionControllerBase for CLI environment without disrupting IDA Pro plu
 
 from __future__ import annotations
 
-import sys
+import os
 from typing import Any
 
 from ..core.config import SpectraConfig
@@ -17,24 +17,6 @@ from ..ui.session_controller_base import SessionControllerBase
 
 # CLI-specific database instance ID (separate from IDA/BNDB)
 _CLI_DB_INSTANCE_ID = "spectra-cli"
-
-
-def _flush_input() -> None:
-    """Flush any pending input from stdin buffer.
-
-    This prevents buffered ENTER keystrokes during AI output from
-    being immediately consumed by subsequent input() calls.
-    """
-    try:
-        import select
-
-        # Check if there's pending input
-        while select.select([sys.stdin], [], [], 0.0)[0]:
-            # Read and discard pending input
-            sys.stdin.readline()
-    except Exception:
-        # If flushing fails, just continue
-        pass
 
 
 def create_cli_tool_registry() -> ToolRegistry:
@@ -122,12 +104,10 @@ class CLISessionController(SessionControllerBase):
         except ImportError as e:
             log_debug(f"CLI tools not available: {e}")
 
-        # Set up shell approval callback for user confirmation
-        try:
-            self.set_shell_approval_callback()
-            log_info("Shell approval callback configured")
-        except Exception as e:
-            log_debug(f"Failed to set shell approval callback: {e}")
+        # NOTE: shell approval callback is NOT wired here — the host UI
+        # installs it via install_shell_approval() once its presenter
+        # exists (the TUI does this after mount; no-UI callers simply
+        # never install one and every shell command stays denied).
 
     # --- Session Management ---
 
@@ -274,10 +254,36 @@ class CLISessionController(SessionControllerBase):
 
         log_info("New session started")
 
+    def resume_latest(self) -> SessionState | None:
+        """Load the newest saved CLI session into the active tab.
+
+        Unlike the base ``restore_session`` (which requires an idb_path),
+        CLI sessions live under the fixed "spectra-cli" instance id. Used
+        on startup to pick up the previous conversation.
+        """
+        history = SessionHistory(self.config)
+        try:
+            session = history.get_latest_session(
+                idb_path="",
+                db_instance_id=_CLI_DB_INSTANCE_ID,
+            )
+        except (OSError, ValueError, KeyError) as e:
+            log_debug(f"Failed to find latest CLI session: {e}")
+            return None
+        if session and session.messages:
+            self._sessions[self._active_tab_id] = session
+            log_info(f"Resumed latest CLI session {session.id} ({len(session.messages)} messages)")
+            return session
+        return None
+
     # --- Skill Invocation ---
 
     def start_agent(self, user_message: str) -> str | None:
-        """Override to add CLI-specific context to all agent conversations.
+        """Override to prepend the working directory to every message.
+
+        The CLI environment itself (available tools, no-IDA constraints)
+        comes from the ``cli`` host prompt in the system prompt builder —
+        only the live working directory is per-run context.
 
         Args:
             user_message: User's message
@@ -285,65 +291,9 @@ class CLISessionController(SessionControllerBase):
         Returns:
             Error message if failed, None otherwise
         """
-        # Add CLI context to every message
-        cli_context = """Environment: Spectra CLI (command-line interface)
-Available tools: read_file, write_file, edit_file, search_files, shell_command, which, get_env, set_env
-NOT available: IDA Pro tools, Binary Ninja tools, decompiler, database access
-Working directory: file system path"""
-
-        full_message = f"{cli_context}\n\nUser: {user_message}"
-
-        # Call parent implementation with augmented message
+        cli_context = f"[Working directory: {os.getcwd()}]"
+        full_message = f"{cli_context}\n\n{user_message}"
         return super().start_agent(full_message)
-
-    def invoke_skill(self, slug: str, args: str) -> str | None:
-        """Invoke a skill by slug.
-
-        Args:
-            slug: Skill slug (e.g., "vuln-audit")
-            args: Additional arguments for the skill
-
-        Returns:
-            Error message if skill not found, None otherwise
-        """
-        if not self._runtime_init_done.is_set():
-            self._runtime_init_done.wait(timeout=10.0)
-
-        skill = self._skill_registry.get(slug)
-        if not skill:
-            available = ", ".join(self._skill_registry.list_slugs()[:10])
-            return f"Unknown skill: /{slug}. Available: {available}..."
-
-        # Build CLI-specific system context
-        cli_context = """You are running in Spectra CLI mode (NOT in IDA Pro or Binary Ninja).
-
-Key differences:
-- NO IDA Pro database available
-- NO Binary Ninja database available
-- You have access to: read_file, write_file, edit_file, search_files, shell_command
-- Working directory: file system path
-- For binary analysis: use shell_command with objdump, nm, strings, grep, etc.
-
-Adapt your analysis accordingly:
-- For source code: use read_file and search_files
-- For binaries: use shell_command with objdump/nm/strings
-- For kernel drivers: use shell_command with grep/modinfo
-- NO IDA-specific tools: list_functions, get_binary_info, xrefs, etc. are NOT available
-
-Always check available tools before assuming IDA features exist."""
-
-        # Build prompt with CLI context
-        prompt = skill.body or skill.description or ""
-        full_prompt = f"{cli_context}\n\n{prompt}"
-        if args:
-            full_prompt = f"{args}\n\n{full_prompt}"
-
-        # Start agent with skill context
-        error = self.start_agent(full_prompt)
-        if error:
-            return error
-
-        return None
 
     def list_skills(self) -> list[dict[str, str]]:
         """List all available skills.
@@ -402,260 +352,60 @@ Always check available tools before assuming IDA features exist."""
         error = self.start_agent(full_prompt)
         return error
 
-    # --- Shell Command Execution ---
+    # --- Shell Approval (host-UI wiring) ---
 
-    def execute_shell_command(self, command: str) -> str:
-        """Execute shell command (with safety checks and user approval).
+    def install_shell_approval(
+        self,
+        presenter: Any,
+        call_from_thread: Any,
+    ) -> tuple[Any, Any]:
+        """Wire shell-command approval to a live UI presenter.
+
+        Creates the approval state (auto-approve limit from config) and a
+        bridge carrying each request from the agent thread to the UI. The
+        caller must ``unbind()`` the bridge when the UI goes away — that
+        denies any waiter so the agent thread never hangs.
 
         Args:
-            command: Shell command to execute
+            presenter: object providing
+                ``push_shell_approval(command, is_dangerous, danger_reason, bridge)``
+            call_from_thread: app.call_from_thread
 
         Returns:
-            Command output
+            ``(state, bridge)`` tuple
         """
-        from ..tools.shell_tools import shell_command
-
-        # Use the shell_command tool which has approval checks
-        return shell_command(command)
-
-    def set_shell_approval_callback(self) -> None:
-        """Set up the approval callback for shell commands.
-
-        This should be called when the CLI starts to ensure shell commands
-        require user approval with dangerous command warnings.
-        """
+        from .approval import ShellApprovalBridge, ShellApprovalState
         from .tools.shell_tools import set_approval_callback
 
-        # Approval state management with command limit from config
-        class ApprovalState:
-            """Track approval mode with automatic reset after N commands."""
-
-            def __init__(self, auto_approve_limit: int = 10):
-                self.safe_auto_approve = False
-                self.reject_all = False
-                self.command_count = 0  # Track commands in auto-approve mode
-                self.auto_approve_limit = auto_approve_limit  # Auto-reset after N commands
-
-            def reset(self):
-                """Reset all modes."""
-                self.safe_auto_approve = False
-                self.reject_all = False
-                self.command_count = 0
-
-            def increment_command_count(self):
-                """Increment command count and check limit.
-
-                Returns:
-                    True if auto-approve was reset, False otherwise
-                """
-                self.command_count += 1
-                # Only check limit if limit > 0 (0 means unlimited)
-                if (
-                    self.safe_auto_approve
-                    and self.auto_approve_limit > 0
-                    and self.command_count >= self.auto_approve_limit
-                ):
-                    self.safe_auto_approve = False
-                    self.command_count = 0
-                    return True  # Signal that auto-approve was reset
-                return False
-
-            def get_status(self) -> str:
-                """Get current status string for display."""
-                if self.reject_all:
-                    return "Reject all ON"
-                if self.safe_auto_approve:
-                    if self.auto_approve_limit == 0:
-                        return "Safe auto-approve ON (unlimited)"
-                    return f"Safe auto-approve ON ({self.command_count}/{self.auto_approve_limit})"
-                return "Manual approval"
-
-        # Get auto-approve limit from config (default to 10 if not set)
         auto_approve_limit = getattr(self.config, "shell_auto_approve_limit", 10)
-        approval_state = ApprovalState(auto_approve_limit=auto_approve_limit)
+        state: ShellApprovalState = ShellApprovalState(auto_approve_limit=auto_approve_limit)
+        bridge = ShellApprovalBridge()
+        bridge.bind(presenter, call_from_thread)
 
         def approval_callback(command: str, is_dangerous: bool, danger_reason: str) -> bool:
-            """Callback to request user approval for shell command execution.
-
-            Args:
-                command: The shell command to execute
-                is_dangerous: Whether the command is dangerous
-                danger_reason: Reason why the command is dangerous
-
-            Returns:
-                True if user approves, False otherwise
-            """
-            from ..core.logging import log_debug
-            from .tools.shell_tools import set_shell_approval_state
-
-            log_debug(f"Shell command approval requested: {command}")
-
-            # Signal that we're entering shell approval (for output sync)
-            set_shell_approval_state(True)
-
-            # ANSI color codes - define BEFORE using
-            BOLD = "\033[1m"
-            CYAN = "\033[36m"
-            YELLOW = "\033[33m"
-            RED = "\033[31m"
-            BRIGHT_RED = "\033[91m"
-            GREEN = "\033[32m"
-            RESET = "\033[0m"
-
-            # Check session-wide approval state
-            if approval_state.reject_all:
-                log_debug(f"Shell command auto-rejected (reject all mode): {command}")
-                print(f"{RED}✗ Rejected: {command}{RESET}")
-                set_shell_approval_state(False)  # Signal approval complete
+            if state.reject_all:
                 return False
-
-            # Handle safe auto-approve with command count limit
-            if approval_state.safe_auto_approve and not is_dangerous:
-                # Increment count and check if we should reset
-                was_reset = approval_state.increment_command_count()
-                if was_reset:
-                    log_debug(f"Safe auto-approve mode reset after {approval_state.auto_approve_limit} commands")
-                    print(
-                        f"{YELLOW}⚠️  Safe auto-approve expired after {approval_state.auto_approve_limit} commands{RESET}"
-                    )
-                    print(f"{YELLOW}    Reverting to manual approval for safety.{RESET}")
-                    print()
-                    # Fall through to manual approval
-                else:
-                    log_debug(f"Shell command auto-approved (safe mode, #{approval_state.command_count}): {command}")
-                    count_text = (
-                        f"{approval_state.command_count}/{approval_state.auto_approve_limit}"
-                        if approval_state.auto_approve_limit > 0
-                        else "unlimited"
-                    )
-                    print(f"{GREEN}✓ Auto-approved ({count_text}): {command}{RESET}")
-                    set_shell_approval_state(False)  # Signal approval complete
-                    return True
-
-            print()
-            print(f"{BOLD}Shell Command Execution Requested{RESET}")
-            print()
-
-            # Show the command
-            print(f"  {CYAN}Command:{RESET} {command}")
-            print()
-
-            # Show danger warning if applicable
-            if is_dangerous:
-                print(f"{BRIGHT_RED}⚠️  DANGEROUS COMMAND WARNING!{RESET}")
-                print(f"{YELLOW}Reason: {danger_reason}{RESET}")
-                print()
-
-            # Show current approval mode status
-            mode_status = approval_state.get_status()
-            if mode_status != "Manual approval":
-                print(f"{YELLOW}  Current mode: {mode_status}{RESET}")
-                print()
-
-            # Build prompt based on danger level
-            if is_dangerous:
-                # No "approve all" for dangerous commands!
-                prompt = (
-                    f"{BRIGHT_RED}⚠️  This command is DANGEROUS. Really approve? {RESET}" + "[Y]es/[N]o/[R]eject all: "
-                )
-            else:
-                limit_text = (
-                    f"{approval_state.auto_approve_limit} cmds"
-                    if approval_state.auto_approve_limit > 0
-                    else "unlimited"
-                )
-                prompt = (
-                    f"{YELLOW}Approve execution? {RESET}"
-                    + f"[Y]es/[N]o/[S]afe auto-approve ({limit_text})/[R]eject all: "
-                )
-
-            # Flush stdout to ensure clean output before waiting for input
-            import sys
-
-            sys.stdout.flush()
-            sys.stderr.flush()
-
-            # Prompt for approval
-            while True:
-                try:
-                    _flush_input()  # Clear any buffered ENTER keystrokes from AI output
-                    response = input(prompt).strip().lower()
-                except EOFError:
-                    # Handle EOF (ctrl+d)
-                    print()  # Add newline
-                    log_debug(f"Shell command rejected (EOF): {command}")
-                    set_shell_approval_state(False)  # Signal approval complete
-                    return False
-                except KeyboardInterrupt:
-                    # Handle ctrl+c during input - abort and return to prompt
-                    print()  # Add newline
-                    print(f"{YELLOW}⏹  Approval cancelled by user (Ctrl+C). Returning to input.{RESET}")
-                    log_debug(f"Shell command approval cancelled (interrupt): {command}")
-                    set_shell_approval_state(False)  # Signal approval complete
-                    return False
-
-                # Single choice responses
-                if response in ("y", "yes", ""):
-                    log_debug(f"Shell command approved: {command}")
-                    print(f"{CYAN}⏳ Executing command...{RESET}")
-                    sys.stdout.flush()
-                    set_shell_approval_state(False)  # Signal approval complete
-                    return True
-                elif response in ("n", "no"):
-                    log_debug(f"Shell command rejected: {command}")
-                    set_shell_approval_state(False)  # Signal approval complete
-                    return False
-
-                # Session-wide modes
-                elif response in ("s", "safe", "safe auto-approve"):
-                    approval_state.safe_auto_approve = True
-                    approval_state.reject_all = False
-                    approval_state.command_count = 0  # Reset count on new enable
-                    log_debug("Enabled safe auto-approve mode")
-                    limit_text = (
-                        f"max {approval_state.auto_approve_limit} commands"
-                        if approval_state.auto_approve_limit > 0
-                        else "unlimited"
-                    )
-                    print(f"{GREEN}✓ Safe auto-approve mode enabled ({limit_text}){RESET}")
-                    print(f"{GREEN}  Dangerous commands still require manual approval{RESET}")
-                    if not is_dangerous:
-                        # Auto-approve this command and return
-                        set_shell_approval_state(False)  # Signal approval complete
-                        count_text = (
-                            f"1/{approval_state.auto_approve_limit}"
-                            if approval_state.auto_approve_limit > 0
-                            else "unlimited"
-                        )
-                        print(f"{GREEN}  Auto-approved ({count_text}): {command}{RESET}")
-                        print(f"{CYAN}⏳ Executing command...{RESET}")
-                        sys.stdout.flush()
-                        return True  # Approve this safe command
-                    # If dangerous, continue to ask - dangerous commands always need manual approval
-
-                elif response in ("r", "reject all", "reset", "d", "deny"):
-                    # Reset or reject-all mode
-                    if response in ("r", "reset"):
-                        # Reset all modes
-                        approval_state.reset()
-                        log_debug("Reset approval modes")
-                        print(f"{YELLOW}✓ Approval modes reset to manual{RESET}")
-                        # Ask again for this command
-                        continue
-                    else:
-                        # Enable reject-all mode
-                        approval_state.reject_all = True
-                        approval_state.safe_auto_approve = False
-                        log_debug("Enabled reject-all mode")
-                        print(f"{RED}✓ Reject-ALL mode enabled (use 'R' to reset){RESET}")
-                        set_shell_approval_state(False)  # Signal approval complete
-                        return False
-
-                else:
-                    print(f"{RED}Invalid response. Please enter Y, N, S, or R.{RESET}")
+            approved, _expired = state.should_auto_approve(is_dangerous)
+            if approved:
+                return True
+            return bridge.request(command, is_dangerous, danger_reason)
 
         set_approval_callback(approval_callback)
-        log_info("Shell approval callback registered")
+        log_info("Shell approval bridge installed")
+        return state, bridge
+
+    def resume_latest(self) -> SessionState | None:
+        """Load the most recent CLI session into the active tab.
+
+        Returns:
+            Restored SessionState, or None when no saved session exists
+        """
+        history = SessionHistory(self.config)
+        session = history.get_latest_session(idb_path="", db_instance_id=_CLI_DB_INSTANCE_ID)
+        if session:
+            self._sessions[self._active_tab_id] = session
+            log_info("Latest session resumed")
+        return session
 
     # --- Configuration Management ---
 

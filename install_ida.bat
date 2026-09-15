@@ -348,7 +348,10 @@ if !ARM64! equ 1 (
 echo [*] Installing Anthropic SDK...
 %PIP_CMD% install "anthropic>=0.39.0" >nul 2>&1
 
-%PIP_CMD% install -r "%SCRIPT_DIR%\requirements.txt"
+:: --no-warn-script-location: pip's "script X.exe is installed in ... which is
+:: not on PATH" WARNING goes to stderr; the PowerShell wrapper treats stderr
+:: from this script as failure noise, so suppress the warning at the source.
+%PIP_CMD% install --no-warn-script-location -r "%SCRIPT_DIR%\requirements.txt"
 if errorlevel 1 (
     echo [!] Dependency install failed with %PIP_CMD%
     exit /b 1

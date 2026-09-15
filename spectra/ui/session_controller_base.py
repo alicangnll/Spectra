@@ -291,6 +291,17 @@ class SessionControllerBase:
     def runtime_ready(self) -> bool:
         return self._runtime_init_done.is_set()
 
+    def wait_for_runtime(self, timeout: float = 10.0) -> bool:
+        """Block until runtime initialization completes.
+
+        Args:
+            timeout: Maximum seconds to wait
+
+        Returns:
+            True if the runtime is ready, False on timeout
+        """
+        return self._runtime_init_done.wait(timeout=timeout)
+
     @property
     def is_agent_running(self) -> bool:
         """Check if agent is running for the current tab."""

@@ -1,0 +1,292 @@
+/* Spectra CLI — Textual application styles */
+
+Screen {
+    layout: vertical;
+}
+
+/* ── Main layout ─────────────────────────────────────────────── */
+
+#status-bar {
+    dock: top;
+    height: 1;
+    padding: 0 1;
+    background: $surface;
+    color: $text-muted;
+}
+
+#status-left {
+    width: auto;
+}
+
+#status-right {
+    width: auto;
+    dock: right;
+}
+
+#chat-log {
+    height: 1fr;
+    padding: 0 1;
+}
+
+#prompt-zone {
+    dock: bottom;
+    height: auto;
+    max-height: 40%;
+    padding: 0 1;
+}
+
+#completion-popup {
+    dock: bottom;
+    height: auto;
+    max-height: 10;
+    display: none;
+    background: $surface;
+    border-top: solid $primary-darken-2;
+    padding: 0 1;
+}
+
+#completion-popup.visible {
+    display: block;
+}
+
+.completion-item {
+    padding: 0 1;
+}
+
+.completion-item--selected {
+    background: $primary;
+    color: $text;
+}
+
+#prompt-label {
+    color: $accent;
+    dock: left;
+    padding: 1 1 0 1;
+}
+
+PromptInput {
+    height: auto;
+    max-height: 20;
+    border: round $primary-darken-1;
+    background: $surface;
+}
+
+PromptInput:focus {
+    border: round $accent;
+}
+
+/* ── Chat messages ───────────────────────────────────────────── */
+
+.message {
+    margin: 0 0 1 0;
+}
+
+.message--user {
+    background: $boost;
+    border-left: thick $accent;
+    padding: 0 1;
+}
+
+.message--user-label {
+    color: $accent;
+    text-style: bold;
+}
+
+.message--queued {
+    border-left: dashed $primary;
+    padding: 0 1;
+    color: $text-muted;
+}
+
+.message--queued-badge {
+    color: $text-disabled;
+    text-style: italic;
+}
+
+.message--system {
+    color: $text-muted;
+}
+
+.message--error {
+    border-left: thick $error;
+    padding: 0 1;
+    color: $error;
+}
+
+.message--error-label {
+    color: $error;
+    text-style: bold;
+}
+
+/* ── Thinking block ──────────────────────────────────────────── */
+
+.thinking-block {
+    margin: 0 0 1 0;
+    padding: 0 1;
+    background: $surface;
+    border-left: thick $primary-darken-1;
+}
+
+.thinking-label {
+    color: $text-disabled;
+    text-style: italic;
+}
+
+.thinking-content {
+    color: $text-muted;
+    display: none;
+}
+
+.thinking-block.expanded .thinking-content {
+    display: block;
+}
+
+/* ── Tool blocks ─────────────────────────────────────────────── */
+
+.tool-block {
+    margin: 0 0 1 0;
+}
+
+.tool-header {
+    color: $warning;
+    text-style: bold;
+}
+
+.tool-header--running {
+    color: $accent;
+}
+
+.tool-header--error {
+    color: $error;
+}
+
+.tool-args {
+    padding: 0 1;
+}
+
+.tool-result {
+    padding: 0 1;
+    color: $text-muted;
+}
+
+.tool-result--error {
+    color: $error;
+}
+
+/* ── Shell escape output ─────────────────────────────────────── */
+
+.shell-block {
+    margin: 0 0 1 0;
+}
+
+.shell-cmd {
+    color: $accent;
+}
+
+ShellOutput {
+    height: auto;
+    max-height: 20;
+    border: round $surface-lighten-1;
+    padding: 0 1;
+}
+
+/* ── Subagent / plan / misc blocks ───────────────────────────── */
+
+.subagent-block {
+    margin: 0 0 1 0;
+    padding: 0 1;
+}
+
+.subagent--spawned { color: $primary; }
+.subagent--completed { color: $success; }
+.subagent--failed { color: $error; }
+.subagent--progress { color: $text-muted; }
+
+.plan-block {
+    margin: 0 0 1 0;
+    padding: 0 1;
+    border-left: thick $warning;
+}
+
+.plan-step--done { color: $success; }
+.plan-step--todo { color: $text; }
+
+/* ── Modals ──────────────────────────────────────────────────── */
+
+ModalScreen {
+    align: center middle;
+}
+
+.modal {
+    width: 80%;
+    max-width: 100;
+    height: auto;
+    max-height: 80%;
+    background: $surface;
+    border: thick $accent;
+    padding: 1 2;
+}
+
+.modal-title {
+    text-style: bold;
+    color: $accent;
+}
+
+.modal-danger .modal-title {
+    color: $error;
+}
+
+.modal-body {
+    margin: 1 0;
+}
+
+.modal-hint {
+    color: $text-muted;
+    margin-top: 1;
+}
+
+.modal-buttons {
+    height: auto;
+    align-horizontal: center;
+    margin-top: 1;
+}
+
+.modal-buttons Button {
+    margin: 0 1;
+}
+
+QuestionInput {
+    border: round $primary;
+    height: auto;
+    max-height: 8;
+}
+
+/* ── Pickers ─────────────────────────────────────────────────── */
+
+.picker {
+    width: 80%;
+    max-width: 100;
+    height: 80%;
+    background: $surface;
+    border: thick $accent;
+    padding: 1 2;
+}
+
+.picker DataTable {
+    height: 1fr;
+}
+
+/* ── Disclaimer ──────────────────────────────────────────────── */
+
+.disclaimer {
+    width: 90%;
+    max-width: 110;
+    height: 90%;
+    background: $surface;
+    border: thick $warning;
+    padding: 1 2;
+}
+
+.disclaimer-scroll {
+    height: 1fr;
+}

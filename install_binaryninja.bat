@@ -191,7 +191,7 @@ if !errorlevel! equ 0 (
 where pip >nul 2>&1
 if !errorlevel! equ 0 (
     echo [*] Installing Python dependencies with: pip
-    pip install -r "%REQ%"
+    pip install --no-warn-script-location -r "%REQ%"
     if !errorlevel! equ 0 exit /b 0
 )
 
@@ -216,5 +216,7 @@ if !ARM64! equ 1 (
 echo [*] Installing Anthropic SDK...
 %PY_CMD% -m pip install "anthropic>=0.39.0" >nul 2>&1
 
-%PY_CMD% -m pip install -r "%REQ_FILE%"
+:: --no-warn-script-location: pip's "not on PATH" WARNING goes to stderr and
+:: must not surface as an error in the PowerShell wrapper (install.ps1).
+%PY_CMD% -m pip install --no-warn-script-location -r "%REQ_FILE%"
 exit /b !errorlevel!

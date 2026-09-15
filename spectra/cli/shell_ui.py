@@ -260,6 +260,15 @@ class ShellUI:
         self._thinking_buffer = ""  # thinking text of the current turn
         self._last_thinking = ""  # thinking text of the last completed turn
 
+        # <think> reasoning display: hidden by default (Ctrl+O or /thinking
+        # toggles). While hidden the thinking text is still captured so it
+        # can be shown later.
+        self.show_thinking = False
+        self._think_mode = False  # currently inside a <think>...</think> span
+        self._think_hold = ""  # trailing partial tag candidate across chunks
+        self._thinking_buffer = ""  # thinking text of the current turn
+        self._last_thinking = ""  # thinking text of the last completed turn
+
     def _color(self, text: str, color: str) -> str:
         """Apply color if enabled."""
         if self.use_colors and self.is_tty:
@@ -450,6 +459,100 @@ class ShellUI:
             value = value[:37] + "..."
 
         return f"({value})"
+
+    _THINK_OPEN = "<think>"
+    _THINK_CLOSE = "</think>"
+
+    def _emit_thinking(self, text: str, end_of_block: bool = False) -> None:
+        """Write thinking content live when thinking display is enabled."""
+        if self.show_thinking and text:
+            sys.stdout.write(self._color(text, Colors.DIM))
+            sys.stdout.flush()
+        if end_of_block and self.show_thinking:
+            sys.stdout.write(Colors.RESET + "\n")
+            sys.stdout.flush()
+
+    def _filter_think(self, text: str) -> str:
+        """Strip ``<think>...</think>`` spans from streaming text.
+
+        Thinking content is captured into ``_thinking_buffer`` regardless of
+        display mode; only non-thinking text is returned for display. Tags
+        split across chunk boundaries are handled via ``_think_hold``.
+        """
+        buf = self._think_hold + text
+        self._think_hold = ""
+        out: list[str] = []
+        i = 0
+        n = len(buf)
+        while i < n:
+            lt = buf.find("<", i)
+            if lt == -1:
+                rest = buf[i:]
+                if self._think_mode:
+                    self._thinking_buffer += rest
+                    self._emit_thinking(rest)
+                else:
+                    out.append(rest)
+                break
+            prefix = buf[i:lt]
+            if self._think_mode:
+                self._thinking_buffer += prefix
+                self._emit_thinking(prefix)
+            elif prefix:
+                out.append(prefix)
+            if not self._think_mode and buf.startswith(self._THINK_OPEN, lt):
+                self._think_mode = True
+                i = lt + len(self._THINK_OPEN)
+                if i < n and buf[i] == "\n":  # cosmetic: newline after tag
+                    i += 1
+                continue
+            if self._think_mode and buf.startswith(self._THINK_CLOSE, lt):
+                self._emit_thinking("", end_of_block=True)
+                self._think_mode = False
+                i = lt + len(self._THINK_CLOSE)
+                continue
+            tail = buf[lt:]
+            tag = self._THINK_CLOSE if self._think_mode else self._THINK_OPEN
+            if tag.startswith(tail):
+                # Might be a completed tag once the next chunk arrives
+                self._think_hold = tail
+                break
+            if self._think_mode:
+                self._thinking_buffer += tail
+                self._emit_thinking(tail)
+            else:
+                out.append(tail)
+            break
+        return "".join(out)
+
+    def _finish_think(self) -> None:
+        """Close any open think span at end of turn; flush held text."""
+        if self._think_hold:
+            held, self._think_hold = self._think_hold, ""
+            if self._think_mode:
+                self._thinking_buffer += held
+                self._emit_thinking(held, end_of_block=True)
+            else:
+                # Trailing text that merely looked like a tag prefix — it is
+                # visible answer text and must not be swallowed.
+                sys.stdout.write(held)
+                sys.stdout.flush()
+        if self._think_mode:
+            self._think_mode = False
+            self._emit_thinking("", end_of_block=True)
+        self._last_thinking = self._thinking_buffer
+
+    def toggle_thinking(self) -> bool:
+        """Toggle live display of <think> reasoning. Returns the new state.
+
+        When switched on, the last turn's captured thinking is printed so
+        Ctrl+O after a response reveals what was hidden.
+        """
+        self.show_thinking = not self.show_thinking
+        if self.show_thinking and self._last_thinking.strip():
+            print(self._color("🧠 Last response's thinking:", Colors.DIM))
+            print(self._color(self._last_thinking.strip(), Colors.DIM))
+        return self.show_thinking
 
     _THINK_OPEN = "<think>"
     _THINK_CLOSE = "</think>"

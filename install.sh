@@ -423,6 +423,20 @@ setup_skills() {
 setup_cli_dependencies() {
     info "Setting up CLI dependencies..."
 
+    # The CLI TUI needs Textual regardless of platform.
+    if ! pip3 show textual >/dev/null 2>&1; then
+        info "Installing textual (CLI TUI)..."
+        if pip3 install --break-system-packages "textual>=3.0" >/dev/null 2>&1; then
+            ok "textual installed successfully"
+        elif pip3 install --user "textual>=3.0" >/dev/null 2>&1; then
+            ok "textual installed successfully (user)"
+        else
+            warn "Failed to install textual - CLI may not work properly"
+        fi
+    else
+        ok "textual already installed"
+    fi
+
     # On macOS, ensure PyQt5 is installed and remove conflicting PySide6
     # On other platforms, ensure PySide6 is installed
     if [[ "$(uname)" == "Darwin" ]]; then
