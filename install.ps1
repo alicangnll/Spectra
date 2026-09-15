@@ -391,6 +391,95 @@ function Get-PythonVersionString {
     return $null
 }
 
+function Get-StableSystemPythons {
+    # Enumerate standalone CPython installs, newest version first, keeping
+    # only final releases that actually execute (Store stubs filtered).
+    $seen = @{}
+    $candidates = [System.Collections.Generic.List[string]]::new()
+
+    # Official launcher: py -0p lists installed distributions with paths
+    $pyLauncher = Get-Command "py" -ErrorAction SilentlyContinue
+    if ($pyLauncher) {
+        $listing = Invoke-Silent { & py -0p }
+        foreach ($line in @($listing)) {
+            if ($line -match '([A-Za-z]:\\\S+pythonw?\.exe)') {
+                $exe = $Matches[1]
+                if (-not $seen.ContainsKey($exe.ToLower())) {
+                    $seen[$exe.ToLower()] = $true
+                    $candidates.Add($exe)
+                }
+            }
+        }
+    }
+
+    foreach ($glob in @(
+        "$env:LOCALAPPDATA\Programs\Python\Python3*\python.exe",
+        "${env:ProgramFiles}\Python3*\python.exe",
+        "${env:ProgramFiles(x86)}\Python3*\python.exe"
+    )) {
+        foreach ($item in (Get-Item $glob -ErrorAction SilentlyContinue)) {
+            $exe = $item.FullName
+            if (-not $seen.ContainsKey($exe.ToLower())) {
+                $seen[$exe.ToLower()] = $true
+                $candidates.Add($exe)
+            }
+        }
+    }
+
+    $stable = @()
+    foreach ($exe in $candidates) {
+        if (Test-PythonIsStable $exe) {
+            $stable += [pscustomobject]@{
+                Exe     = $exe
+                Version = (Get-PythonVersionString $exe)
+            }
+        }
+    }
+
+    # "3.10" must outrank "3.9": compare major*100+minor, not a double
+    $sorted = @($stable | Sort-Object {
+        $parts = "$($_.Version)".Split('.')
+        if ($parts.Count -eq 2) { [int]$parts[0] * 100 + [int]$parts[1] } else { 0 }
+    } -Descending)
+
+    if ($sorted.Count -gt 0) {
+        $listing = ($sorted | ForEach-Object { "v$($_.Version) ($($_.Exe))" }) -join ", "
+        Write-Info "Stable system Python found: $listing"
+    }
+    return $sorted
+}
+
+function Get-IdaPythonTargetFromWinReg {
+    # IDA 9.x keeps its registry in the REAL Windows registry under
+    # Hex-Rays keys when there is no ida.reg file. The Python target's key
+    # depth and value name vary, so walk the whole subtree and return any
+    # value whose data is a python*.dll / python*.exe path.
+    foreach ($root in @(
+        "HKCU:\Software\Hex-Rays",
+        "HKLM:\SOFTWARE\Hex-Rays",
+        "HKLM:\SOFTWARE\WOW6432Node\Hex-Rays"
+    )) {
+        if (-not (Test-Path $root)) {
+            continue
+        }
+        $keys = @(Get-Item $root -ErrorAction SilentlyContinue)
+        $keys += Get-ChildItem $root -Recurse -ErrorAction SilentlyContinue
+        foreach ($key in $keys) {
+            if (-not $key) {
+                continue
+            }
+            foreach ($name in @($key.GetValueNames())) {
+                $s = ("$($key.GetValue($name))").Trim('"')
+                $leaf = [System.IO.Path]::GetFileName($s)
+                if ($s -match '^[A-Za-z]:\\' -and $leaf -match '(?i)^python[\w.-]*\.(dll|exe)$') {
+                    return $s
+                }
+            }
+        }
+    }
+    return $null
+}
+
 function Get-IdaPythonTargetFromSwitch {
     # This idapyswitch generation (IDA 9.1) has no --show-current, and on
     # some machines there is no ida.reg file at all — but a DRY-RUN
@@ -419,14 +508,17 @@ function Get-IdaPythonTargetFromSwitch {
 
 function Get-CurrentIdaPythonTarget {
     # Current Python target, most-authoritative source first:
-    #   1. idapyswitch's own report (Get-IdaPythonTargetFromSwitch)
+    #   1. the real Windows registry (HKCU/HKLM Hex-Rays) — where IDA 9.x
+    #      keeps it when there is no ida.reg file
     #   2. ida.reg scans across all candidate user dirs (older layout)
-    #   3. the real Windows registry (HKCU\Software\Hex-Rays*)
+    #   3. idapyswitch's "IDA previously used" dry-run line — only a HINT:
+    #      it can lag behind the actual target (observed right after a
+    #      picker selection applied), so it is trusted last
     param([string]$IdaInstallDir)
 
-    $shown = Get-IdaPythonTargetFromSwitch -IdaInstallDir $IdaInstallDir
-    if ($shown) {
-        return $shown
+    $fromWinReg = Get-IdaPythonTargetFromWinReg
+    if ($fromWinReg) {
+        return $fromWinReg
     }
 
     foreach ($uDir in (Get-IdaUserDirs)) {
@@ -436,15 +528,9 @@ function Get-CurrentIdaPythonTarget {
         }
     }
 
-    foreach ($regKey in @("HKCU:\Software\Hex-Rays\IDA", "HKCU:\Software\Hex-Rays\IDA Pro", "HKCU:\Software\Hex-Rays")) {
-        try {
-            $value = (Get-ItemProperty -Path $regKey -ErrorAction Stop).Python3TargetDLL
-            if ($value) {
-                return "$value"
-            }
-        }
-        catch {
-        }
+    $shown = Get-IdaPythonTargetFromSwitch -IdaInstallDir $IdaInstallDir
+    if ($shown) {
+        return $shown
     }
 
     return $null
@@ -553,8 +639,69 @@ function Ensure-IdaPythonSelection {
         }
     }
 
-    Write-Warn "No stable Python selected - leaving IDA's Python selection unchanged."
-    return $null
+    Write-Warn "The idapyswitch window did not yield a usable selection."
+
+    # Rescue: offer the same choice right here. Still the USER's pick — we
+    # only apply it directly (idapyswitch --force-path), which provably
+    # sets the target IDA loads.
+    $stable = Get-StableSystemPythons
+    if (-not $stable) {
+        Write-Warn "No stable system Python found - leaving IDA's Python selection unchanged."
+        Write-Warn "Install one from https://www.python.org/downloads/ and rerun this installer."
+        return $null
+    }
+    Write-Host ""
+    Write-Host "Select the Python IDA Pro should use (applied via idapyswitch):" -ForegroundColor Cyan
+    $idx = 1
+    foreach ($p in @($stable)) {
+        Write-Host "  [$idx] v$($p.Version)  $($p.Exe)"
+        $idx++
+    }
+    Write-Host "  [0] Skip - keep IDA's current Python"
+
+    $choice = $null
+    $answer = $null
+    try { $answer = Read-Host "Choice [1]" } catch {}
+    if ([string]::IsNullOrWhiteSpace($answer)) { $answer = "1" }
+    $picked = 0
+    if ([int]::TryParse($answer, [ref]$picked)) {
+        if ($picked -ge 1 -and $picked -le @($stable).Count) {
+            $choice = @($stable)[$picked - 1]
+        }
+        elseif ($picked -ne 0) {
+            Write-Warn "Invalid choice: $answer"
+        }
+    }
+    else {
+        Write-Warn "Invalid choice: $answer"
+    }
+    if (-not $choice) {
+        Write-Info "Keeping IDA's current Python"
+        return $null
+    }
+
+    $dll = Join-Path (Split-Path -Parent $choice.Exe) ("python" + "$($choice.Version)".Replace(".", "") + ".dll")
+    if (-not (Test-Path $dll -PathType Leaf)) {
+        Write-Warn "No python DLL next to $($choice.Exe) - leaving selection unchanged"
+        return $null
+    }
+
+    Write-Info "Applying selection: idapyswitch --force-path $dll"
+    & $idapyswitch --force-path $dll
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warn "idapyswitch failed (exit $LASTEXITCODE) - IDA keeps its current Python"
+        return $null
+    }
+
+    $chosen = Resolve-IdaPythonExecutable -TargetPath (Get-CurrentIdaPythonTarget -IdaInstallDir $IdaInstallDir)
+    if ($chosen -and (Test-PythonIsStable $chosen)) {
+        Write-Ok "IDA Python: $chosen (v$(Get-PythonVersionString $chosen))"
+        return $chosen
+    }
+    # The read-back sources can lag; force-path exited 0, so trust the
+    # explicit choice (this exact flow switched IDA successfully before).
+    Write-Ok "IDA Python set to: $($choice.Exe) (v$($choice.Version))"
+    return $choice.Exe
 }
 
 function Get-IdaPython {

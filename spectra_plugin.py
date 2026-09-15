@@ -196,10 +196,33 @@ class SpectraPlugin(idaapi.plugin_t):
                 f"C:\\Users\\{username}\\AppData\\Roaming\\Python\\Python3*\\site-packages",
             ]
 
+            # Only inject site-packages built for IDA's own Python version.
+            # Injecting every installed version lets whichever Python3XY
+            # lands first in sys.path shadow the others: on a 3.10 IDA,
+            # Python315's cp315 pydantic_core fails to load with
+            # "No module named 'pydantic_core._pydantic_core'" even though
+            # Python310 has a working copy one path-entry later.
+            import re
+
+            ida_pyver = (sys.version_info.major, sys.version_info.minor)
+            ver_name = re.compile(r"Python(\d)(\d+)$")
+
             for pattern in possible_paths:
                 try:
                     for match in glob.glob(pattern):
                         if os.path.isdir(match) and match not in sys.path:
+                            ver = None
+                            for parent in (os.path.dirname(match), os.path.dirname(os.path.dirname(match))):
+                                m = ver_name.match(os.path.basename(parent))
+                                if m:
+                                    ver = (int(m.group(1)), int(m.group(2)))
+                                    break
+                            if ver is not None and ver != ida_pyver:
+                                idaapi.msg(
+                                    f"[Spectra] Skipping {match} "
+                                    f"(Python {ver[0]}.{ver[1]} packages, IDA runs {ida_pyver[0]}.{ida_pyver[1]})\n"
+                                )
+                                continue
                             sys.path.insert(0, match)
                             idaapi.msg(f"[Spectra] Added: {match}\n")
                 except Exception:
@@ -395,6 +418,29 @@ class SpectraPlugin(idaapi.plugin_t):
                                     break
                             if python_exe:
                                 break
+
+            if python_exe and os.path.exists(python_exe):
+                # Never install into an interpreter whose version differs
+                # from IDA's: those packages stay invisible to IDA (or load
+                # as broken cross-version extensions), so the install would
+                # "succeed" on every launch while the import keeps failing.
+                try:
+                    probe = subprocess.run(
+                        [python_exe, "-c", "import sys; print(sys.version_info[0], sys.version_info[1])"],
+                        capture_output=True,
+                        text=True,
+                        timeout=15,
+                    )
+                    target_ver = tuple(int(x) for x in probe.stdout.split()[:2])
+                    if target_ver != (sys.version_info.major, sys.version_info.minor):
+                        idaapi.msg(
+                            f"[Spectra] Skipping auto-install: {python_exe} is Python "
+                            f"{target_ver[0]}.{target_ver[1]}, IDA runs "
+                            f"{sys.version_info.major}.{sys.version_info.minor}\n"
+                        )
+                        python_exe = None
+                except Exception:
+                    pass
 
             if python_exe and os.path.exists(python_exe):
                 idaapi.msg(f"[Spectra] Installing anthropic with Python: {python_exe}\n")
