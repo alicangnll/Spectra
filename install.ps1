@@ -557,37 +557,29 @@ function Ensure-IdaPythonSelection {
         return
     }
 
+    # Already on a stable final Python: use it — no prompt, no picker. The
+    # picker PRESELECTS the previously-used version (possibly an alpha), so
+    # opening it "just to look" can silently re-apply the wrong one.
     $currentExe = Resolve-IdaPythonExecutable -TargetPath (Get-CurrentIdaPythonTarget -IdaInstallDir $IdaInstallDir)
     if ($currentExe -and (Test-PythonIsStable $currentExe)) {
         Write-Info "IDA already uses a stable Python: $currentExe (v$(Get-PythonVersionString $currentExe))"
-        $change = $null
-        try { $change = Read-Host "Open idapyswitch.exe to change it? (y/N)" } catch {}
-        if (-not $change -or $change -notmatch '^[Yy]') {
-            return $currentExe
-        }
+        return $currentExe
+    }
+
+    if ($currentExe) {
+        Write-Warn "IDA's current Python is a prerelease or unusable: $currentExe"
     }
     else {
-        if ($currentExe) {
-            Write-Warn "IDA's current Python is a prerelease or unusable: $currentExe"
-        }
-        else {
-            Write-Info "IDA has no usable Python selected yet"
-        }
+        Write-Info "IDA has no usable Python selected yet"
     }
 
-    if (-not [Environment]::UserInteractive) {
-        Write-Warn "This session cannot open the idapyswitch window - leaving IDA's Python selection unchanged."
-        return $null
-    }
-
-    # The choice happens in the official GUI; read it back from IDA's
-    # registry afterwards. Up to three rounds, in case a prerelease Python
-    # (no wheels for the deps) keeps being picked.
-    $maxAttempts = 3
-    for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+    # One round of the official picker — only when a change is actually
+    # needed. Read the result back from IDA's registry afterwards.
+    if ([Environment]::UserInteractive) {
         Write-Host ""
         Write-Host "Opening idapyswitch.exe - select the Python IDA Pro should use, then press OK." -ForegroundColor Cyan
-        Write-Host "Pick a FINAL release (e.g. 3.10) - alpha builds (e.g. 3.15.0a) have no wheels for the dependencies."
+        Write-Host "The list PRESELECTS the previously-used version (possibly an alpha) - move the selection"
+        Write-Host "to a FINAL release (e.g. 3.10). Alpha builds have no wheels for the dependencies."
         Write-Host "All dependencies (requirements.txt, anthropic, PyQt5) will be installed into it."
         try {
             # -Wait blocks until the GUI closes, so the selection below is
@@ -596,7 +588,6 @@ function Ensure-IdaPythonSelection {
         }
         catch {
             Write-Warn "Could not launch idapyswitch.exe: $_"
-            return $null
         }
 
         $newExe = Resolve-IdaPythonExecutable -TargetPath (Get-CurrentIdaPythonTarget -IdaInstallDir $IdaInstallDir)
@@ -604,39 +595,15 @@ function Ensure-IdaPythonSelection {
             Write-Ok "IDA Python selected via idapyswitch: $newExe (v$(Get-PythonVersionString $newExe))"
             return $newExe
         }
-
         if ($newExe) {
             Write-Warn "The selected Python is a prerelease or unusable: $newExe"
         }
         else {
             Write-Warn "IDA still has no usable Python selected"
-            # Diagnostics: idapyswitch's own dry-run report + ida.reg state.
-            $raw = Invoke-Silent { & $idapyswitch --dry-run --auto-apply }
-            if ($raw) {
-                foreach ($line in @($raw)) {
-                    Write-Warn "  idapyswitch: $line"
-                }
-            }
-            else {
-                Write-Warn "  idapyswitch --dry-run --auto-apply printed nothing"
-            }
-            foreach ($uDir in (Get-IdaUserDirs)) {
-                $regFile = Join-Path $uDir "ida.reg"
-                if (Test-Path $regFile -PathType Leaf) {
-                    Write-Warn ("  ida.reg: {0} (modified {1})" -f $regFile, (Get-Item $regFile).LastWriteTime)
-                }
-                else {
-                    Write-Warn "  no ida.reg in $uDir"
-                }
-            }
         }
-        if ($attempt -lt $maxAttempts) {
-            $retry = $null
-            try { $retry = Read-Host "Open idapyswitch.exe again? (Y/n)" } catch {}
-            if ($retry -and $retry -match '^[Nn]') {
-                break
-            }
-        }
+    }
+    else {
+        Write-Warn "This session cannot open the idapyswitch window."
     }
 
     Write-Warn "The idapyswitch window did not yield a usable selection."
@@ -657,7 +624,7 @@ function Ensure-IdaPythonSelection {
         Write-Host "  [$idx] v$($p.Version)  $($p.Exe)"
         $idx++
     }
-    Write-Host "  [0] Skip - keep IDA's current Python"
+    Write-Host "  [0] Skip anyway - keep IDA's current (unusable) Python"
 
     $choice = $null
     $answer = $null
@@ -1004,40 +971,40 @@ function Setup-Skills {
 function Setup-CLIDependencies {
     Write-Info "Setting up CLI dependencies..."
 
-    # Windows uses PySide6 (Qt6) by default — same as install.sh's
-    # non-macOS branch. Resolve which Python drives pip (python3 ->
-    # python -> py -3), mirroring install.sh's pip3 fallback chain.
+    # The CLI is a textual TUI (same as install.sh's setup_cli_dependencies).
+    # Resolve which Python drives pip (python3 -> python -> py -3),
+    # mirroring install.sh's pip3 fallback chain.
     $showCmd = $installCmd = $null
     if (Get-Command "python3" -ErrorAction SilentlyContinue) {
-        $showCmd = { python3 -m pip show PySide6 }
-        $installCmd = { python3 -m pip install PySide6 --disable-pip-version-check }
+        $showCmd = { python3 -m pip show textual }
+        $installCmd = { python3 -m pip install "textual>=3.0" --disable-pip-version-check }
     }
     elseif (Get-Command "python" -ErrorAction SilentlyContinue) {
-        $showCmd = { python -m pip show PySide6 }
-        $installCmd = { python -m pip install PySide6 --disable-pip-version-check }
+        $showCmd = { python -m pip show textual }
+        $installCmd = { python -m pip install "textual>=3.0" --disable-pip-version-check }
     }
     elseif (Get-Command "py" -ErrorAction SilentlyContinue) {
-        $showCmd = { py -3 -m pip show PySide6 }
-        $installCmd = { py -3 -m pip install PySide6 --disable-pip-version-check }
+        $showCmd = { py -3 -m pip show textual }
+        $installCmd = { py -3 -m pip install "textual>=3.0" --disable-pip-version-check }
     }
     else {
         Write-Warn "No Python found - skipping CLI dependencies"
         return
     }
 
-    $pyside6Installed = Invoke-Silent $showCmd
-    if (-not $pyside6Installed) {
-        Write-Info "Installing PySide6..."
+    $textualInstalled = Invoke-Silent $showCmd
+    if (-not $textualInstalled) {
+        Write-Info "Installing textual (CLI TUI)..."
         Invoke-Silent $installCmd | Out-Null
         if ($LASTEXITCODE -eq 0) {
-            Write-Ok "PySide6 installed successfully"
+            Write-Ok "textual installed successfully"
         }
         else {
-            Write-Warn "Failed to install PySide6 - CLI may not work properly"
+            Write-Warn "Failed to install textual - CLI may not work properly"
         }
     }
     else {
-        Write-Ok "PySide6 already installed"
+        Write-Ok "textual already installed"
     }
 }
 
