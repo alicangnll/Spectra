@@ -203,10 +203,12 @@ class AssistantMessage(Static):
         self._flushed = ""
         self._stream = None
         self._finalized = False
-
-    def on_mount(self) -> None:
+        # Created eagerly: the pump may call begin_stream()/append_thinking()
+        # in the same tick the message is added, before on_mount runs.
         self._markdown = Markdown()
         self._thinking = ThinkingBlock()
+
+    def on_mount(self) -> None:
         self.mount_all([self._thinking, self._markdown])
 
     # -- streaming --

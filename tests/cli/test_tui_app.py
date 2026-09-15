@@ -236,6 +236,8 @@ class TestTuiApp(unittest.IsolatedAsyncioTestCase):
 
     async def test_tool_approval_a_means_allow_all(self):
         """Regression: legacy CLI sent raw "a" which the loop treats as DENY."""
+        # Answers need a live runner — the app drops them otherwise.
+        self.controller.running = True
         self.controller.events.append(
             TurnEvent(
                 type=TurnEventType.TOOL_APPROVAL_REQUEST,
@@ -248,10 +250,12 @@ class TestTuiApp(unittest.IsolatedAsyncioTestCase):
         await self._settle()
         from spectra.cli.modals import ToolApprovalModal
 
-        self.assertIsNotNone(self.app.screen.query(ToolApprovalModal))
+        # The modal is the active screen (screen.query never includes the
+        # screen itself, so an IsNotNone query there is vacuous).
+        self.assertIsInstance(self.app.screen, ToolApprovalModal)
         await self.pilot.press("a")
         await self._settle()
-        self.assertEqual(self.controller._runner.tool_approvals, ["allow_all"])
+        self.assertEqual(self.controller._runner.agent_loop.tool_approvals, ["allow_all"])
 
     async def test_tool_approval_escape_denies(self):
         self.controller.running = True
@@ -267,7 +271,7 @@ class TestTuiApp(unittest.IsolatedAsyncioTestCase):
         await self._settle()
         await self.pilot.press("escape")
         await self._settle()
-        self.assertEqual(self.controller._runner.tool_approvals, ["deny"])
+        self.assertEqual(self.controller._runner.agent_loop.tool_approvals, ["deny"])
 
     async def test_interrupt_returns_queue_to_input(self):
         await self._submit("long running task")

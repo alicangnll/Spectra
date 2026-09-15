@@ -203,6 +203,10 @@ exit /b 1
 set "PY_CMD=%~1"
 set "REQ_FILE=%~2"
 
+:: Skip Microsoft Store stub aliases ("Python was not found", exit 9009)
+%PY_CMD% --version >nul 2>&1
+if errorlevel 1 exit /b 1
+
 :: Windows ARM64: Try pre-built wheels first
 if !ARM64! equ 1 (
     %PY_CMD% -m pip install --upgrade pip >nul 2>&1

@@ -336,11 +336,31 @@ function Resolve-IdaPythonExecutable {
     return $null
 }
 
+function Test-PythonExecutable {
+    param([string]$Path)
+
+    if (-not $Path -or -not (Test-Path $Path -PathType Leaf)) {
+        return $false
+    }
+
+    # The Microsoft Store "App Installer" aliases under \WindowsApps\ are
+    # stubs when Store Python is absent: they print "Python was not found"
+    # and exit 9009. Only a binary that actually runs counts as a Python.
+    try {
+        $proc = Start-Process -FilePath $Path -ArgumentList "-c", "import sys" `
+            -NoNewWindow -Wait -PassThru -RedirectStandardOutput NUL -RedirectStandardError NUL
+        return ($proc.ExitCode -eq 0)
+    }
+    catch {
+        return $false
+    }
+}
+
 function Get-IdaPython {
     $userDir = Get-IdaUserDir
     $pythonTarget = Get-IdaRegPythonTarget -UserDir $userDir
     $resolved = Resolve-IdaPythonExecutable -TargetPath $pythonTarget
-    if ($resolved) {
+    if (Test-PythonExecutable $resolved) {
         return $resolved
     }
 
@@ -356,7 +376,7 @@ function Get-IdaPython {
         foreach ($dir in $sortedDirs) {
             foreach ($name in @("python.exe", "python3.exe")) {
                 $candidate = Join-Path $dir.FullName $name
-                if (Test-Path $candidate -PathType Leaf) {
+                if (Test-PythonExecutable $candidate) {
                     return $candidate
                 }
             }
@@ -368,7 +388,7 @@ function Get-IdaPython {
         (Join-Path $installDir "python\python.exe"),
         (Join-Path $installDir "python\python3.exe")
     )) {
-        if (Test-Path $candidate -PathType Leaf) {
+        if (Test-PythonExecutable $candidate) {
             return $candidate
         }
     }
@@ -386,7 +406,7 @@ function Get-IdaPython {
                     }
                     if ($target) {
                         $resolved = Resolve-IdaPythonExecutable -TargetPath $target
-                        if ($resolved) {
+                        if (Test-PythonExecutable $resolved) {
                             return $resolved
                         }
                     }
@@ -397,7 +417,8 @@ function Get-IdaPython {
         }
     }
 
-    # Final fallback: try common system Python installations
+    # Final fallback: try common system Python installations. Every
+    # candidate must pass the execution check (filters Store stubs).
     $systemPythonPaths = @(
         "python",
         "python3",
@@ -409,7 +430,11 @@ function Get-IdaPython {
     foreach ($pathPattern in $systemPythonPaths) {
         $matches = Get-Command $pathPattern -ErrorAction SilentlyContinue
         if ($matches) {
-            return $matches.Source
+            foreach ($command in @($matches)) {
+                if (Test-PythonExecutable $command.Source) {
+                    return $command.Source
+                }
+            }
         }
     }
 
