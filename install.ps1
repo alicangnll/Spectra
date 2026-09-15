@@ -379,74 +379,16 @@ function Get-PythonVersionString {
     return $null
 }
 
-function Get-StableSystemPythons {
-    # Enumerate standalone CPython installs, newest version first, keeping
-    # only final releases that actually execute (Store stubs filtered).
-    $seen = @{}
-    $candidates = [System.Collections.Generic.List[string]]::new()
-
-    # Official launcher: py -0p lists installed distributions with paths
-    $pyLauncher = Get-Command "py" -ErrorAction SilentlyContinue
-    if ($pyLauncher) {
-        $listing = Invoke-Silent { & py -0p }
-        foreach ($line in @($listing)) {
-            if ($line -match '([A-Za-z]:\\\S+pythonw?\.exe)') {
-                $exe = $Matches[1]
-                if (-not $seen.ContainsKey($exe.ToLower())) {
-                    $seen[$exe.ToLower()] = $true
-                    $candidates.Add($exe)
-                }
-            }
-        }
-    }
-
-    foreach ($glob in @(
-        "$env:LOCALAPPDATA\Programs\Python\Python3*\python.exe",
-        "${env:ProgramFiles}\Python3*\python.exe",
-        "${env:ProgramFiles(x86)}\Python3*\python.exe"
-    )) {
-        foreach ($item in (Get-Item $glob -ErrorAction SilentlyContinue)) {
-            $exe = $item.FullName
-            if (-not $seen.ContainsKey($exe.ToLower())) {
-                $seen[$exe.ToLower()] = $true
-                $candidates.Add($exe)
-            }
-        }
-    }
-
-    $stable = @()
-    foreach ($exe in $candidates) {
-        if (Test-PythonIsStable $exe) {
-            $stable += [pscustomobject]@{
-                Exe     = $exe
-                Version = (Get-PythonVersionString $exe)
-            }
-        }
-    }
-
-    # "3.10" must outrank "3.9": compare major*100+minor, not a double
-    $sorted = @($stable | Sort-Object {
-        $parts = "$($_.Version)".Split('.')
-        if ($parts.Count -eq 2) { [int]$parts[0] * 100 + [int]$parts[1] } else { 0 }
-    } -Descending)
-
-    if ($sorted.Count -gt 0) {
-        $listing = ($sorted | ForEach-Object { "v$($_.Version) ($($_.Exe))" }) -join ", "
-        Write-Info "Stable system Python found: $listing"
-    }
-    return $sorted
-}
-
 function Ensure-IdaPythonSelection {
     # Windows counterpart of macOS/Linux, where IDA naturally runs against
-    # a regular system Python. If IDA's current Python is missing or a
-    # prerelease (no wheels for PySide6/anthropic), switch IDA to the
-    # newest stable system Python via idapyswitch. A healthy current
-    # selection is kept untouched.
+    # a regular system Python. The selection itself is the USER's, made in
+    # the official idapyswitch.exe GUI — this script never switches IDA's
+    # Python behind the user's back (no --force-path). It launches the GUI
+    # when needed, waits for the choice, then follows whatever was picked.
     #
-    # Returns the python.exe ALL pip installs must target: the freshly
-    # switched one, the already-good current one, or $null when nothing
-    # could be selected.
+    # Returns the python.exe ALL pip installs must target (requirements.txt,
+    # anthropic, PyQt5): the user's fresh GUI selection, the already-good
+    # current one, or $null when nothing usable could be determined.
     param([string]$IdaInstallDir)
 
     if (-not $IdaInstallDir) {
@@ -462,71 +404,67 @@ function Ensure-IdaPythonSelection {
     $currentExe = Resolve-IdaPythonExecutable -TargetPath $currentTarget
     if ($currentExe -and (Test-PythonIsStable $currentExe)) {
         Write-Info "IDA already uses a stable Python: $currentExe (v$(Get-PythonVersionString $currentExe))"
-        return $currentExe
-    }
-
-    if ($currentExe) {
-        Write-Warn "IDA's current Python is a prerelease or unusable: $currentExe"
-    }
-    else {
-        Write-Info "IDA has no usable Python selected yet"
-    }
-
-    $stable = Get-StableSystemPythons
-    if (-not $stable) {
-        Write-Warn "No stable system Python found - leaving IDA's Python selection unchanged."
-        Write-Warn "Install one from https://www.python.org/downloads/ and rerun this installer."
-        return $null
-    }
-
-    # Ask which Python to pin IDA to — never auto-switch silently. All
-    # dependencies (requirements.txt, anthropic, PyQt5) are pip-installed
-    # into the chosen interpreter.
-    Write-Host ""
-    Write-Host "Select the Python IDA Pro should use (dependencies are installed into it):" -ForegroundColor Cyan
-    $idx = 1
-    foreach ($p in @($stable)) {
-        Write-Host "  [$idx] v$($p.Version)  $($p.Exe)"
-        $idx++
-    }
-    Write-Host "  [0] Skip - keep IDA's current Python"
-
-    $choice = $null
-    $answer = $null
-    try { $answer = Read-Host "Choice [1]" } catch {}
-    if ([string]::IsNullOrWhiteSpace($answer)) { $answer = "1" }
-    $picked = 0
-    if ([int]::TryParse($answer, [ref]$picked)) {
-        if ($picked -ge 1 -and $picked -le @($stable).Count) {
-            $choice = @($stable)[$picked - 1]
-        }
-        elseif ($picked -ne 0) {
-            Write-Warn "Invalid choice: $answer"
+        $change = $null
+        try { $change = Read-Host "Open idapyswitch.exe to change it? (y/N)" } catch {}
+        if (-not $change -or $change -notmatch '^[Yy]') {
+            return $currentExe
         }
     }
     else {
-        Write-Warn "Invalid choice: $answer"
+        if ($currentExe) {
+            Write-Warn "IDA's current Python is a prerelease or unusable: $currentExe"
+        }
+        else {
+            Write-Info "IDA has no usable Python selected yet"
+        }
     }
-    if (-not $choice) {
-        # Includes an explicit 0/skip and invalid input.
-        Write-Info "Keeping IDA's current Python"
-        return $null
-    }
-    $choiceDir = Split-Path -Parent $choice.Exe
-    $dll = Join-Path $choiceDir ("python" + "$($choice.Version)".Replace(".", "") + ".dll")
-    if (-not (Test-Path $dll -PathType Leaf)) {
-        Write-Warn "No python DLL next to $($choice.Exe) - leaving selection unchanged"
+
+    if (-not [Environment]::UserInteractive) {
+        Write-Warn "This session cannot open the idapyswitch window - leaving IDA's Python selection unchanged."
         return $null
     }
 
-    Write-Info "Selecting Python $($choice.Version) for IDA (same as macOS/Linux setups): $($choice.Exe)"
-    & $idapyswitch --force-path $dll
-    if ($LASTEXITCODE -ne 0) {
-        Write-Warn "idapyswitch failed (exit $LASTEXITCODE) - IDA keeps its current Python"
-        return $null
+    # The choice happens in the official GUI; read it back from IDA's
+    # registry afterwards. Up to three rounds, in case a prerelease Python
+    # (no wheels for the deps) keeps being picked.
+    $maxAttempts = 3
+    for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+        Write-Host ""
+        Write-Host "Opening idapyswitch.exe - select the Python IDA Pro should use, then press OK." -ForegroundColor Cyan
+        Write-Host "All dependencies (requirements.txt, anthropic, PyQt5) will be installed into it."
+        try {
+            # -Wait blocks until the GUI closes, so the selection below is
+            # read only after the user has finished choosing.
+            Start-Process -FilePath $idapyswitch -Wait
+        }
+        catch {
+            Write-Warn "Could not launch idapyswitch.exe: $_"
+            return $null
+        }
+
+        $newExe = Resolve-IdaPythonExecutable -TargetPath (Get-IdaRegPythonTarget -UserDir (Get-IdaUserDir))
+        if ($newExe -and (Test-PythonIsStable $newExe)) {
+            Write-Ok "IDA Python selected via idapyswitch: $newExe (v$(Get-PythonVersionString $newExe))"
+            return $newExe
+        }
+
+        if ($newExe) {
+            Write-Warn "The selected Python is a prerelease or unusable: $newExe"
+        }
+        else {
+            Write-Warn "IDA still has no usable Python selected"
+        }
+        if ($attempt -lt $maxAttempts) {
+            $retry = $null
+            try { $retry = Read-Host "Open idapyswitch.exe again? (Y/n)" } catch {}
+            if ($retry -and $retry -match '^[Nn]') {
+                break
+            }
+        }
     }
-    Write-Ok "IDA Python switched to v$($choice.Version): $dll"
-    return $choice.Exe
+
+    Write-Warn "No stable Python selected - leaving IDA's Python selection unchanged."
+    return $null
 }
 
 function Get-IdaPython {
@@ -750,10 +688,9 @@ function Install-IDA {
         }
     }
 
-    # Make sure IDA runs against a stable system Python (macOS/Linux
-    # parity): switch via idapyswitch when the current one is a
-    # prerelease/missing, BEFORE resolving the python the deps go into.
-    # Every pip install below targets the SELECTED python.
+    # IDA's Python is chosen by the user in the official idapyswitch.exe
+    # GUI (macOS/Linux parity): launch it when needed, then follow the
+    # selection. Every pip install below targets the SELECTED python.
     $selectedPython = $null
     if ($env:IDADIR) {
         $selectedPython = Ensure-IdaPythonSelection -IdaInstallDir $env:IDADIR
