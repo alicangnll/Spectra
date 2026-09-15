@@ -192,7 +192,12 @@ if defined IDA_PYTHON (
     set "PIP_CMD="!IDA_PYTHON!" -m pip"
     call :try_install_requirements
     if !errorlevel! equ 0 goto deps_ok
-    echo [!] IDA Python pip failed, trying system Python fallbacks...
+    :: NO fallback to other Pythons here: packages installed elsewhere
+    :: would be invisible to IDA. Fail loudly instead of polluting
+    :: unrelated interpreters.
+    echo [!] Dependency installation into IDA's Python failed.
+    echo [!] Fix pip for !IDA_PYTHON! and rerun the installer.
+    exit /b 1
 )
 
 set "PIP_CMD=py -3 -m pip"

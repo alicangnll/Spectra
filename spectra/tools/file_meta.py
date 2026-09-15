@@ -12,7 +12,10 @@ from __future__ import annotations
 import hashlib
 import os
 import re
-from datetime import UTC, datetime
+
+# datetime.UTC exists only on 3.11+; timezone.utc is the same object and
+# works everywhere (IDA on Windows commonly runs 3.10).
+from datetime import datetime, timezone
 from typing import Annotated, Any
 
 from .base import tool
@@ -238,7 +241,7 @@ def _format_timestamp(ts: int) -> str:
     try:
         if ts <= 0 or ts > _MAX_SANE_TIMESTAMP:
             raise ValueError("timestamp out of plausible range")
-        stamp = datetime.fromtimestamp(ts, UTC)
+        stamp = datetime.fromtimestamp(ts, timezone.utc)  # noqa: UP017 — UTC alias is 3.11+
         return f"{stamp.strftime('%Y-%m-%d %H:%M:%S')} UTC (raw {ts:#x})"
     except (ValueError, OverflowError, OSError):
         return f"raw {ts:#x} (implausible timestamp)"

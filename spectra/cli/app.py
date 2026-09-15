@@ -389,15 +389,20 @@ class SpectraApp(App):
                     cwd=os.getcwd(),
                 )
                 assert proc.stdout is not None
+
+                async def consume() -> None:
+                    while True:
+                        line = await proc.stdout.readline()
+                        if not line:
+                            break
+                        output.write(line.decode("utf-8", errors="replace").rstrip("\n"))
+                    await proc.wait()
+
                 try:
-                    async with asyncio.timeout(SHELL_ESCAPE_TIMEOUT):
-                        while True:
-                            line = await proc.stdout.readline()
-                            if not line:
-                                break
-                            output.write(line.decode("utf-8", errors="replace").rstrip("\n"))
-                        await proc.wait()
-                except TimeoutError:
+                    # asyncio.timeout is 3.11+; wait_for has identical
+                    # cancel-on-timeout semantics and runs everywhere.
+                    await asyncio.wait_for(consume(), SHELL_ESCAPE_TIMEOUT)
+                except asyncio.TimeoutError:  # noqa: UP041 — must stay asyncio.* for 3.10
                     proc.kill()
                     output.write(f"⏱ timed out after {SHELL_ESCAPE_TIMEOUT:.0f}s")
                     return
