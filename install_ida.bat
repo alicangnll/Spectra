@@ -120,27 +120,30 @@ if not defined IDA_INSTALL_DIR (
 
 if not defined IDA_PYTHON if defined IDA_INSTALL_DIR (
     echo [*] IDA install dir: !IDA_INSTALL_DIR!
+    :: idapyswitch FIRST: the authoritative answer to "which Python does
+    :: IDA use". install.ps1 may have just switched IDA to a stable
+    :: system Python (macOS/Linux parity) — follow that selection before
+    :: trying IDA's bundled interpreters.
+    if exist "!IDA_INSTALL_DIR!\idapyswitch.exe" (
+        for /f "usebackq tokens=* delims=" %%L in (`"!IDA_INSTALL_DIR!\idapyswitch.exe" --show-current 2^>nul`) do (
+            :: Output is typically a bare path or "Path: C:\..."
+            set "_line=%%L"
+            set "_line=!_line:Path: =!"
+            set "_line=!_line:'=!"
+            call :resolve_python_target "!_line!"
+            if defined RESOLVED_PYTHON set "IDA_PYTHON=!RESOLVED_PYTHON!"
+        )
+    )
     :: Bundled Python: <IDA>\python3.XX\python.exe  (IDA 7.5+)
-    for /d %%D in ("!IDA_INSTALL_DIR!\python3*") do (
-        if exist "%%D\python.exe" set "IDA_PYTHON=%%D\python.exe"
+    if not defined IDA_PYTHON (
+        for /d %%D in ("!IDA_INSTALL_DIR!\python3*") do (
+            if exist "%%D\python.exe" set "IDA_PYTHON=%%D\python.exe"
+        )
     )
     :: Older bundled layout: <IDA>\python\python.exe
     if not defined IDA_PYTHON (
         if exist "!IDA_INSTALL_DIR!\python\python.exe" (
             set "IDA_PYTHON=!IDA_INSTALL_DIR!\python\python.exe"
-        )
-    )
-    :: idapyswitch: asks IDA which system Python it was switched to
-    if not defined IDA_PYTHON (
-        if exist "!IDA_INSTALL_DIR!\idapyswitch.exe" (
-            for /f "usebackq tokens=* delims=" %%L in (`"!IDA_INSTALL_DIR!\idapyswitch.exe" --show-current 2^>nul`) do (
-                :: Output is typically a bare path or "Path: C:\..."
-                set "_line=%%L"
-                set "_line=!_line:Path: =!"
-                set "_line=!_line:'=!"
-                call :resolve_python_target "!_line!"
-                if defined RESOLVED_PYTHON set "IDA_PYTHON=!RESOLVED_PYTHON!"
-            )
         )
     )
 )
@@ -159,7 +162,8 @@ echo [*] Installing Python dependencies...
 
 if defined IDA_PYTHON (
     echo [*] Using IDA's Python: !IDA_PYTHON!
-    set "PIP_CMD=!IDA_PYTHON! -m pip"
+    :: Quoted: IDA may live under "C:\Program Files\..." (space in path)
+    set "PIP_CMD="!IDA_PYTHON!" -m pip"
     call :try_install_requirements
     if !errorlevel! equ 0 goto deps_ok
     echo [!] IDA Python pip failed, trying system Python fallbacks...
@@ -185,6 +189,21 @@ echo [-] Failed to install Python dependencies from requirements.txt
 exit /b 1
 
 :deps_ok
+
+:: ── Qt binding for the panel (IDA's Python only) ──────────────────
+:: requirements.txt intentionally ships no Qt binding (host-bundled Qt
+:: covers macOS/Linux). Windows IDA bundles no pip-usable Qt, so install
+:: PyQt5 into IDA's Python - also what aiDAPal and similar plugins expect.
+:: Best-effort: a failure here must not fail the whole install.
+if defined IDA_PYTHON (
+    echo [*] Installing PyQt5 for the Spectra panel...
+    "!IDA_PYTHON!" -m pip install --no-warn-script-location PyQt5 >nul 2>&1
+    if !errorlevel! equ 0 (
+        echo [+] PyQt5 installed for IDA's Python
+    ) else (
+        echo [!] PyQt5 install failed - install manually: pip install PyQt5
+    )
+)
 
 :: ── Create directories ───────────────────────────────────────────────
 

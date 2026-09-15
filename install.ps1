@@ -356,6 +356,136 @@ function Test-PythonExecutable {
     }
 }
 
+function Test-PythonIsStable {
+    param([string]$Path)
+
+    if (-not (Test-PythonExecutable $Path)) {
+        return $false
+    }
+    # Prerelease builds (e.g. "3.15.0a5") have no pip wheels for the
+    # dependencies Spectra installs into IDA's Python (PySide6, anthropic).
+    # Only final releases qualify.
+    Invoke-Silent { & $Path -c "import sys; sys.exit(0 if sys.version_info.releaselevel == 'final' else 1)" }
+    return ($LASTEXITCODE -eq 0)
+}
+
+function Get-PythonVersionString {
+    param([string]$Path)
+
+    $out = Invoke-Silent { & $Path -c "import sys; print('%d.%d' % (sys.version_info[0], sys.version_info[1]))" }
+    if ($out) {
+        return ( (@($out) | Select-Object -First 1).Trim() )
+    }
+    return $null
+}
+
+function Get-StableSystemPythons {
+    # Enumerate standalone CPython installs, newest version first, keeping
+    # only final releases that actually execute (Store stubs filtered).
+    $seen = @{}
+    $candidates = [System.Collections.Generic.List[string]]::new()
+
+    # Official launcher: py -0p lists installed distributions with paths
+    $pyLauncher = Get-Command "py" -ErrorAction SilentlyContinue
+    if ($pyLauncher) {
+        $listing = Invoke-Silent { & py -0p }
+        foreach ($line in @($listing)) {
+            if ($line -match '([A-Za-z]:\\\S+pythonw?\.exe)') {
+                $exe = $Matches[1]
+                if (-not $seen.ContainsKey($exe.ToLower())) {
+                    $seen[$exe.ToLower()] = $true
+                    $candidates.Add($exe)
+                }
+            }
+        }
+    }
+
+    foreach ($glob in @(
+        "$env:LOCALAPPDATA\Programs\Python\Python3*\python.exe",
+        "${env:ProgramFiles}\Python3*\python.exe",
+        "${env:ProgramFiles(x86)}\Python3*\python.exe"
+    )) {
+        foreach ($item in (Get-Item $glob -ErrorAction SilentlyContinue)) {
+            $exe = $item.FullName
+            if (-not $seen.ContainsKey($exe.ToLower())) {
+                $seen[$exe.ToLower()] = $true
+                $candidates.Add($exe)
+            }
+        }
+    }
+
+    $stable = @()
+    foreach ($exe in $candidates) {
+        if (Test-PythonIsStable $exe) {
+            $stable += [pscustomobject]@{
+                Exe     = $exe
+                Version = (Get-PythonVersionString $exe)
+            }
+        }
+    }
+
+    # "3.10" must outrank "3.9": compare major*100+minor, not a double
+    return ($stable | Sort-Object {
+        $parts = "$($_.Version)".Split('.')
+        if ($parts.Count -eq 2) { [int]$parts[0] * 100 + [int]$parts[1] } else { 0 }
+    } -Descending)
+}
+
+function Ensure-IdaPythonSelection {
+    # Windows counterpart of macOS/Linux, where IDA naturally runs against
+    # a regular system Python. If IDA's current Python is missing or a
+    # prerelease (no wheels for PySide6/anthropic), switch IDA to the
+    # newest stable system Python via idapyswitch. A healthy current
+    # selection is kept untouched.
+    param([string]$IdaInstallDir)
+
+    if (-not $IdaInstallDir) {
+        return
+    }
+
+    $idapyswitch = Join-Path $IdaInstallDir "idapyswitch.exe"
+    if (-not (Test-Path $idapyswitch -PathType Leaf)) {
+        return
+    }
+
+    $currentTarget = Get-IdaRegPythonTarget -UserDir (Get-IdaUserDir)
+    $currentExe = Resolve-IdaPythonExecutable -TargetPath $currentTarget
+    if ($currentExe -and (Test-PythonIsStable $currentExe)) {
+        Write-Info "IDA already uses a stable Python: $currentExe (v$(Get-PythonVersionString $currentExe))"
+        return
+    }
+
+    if ($currentExe) {
+        Write-Warn "IDA's current Python is a prerelease or unusable: $currentExe"
+    }
+    else {
+        Write-Info "IDA has no usable Python selected yet"
+    }
+
+    $stable = Get-StableSystemPythons
+    if (-not $stable) {
+        Write-Warn "No stable system Python found - leaving IDA's Python selection unchanged."
+        Write-Warn "Install one from https://www.python.org/downloads/ and rerun this installer."
+        return
+    }
+
+    $choice = @($stable)[0]
+    $choiceDir = Split-Path -Parent $choice.Exe
+    $dll = Join-Path $choiceDir ("python" + "$($choice.Version)".Replace(".", "") + ".dll")
+    if (-not (Test-Path $dll -PathType Leaf)) {
+        Write-Warn "No python DLL next to $($choice.Exe) - leaving selection unchanged"
+        return
+    }
+
+    Write-Info "Selecting Python $($choice.Version) for IDA (same as macOS/Linux setups): $($choice.Exe)"
+    & $idapyswitch --force-path $dll
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warn "idapyswitch failed (exit $LASTEXITCODE) - IDA keeps its current Python"
+        return
+    }
+    Write-Ok "IDA Python switched to v$($choice.Version): $dll"
+}
+
 function Get-IdaPython {
     $userDir = Get-IdaUserDir
     $pythonTarget = Get-IdaRegPythonTarget -UserDir $userDir
@@ -562,6 +692,13 @@ function Install-IDA {
             $env:IDADIR = $resolvedIdaDir
             $setIdaDir = $true
         }
+    }
+
+    # Make sure IDA runs against a stable system Python (macOS/Linux
+    # parity): switch via idapyswitch when the current one is a
+    # prerelease/missing, BEFORE resolving the python the deps go into.
+    if ($env:IDADIR) {
+        Ensure-IdaPythonSelection -IdaInstallDir $env:IDADIR
     }
 
     $setIdaPython = $false
