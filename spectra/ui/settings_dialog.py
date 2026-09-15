@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import queue
+import sys
 import threading
 from typing import Any
 
@@ -320,7 +321,10 @@ class SettingsDialog(QDialog):
         # OAuth checkbox — controls keychain autoload
         self._oauth_cb = QCheckBox("Use OAuth from Claude Code (macOS Keychain)")
         self._oauth_cb.setChecked(self._config.oauth_consent_accepted)
-        self._oauth_cb.setVisible(self._config.provider.name == "anthropic")
+        # Keychain autoload is macOS-only (see _read_oauth_from_keychain);
+        # elsewhere the checkbox enables a path that can never succeed and
+        # even locks the API key field while at it.
+        self._oauth_cb.setVisible(self._config.provider.name == "anthropic" and sys.platform == "darwin")
         self._oauth_cb.setToolTip(
             "Auto-load your Claude Code OAuth token from the macOS Keychain.\n"
             "Requires accepting Anthropic's credential use policy."
@@ -558,8 +562,11 @@ class SettingsDialog(QDialog):
             return
         try:
             kind, provider_name, data = result
-            # Ignore stale results from previous provider selections.
+            # Ignore stale results from previous provider selections, but
+            # never leave the UI stuck on "Fetching..." with a disabled
+            # Refresh button just because the only result was stale.
             if provider_name != self._provider_combo.currentText():
+                self._fetch_btn.setEnabled(True)
                 return
             if kind == "models":
                 self._on_models_ready(data)
@@ -597,8 +604,8 @@ class SettingsDialog(QDialog):
         if provider == "ollama" and not self._api_base_edit.text().strip():
             self._api_base_edit.setText(_PROVIDER_BASES["ollama"])
 
-        # OAuth checkbox only visible for Anthropic
-        self._oauth_cb.setVisible(provider == "anthropic")
+        # OAuth checkbox only visible for Anthropic on macOS (keychain)
+        self._oauth_cb.setVisible(provider == "anthropic" and sys.platform == "darwin")
 
         # Update placeholder
         if provider == "anthropic":
@@ -676,7 +683,13 @@ class SettingsDialog(QDialog):
             self._auth_status.setStyleSheet(self._OK_STYLE)
         elif status_type == "error":
             if provider_name == "anthropic":
-                self._auth_status.setText("run claude setup-token to acquire your oauth")
+                # A missing credential is "not configured yet", not a
+                # failure — guide instead of alarming. Keychain OAuth
+                # only exists on macOS.
+                if sys.platform == "darwin":
+                    self._auth_status.setText("run claude setup-token to acquire your oauth")
+                else:
+                    self._auth_status.setText("no key yet — paste an API key")
                 self._auth_status.setStyleSheet(self._HINT_STYLE)
             else:
                 self._auth_status.setText(label)
@@ -699,6 +712,32 @@ class SettingsDialog(QDialog):
         self._model_status.setText("Fetching...")
         self._fetch_btn.setEnabled(False)
         self._fetcher.fetch(provider, key, base)
+        self._start_fetch_watchdog()
+
+    _FETCH_TIMEOUT_MS = 30000
+
+    def _start_fetch_watchdog(self) -> None:
+        """Re-arm a timeout per fetch so "Fetching..." can never stick.
+
+        A fetch thread that dies without queueing anything would otherwise
+        leave the Refresh button disabled forever.
+        """
+        self._fetch_generation = getattr(self, "_fetch_generation", 0) + 1
+        generation = self._fetch_generation
+
+        def _timed_out() -> None:
+            # Superseded by a newer fetch, or a result already delivered
+            # (the button came back on) — do nothing.
+            if generation != getattr(self, "_fetch_generation", 0):
+                return
+            if self._closed or self._fetch_btn.isEnabled():
+                return
+            self._fetch_generation = generation + 1
+            self._fetch_btn.setEnabled(True)
+            self._model_status.setText("fetch timed out — click Refresh to retry")
+            self._model_status.setStyleSheet("color: #f44747; font-size: 10px;")
+
+        QTimer.singleShot(self._FETCH_TIMEOUT_MS, _timed_out)
 
     def _on_models_ready(self, models: list) -> None:
         self._fetch_btn.setEnabled(True)
@@ -737,8 +776,14 @@ class SettingsDialog(QDialog):
 
     def _on_fetch_error(self, error: str) -> None:
         self._fetch_btn.setEnabled(True)
-        self._model_status.setText(error)
-        self._model_status.setStyleSheet("color: #f44747; font-size: 10px;")
+        if error.startswith("No Anthropic credential found"):
+            # "Not configured yet" is guidance, not a fetch failure — the
+            # fix is pasting a key, not chasing OAuth tokens.
+            self._model_status.setText("no credential — paste an API key to load models")
+            self._model_status.setStyleSheet(self._HINT_STYLE)
+        else:
+            self._model_status.setText(error)
+            self._model_status.setStyleSheet("color: #f44747; font-size: 10px;")
         self._model_restore_hint = ""
 
     def _update_generation_defaults(self) -> None:
@@ -1049,7 +1094,11 @@ class SettingsDialog(QDialog):
         # If the user pasted an OAuth token with the checkbox unchecked,
         # show the consent dialog.  Use parent=None to avoid nesting a
         # modal inside this already-modal settings dialog.
-        if api_key.startswith("sk-ant-oat") and not self._oauth_cb.isChecked():
+        # Keychain consent only makes sense on macOS. Elsewhere a pasted
+        # sk-ant-oat token is simply used as the key (its prefix routes it
+        # to OAuth auth headers); the consent flow would clear the field
+        # with no keychain to fall back on.
+        if sys.platform == "darwin" and api_key.startswith("sk-ant-oat") and not self._oauth_cb.isChecked():
             from .oauth_consent import show_oauth_consent
 
             choice = show_oauth_consent(parent=None)

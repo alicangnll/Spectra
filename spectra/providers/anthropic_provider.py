@@ -151,11 +151,16 @@ class AnthropicProvider(LLMProvider):
                     provider="anthropic",
                 ) from exc
             if not self.api_key:
-                raise AuthenticationError(
-                    "No Anthropic credential found. Set ANTHROPIC_API_KEY, "
-                    "paste a key in settings, or run `claude setup-token`.",
-                    provider="anthropic",
-                )
+                if sys.platform == "darwin":
+                    msg = (
+                        "No Anthropic credential found. Set ANTHROPIC_API_KEY, "
+                        "paste a key in settings, or run `claude setup-token`."
+                    )
+                else:
+                    # Keychain OAuth is macOS-only; the setup-token advice is
+                    # a dead end elsewhere and reads as "OAuth is required".
+                    msg = "No Anthropic credential found. Set ANTHROPIC_API_KEY or paste a key in settings."
+                raise AuthenticationError(msg, provider="anthropic")
             # OAuth tokens use Bearer auth + beta header;
             # API keys use x-api-key header.
             kwargs: dict[str, Any] = {}
@@ -206,31 +211,56 @@ class AnthropicProvider(LLMProvider):
         )
 
     def _fetch_models_live(self) -> list[ModelInfo]:
-        """Fetch models from the Anthropic API."""
+        """Fetch models from the API, tolerating Anthropic-compatible proxies.
+
+        Proxies such as z.ai answer ``/v1/models`` with non-Anthropic JSON —
+        OpenAI-style entries, or an error wrapper delivered with HTTP 200 —
+        which the SDK's strict response models reject. Read the RAW body and
+        parse the entries defensively instead.
+        """
         client = self._get_client()
-        response = client.models.list(limit=100)
-        models = []
-        for m in response.data:
-            model_id = m.id
-            display_name = getattr(m, "display_name", model_id)
+        try:
+            raw = client.with_raw_response.models.list(limit=100)
+            payload = json.loads(raw.text)
+        except Exception:
+            # Unreachable or unparseable. Behind a custom base URL the
+            # builtin Claude list would be the WRONG models (Claude on a
+            # GLM endpoint) — return [] so the UI asks for a manual model
+            # ID instead of silently substituting.
+            return [] if self.api_base else self._builtin_models()
+
+        if isinstance(payload, dict):
+            items = payload.get("data") or payload.get("models") or []
+        elif isinstance(payload, list):
+            items = payload
+        else:
+            items = []
+
+        models: list[ModelInfo] = []
+        seen: set[str] = set()
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            model_id = str(item.get("id") or item.get("name") or item.get("model") or "").strip()
+            if not model_id or model_id in seen:
+                continue
+            seen.add(model_id)
             # API doesn't return context/output limits; use known defaults
             is_opus = "opus" in model_id
-            ctx_window = 200000
-            max_output = 16384 if is_opus else 8192
             models.append(
                 ModelInfo(
                     id=model_id,
-                    name=display_name,
+                    name=str(item.get("display_name") or model_id),
                     provider="anthropic",
-                    context_window=ctx_window,
-                    max_output_tokens=max_output,
+                    context_window=200000,
+                    max_output_tokens=16384 if is_opus else 8192,
                     supports_tools=True,
                     supports_vision=True,
                 )
             )
         # Sort: newest/best first
         models.sort(key=lambda m: m.id, reverse=True)
-        return models if models else self._builtin_models()
+        return models if models else ([] if self.api_base else self._builtin_models())
 
     @staticmethod
     def _builtin_models() -> list[ModelInfo]:

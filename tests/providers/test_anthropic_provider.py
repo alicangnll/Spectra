@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 import unittest
@@ -277,17 +278,13 @@ class TestSamplingParamGating(unittest.TestCase):
     def test_temperature_included_when_sdk_supports_it(self):
         p, ap = self._build_kwargs()
         with patch.object(ap, "_sampling_supported", return_value=True):
-            kwargs = p._build_request_kwargs(
-                [Message(role=Role.USER, content="hi")], None, 0.3, 1024, ""
-            )
+            kwargs = p._build_request_kwargs([Message(role=Role.USER, content="hi")], None, 0.3, 1024, "")
         self.assertEqual(kwargs["temperature"], 0.3)
 
     def test_temperature_omitted_on_sdk_1x(self):
         p, ap = self._build_kwargs()
         with patch.object(ap, "_sampling_supported", return_value=False):
-            kwargs = p._build_request_kwargs(
-                [Message(role=Role.USER, content="hi")], None, 0.3, 1024, ""
-            )
+            kwargs = p._build_request_kwargs([Message(role=Role.USER, content="hi")], None, 0.3, 1024, "")
         self.assertNotIn("temperature", kwargs)
         # Core request fields are unaffected
         self.assertEqual(kwargs["model"], "claude-test")
@@ -302,6 +299,60 @@ class TestSamplingParamGating(unittest.TestCase):
         with patch.object(ap.importlib, "import_module", side_effect=ImportError):
             ap._SAMPLING_SUPPORTED = None  # reset cache
             self.assertTrue(ap._sampling_supported())
+
+
+class TestFetchModelsLiveDefensive(unittest.TestCase):
+    """Anthropic-compatible proxies (z.ai & co.) answer /v1/models with
+    non-Anthropic bodies — OpenAI-style entries, or an error wrapper with
+    HTTP 200. Parsing must survive that instead of silently substituting
+    the builtin Claude list."""
+
+    @staticmethod
+    def _provider_with_body(text: str, api_base: str = ""):
+        _reload_anthropic_provider_module()
+        from spectra.providers.anthropic_provider import AnthropicProvider
+
+        p = AnthropicProvider(api_key="sk-test", api_base=api_base, model="m")
+        raw = SimpleNamespace(text=text)
+        client = SimpleNamespace(with_raw_response=SimpleNamespace(models=SimpleNamespace(list=lambda limit=100: raw)))
+        p._client = client
+        return p
+
+    def test_anthropic_shape_still_parses(self):
+        body = json.dumps({"data": [{"id": "claude-x", "display_name": "Claude X"}]})
+        p = self._provider_with_body(body)
+        models = p._fetch_models_live()
+        self.assertEqual([m.id for m in models], ["claude-x"])
+        self.assertEqual(models[0].name, "Claude X")
+
+    def test_openai_style_proxy_entries_parse(self):
+        # z.ai-style entries: bare ids, no display_name
+        body = json.dumps({"data": [{"id": "glm-4.7", "object": "model"}, {"id": "glm-4.6"}]})
+        p = self._provider_with_body(body, api_base="https://api.z.ai/api/anthropic")
+        glm = next(m for m in p._fetch_models_live() if m.id == "glm-4.7")
+        self.assertEqual(glm.name, "glm-4.7")
+        self.assertIn("glm-4.6", [m.id for m in p._fetch_models_live()])
+
+    def test_models_key_entries_parse(self):
+        body = json.dumps({"models": [{"name": "glm-4.6"}]})
+        p = self._provider_with_body(body, api_base="https://api.example.com")
+        self.assertEqual([m.id for m in p._fetch_models_live()], ["glm-4.6"])
+
+    def test_error_wrapper_custom_base_returns_empty(self):
+        # z.ai returns 200 + {"code":401,"msg":...,"success":false} —
+        # behind a custom base the honest answer is "nothing listed".
+        body = json.dumps({"code": 401, "msg": "token expired or incorrect", "success": False})
+        p = self._provider_with_body(body, api_base="https://api.z.ai/api/anthropic")
+        self.assertEqual(p._fetch_models_live(), [])
+
+    def test_error_wrapper_official_api_falls_back_to_builtins(self):
+        body = json.dumps({"code": 401, "msg": "nope", "success": False})
+        p = self._provider_with_body(body)
+        self.assertTrue(any(m.id.startswith("claude") for m in p._fetch_models_live()))
+
+    def test_garbage_body_custom_base_returns_empty(self):
+        p = self._provider_with_body("<html>login page</html>", api_base="https://api.z.ai/api/anthropic")
+        self.assertEqual(p._fetch_models_live(), [])
 
 
 if __name__ == "__main__":

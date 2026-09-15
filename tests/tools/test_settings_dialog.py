@@ -319,6 +319,15 @@ class TestSettingsDialogPollFetcher(unittest.TestCase):
         dlg._poll_fetcher()
         dlg._model_status.setText.assert_not_called()
 
+    def test_stale_result_drop_reenables_fetch_btn(self):
+        # Dropping a stale result must not leave the UI stuck on
+        # "Fetching..." with a disabled Refresh button.
+        dlg = _make_settings()
+        dlg._provider_combo.currentText.return_value = "openai"
+        dlg._fetcher.poll.return_value = ("models", "anthropic", [])
+        dlg._poll_fetcher()
+        dlg._fetch_btn.setEnabled.assert_called_with(True)
+
     def test_handles_malformed_result_gracefully(self):
         dlg = _make_settings()
         dlg._fetcher.poll.return_value = "not_a_tuple"
@@ -373,6 +382,14 @@ class TestSettingsDialogOnFetchError(unittest.TestCase):
         dlg._model_restore_hint = "old"
         dlg._on_fetch_error("err")
         self.assertEqual(dlg._model_restore_hint, "")
+
+    def test_credential_error_shows_neutral_hint_not_red(self):
+        # "No credential configured" is guidance, not a fetch failure —
+        # and OAuth/keychain cannot be the fix on non-macOS anyway.
+        dlg = _make_settings()
+        dlg._on_fetch_error("No Anthropic credential found. Set ANTHROPIC_API_KEY or paste a key in settings.")
+        dlg._model_status.setText.assert_called_with("no credential — paste an API key to load models")
+        dlg._model_status.setStyleSheet.assert_called_with("color: #808080; font-size: 10px;")
 
 
 class TestDeferredInit(unittest.TestCase):
