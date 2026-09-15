@@ -451,6 +451,7 @@ function Ensure-IdaPythonSelection {
     for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
         Write-Host ""
         Write-Host "Opening idapyswitch.exe - select the Python IDA Pro should use, then press OK." -ForegroundColor Cyan
+        Write-Host "Pick a FINAL release (e.g. 3.10) - alpha builds (e.g. 3.15.0a) have no wheels for the dependencies."
         Write-Host "All dependencies (requirements.txt, anthropic, PyQt5) will be installed into it."
         try {
             # -Wait blocks until the GUI closes, so the selection below is
@@ -462,7 +463,16 @@ function Ensure-IdaPythonSelection {
             return $null
         }
 
-        $newExe = Resolve-IdaPythonExecutable -TargetPath (Get-IdaRegPythonTarget -UserDir (Get-IdaUserDir))
+        $newExe = $null
+        foreach ($uDir in (Get-IdaUserDirs)) {
+            $target = Get-IdaRegPythonTarget -UserDir $uDir
+            if ($target) {
+                $newExe = Resolve-IdaPythonExecutable -TargetPath $target
+                if ($newExe) {
+                    break
+                }
+            }
+        }
         if ($newExe -and (Test-PythonIsStable $newExe)) {
             Write-Ok "IDA Python selected via idapyswitch: $newExe (v$(Get-PythonVersionString $newExe))"
             return $newExe
@@ -473,6 +483,18 @@ function Ensure-IdaPythonSelection {
         }
         else {
             Write-Warn "IDA still has no usable Python selected"
+            # Diagnostics: what is actually stored in each candidate ida.reg?
+            foreach ($uDir in (Get-IdaUserDirs)) {
+                $regFile = Join-Path $uDir "ida.reg"
+                if (Test-Path $regFile -PathType Leaf) {
+                    $found = Get-IdaRegPythonTarget -UserDir $uDir
+                    $shown = if ($found) { $found } else { "(no python dll path found)" }
+                    Write-Warn ("  {0} (modified {1}): {2}" -f $regFile, (Get-Item $regFile).LastWriteTime, $shown)
+                }
+                else {
+                    Write-Warn "  no ida.reg in $uDir"
+                }
+            }
         }
         if ($attempt -lt $maxAttempts) {
             $retry = $null
