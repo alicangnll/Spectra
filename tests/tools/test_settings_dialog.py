@@ -551,6 +551,56 @@ class TestUpdateInstallResultHandler(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# _update_generation_defaults — refresh must not clobber user values
+# ---------------------------------------------------------------------------
+
+
+class TestUpdateGenerationDefaults(unittest.TestCase):
+    """Regression: every model-list refresh used to clobber the user's
+    custom max_tokens with the model default — raising 4096 looked saved,
+    then snapped back once "Fetching..." finished."""
+
+    @staticmethod
+    def _model(mid: str, ctx: int = 128000, max_out: int = 8192):
+        m = MagicMock()
+        m.id = mid
+        m.name = mid
+        m.context_window = ctx
+        m.max_output_tokens = max_out
+        return m
+
+    def _make(self, saved_model: str):
+        from types import SimpleNamespace
+
+        dlg = _make_settings()
+        dlg._config.provider = SimpleNamespace(model=saved_model)
+        return dlg
+
+    def test_same_model_refresh_keeps_user_values(self):
+        dlg = self._make("glm-4.7")
+        dlg._fetched_models = [self._model("glm-4.7")]
+        dlg._get_selected_model_id = lambda: "glm-4.7"
+        dlg._update_generation_defaults()
+        dlg._context_spin.setValue.assert_not_called()
+        dlg._max_tokens_spin.setValue.assert_not_called()
+
+    def test_different_model_applies_defaults(self):
+        dlg = self._make("old-model")
+        dlg._fetched_models = [self._model("glm-4.7", ctx=200000, max_out=4096)]
+        dlg._get_selected_model_id = lambda: "glm-4.7"
+        dlg._update_generation_defaults()
+        dlg._context_spin.setValue.assert_called_with(200000)
+        dlg._max_tokens_spin.setValue.assert_called_with(4096)
+
+    def test_no_match_is_noop(self):
+        dlg = self._make("glm-4.7")
+        dlg._fetched_models = [self._model("other")]
+        dlg._get_selected_model_id = lambda: "glm-4.7"
+        dlg._update_generation_defaults()
+        dlg._context_spin.setValue.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
 # _on_accept — the dialog itself must save, visibly
 # ---------------------------------------------------------------------------
 
