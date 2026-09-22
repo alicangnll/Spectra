@@ -41,9 +41,12 @@ def _get_base_namespace() -> dict:
 def execute_python(
     code: Annotated[str, "Python code to execute in Binary Ninja's scripting environment"],
 ) -> str:
-    """Execute arbitrary Python code in Binary Ninja context and return stdout/stderr.
+    """LAST RESORT — call only when NO dedicated tool covers the task.
 
-    The code runs with access to `binaryninja`, `binaryninjaui`, `bv`, and
-    `current_address`.
+    Every call pauses for explicit user approval. Decompiling, disassembly,
+    cross-references, strings, symbols, renaming, comments and types ALL
+    have dedicated tools — use those first. Legitimate uses: bulk
+    operations, computations no tool provides, or the user explicitly
+    asking for a script.
     """
     return run_guarded_script(code, _get_base_namespace)

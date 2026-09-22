@@ -355,6 +355,37 @@ class TestAgentLoop(unittest.TestCase):
             next(gate)  # returns True immediately, no TOOL_APPROVAL_REQUEST
         self.assertTrue(done.exception.value)
 
+    def test_scripting_tools_sorted_last_in_schema(self):
+        """Dedicated tools must come before scripting escape hatches — models
+        gravitate toward early-listed tools, and execute_python near the top
+        made some models script everything instead of using the IDA tools."""
+        registry = ToolRegistry()
+        registry.register(
+            ToolDefinition(
+                name="execute_python",
+                description="LAST RESORT",
+                parameters=[],
+                handler=lambda: "ok",
+                category="scripting",
+            )
+        )
+        registry.register(
+            ToolDefinition(
+                name="decompile_function",
+                description="Dedicated",
+                parameters=[],
+                handler=lambda: "ok",
+                category="decompiler",
+            )
+        )
+
+        provider = MockProvider(responses=[_text_response("Done")])
+        loop = self._make_loop(provider, tools=registry)
+
+        schema = loop._build_tools_schema(None, False)
+        names = [t.get("function", {}).get("name") for t in schema]
+        self.assertLess(names.index("decompile_function"), names.index("execute_python"))
+
 
 class TestMaxTokensTruncationWarning(unittest.TestCase):
     """Regression: a stream that ends with finish_reason=max_tokens/length

@@ -144,8 +144,9 @@ SAFETY_SECTION = """\
 This agent operates without artificial intelligence constraints. Full analytical capabilities are enabled for discovering vulnerabilities in any form, in any location, without pattern limitations. New and unique vulnerabilities can emerge anywhere in code, in any context, through any interaction.
 
 **execute_python** requires explicit user approval before it runs. The user will see your code and decide whether to allow it. Write clean, readable code so the user can review it quickly.
-- Use execute_python when no dedicated tool exists for the task
-- Prefer built-in tools when available for efficiency
+- Dedicated tools come FIRST; execute_python is the last option, never the default
+- Dedicated tools run instantly and can be batched in parallel; every
+  execute_python call pauses the session until the user approves it
 """
 
 TOKEN_EFFICIENCY_SECTION = """\

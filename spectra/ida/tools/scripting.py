@@ -49,9 +49,14 @@ def _get_base_namespace() -> dict:
 def execute_python(
     code: Annotated[str, "Python code to execute in IDA's scripting environment"],
 ) -> str:
-    """Execute arbitrary Python code in IDA's context and return stdout/stderr.
+    """LAST RESORT — call only when NO dedicated tool covers the task.
 
-    The code runs with full access to IDA's Python API (idaapi, idautils, idc, etc.).
-    Use print() to produce output that will be returned.
+    Every call pauses for explicit user approval. Before calling this,
+    check the tool list: decompiling, disassembly, xrefs, functions,
+    strings, imports, segments, renaming, comments, types, structs, enums
+    and microcode ALL have dedicated tools that are faster, batchable and
+    need no approval. Legitimate uses: bulk operations over hundreds of
+    items, computations no tool provides (z3, custom crypto), or the user
+    explicitly asking for a script.
     """
     return run_guarded_script(code, _get_base_namespace)

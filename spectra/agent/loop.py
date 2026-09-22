@@ -1702,6 +1702,18 @@ class AgentLoop:
 
         tools_schema = list(self.tools.to_provider_format())
 
+        # Purpose-built tools first, scripting escape hatch last. Models
+        # gravitate toward tools listed early — execute_python near the top
+        # made some models script everything instead of using the dedicated
+        # IDA/BN tools.
+        scripting_names = {
+            name
+            for name in self.tools.list_names()
+            if (d := self.tools.get(name)) is not None and d.category == "scripting"
+        }
+        if scripting_names:
+            tools_schema.sort(key=lambda t: 1 if t.get("function", t).get("name", "") in scripting_names else 0)
+
         # Filter to skill-allowed tools if the skill restricts them
         if active_skill and active_skill.allowed_tools:
             allowed = set(active_skill.allowed_tools)
