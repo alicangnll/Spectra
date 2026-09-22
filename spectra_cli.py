@@ -119,31 +119,6 @@ def prompt_decrypt_password(config) -> bool:
     return False
 
 
-def prompt_decrypt_password(config) -> bool:
-    """Prompt for the config encryption password (mirrors the IDA panel).
-
-    The API key itself is already stored — only the password is needed to
-    decrypt it into this session. Three attempts; empty input, Ctrl-C or
-    Ctrl-D cancels and leaves the keys locked. The stored key stays
-    encrypted on disk; nothing is re-saved here.
-    """
-    print()
-    print("🔐 Your Spectra config stores the API key encrypted.")
-    for _attempt in range(3):
-        try:
-            password = getpass.getpass("Decryption password (empty to cancel): ")
-        except (EOFError, KeyboardInterrupt):
-            print()
-            return False
-        if not password:
-            return False
-        if config.decrypt_stored_keys(password):
-            print("✓ API key decrypted")
-            return True
-        print("✗ Wrong password.")
-    return False
-
-
 def cmd_dir_loc(directory: str) -> int:
     """Start CLI in directory context mode.
 
