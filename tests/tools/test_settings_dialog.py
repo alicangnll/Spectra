@@ -550,5 +550,78 @@ class TestUpdateInstallResultHandler(unittest.TestCase):
         dlg._update_status_label.setText.assert_not_called()
 
 
+# ---------------------------------------------------------------------------
+# _on_accept — the dialog itself must save, visibly
+# ---------------------------------------------------------------------------
+
+
+def _make_accept_dialog():
+    from types import SimpleNamespace
+
+    dlg = _make_settings()
+    # Real-ish config: encrypt off, model set (fallback target)
+    dlg._config = MagicMock()
+    dlg._config.encrypt_api_keys = False
+    dlg._config.has_encrypted_keys = MagicMock(return_value=False)
+    dlg._config.provider = SimpleNamespace(name="old-name", model="old-model")
+    dlg._model_combo.currentText.return_value = ""  # empty selection → fallback
+    dlg._oauth_cb = MagicMock()
+    dlg._oauth_cb.isChecked.return_value = False
+    dlg._encrypt_keys_cb = MagicMock()
+    dlg._encrypt_keys_cb.isChecked.return_value = False
+    dlg._unsafe_commands_cb = MagicMock()
+    dlg._unsafe_commands_cb.isChecked.return_value = False
+    dlg._silent_retry_cb = MagicMock()
+    dlg._silent_retry_cb.isChecked.return_value = False
+    dlg._preserve_context_cb = MagicMock()
+    dlg._preserve_context_cb.isChecked.return_value = False
+    dlg._subagent_turns_spin = MagicMock()
+    dlg._max_retries_spin = MagicMock()
+    dlg._api_key_edit.text.return_value = "sk-test"
+    dlg._api_base_edit.text.return_value = ""
+    dlg._skills_tab = MagicMock()
+    dlg._mcp_tab = MagicMock()
+    dlg._profiles_tab = MagicMock()
+    dlg.accept = MagicMock()
+    # NOTE: no _token_limiter_enabled_cb attr → hasattr() skips that block
+    return dlg
+
+
+class TestOnAcceptSaves(unittest.TestCase):
+    """Regression (Windows): clicking OK didn't persist settings. Saving is
+    now owned by the dialog itself so failures are visible instead of being
+    silently swallowed by the caller."""
+
+    def test_accept_saves_with_password(self):
+        dlg = _make_accept_dialog()
+        dlg._on_accept()
+        dlg._config.save.assert_called_once_with(password="")
+        dlg.accept.assert_called_once()
+
+    def test_empty_model_keeps_previous(self):
+        dlg = _make_accept_dialog()
+        dlg._on_accept()
+        # Empty combo must not wipe the saved model
+        self.assertEqual(dlg._config.provider.model, "old-model")
+
+    def test_save_failure_keeps_dialog_open_and_warns(self):
+        import spectra.ui.qt_compat as qt_compat
+
+        dlg = _make_accept_dialog()
+        dlg._config.save.side_effect = OSError("disk full")
+        with patch.object(qt_compat, "QMessageBox") as mb:
+            dlg._on_accept()
+            mb.warning.assert_called_once()
+        # Dialog must stay open so the user can retry
+        dlg.accept.assert_not_called()
+
+    def test_tab_apply_failure_does_not_block_save(self):
+        dlg = _make_accept_dialog()
+        dlg._skills_tab.apply_to_config.side_effect = RuntimeError("tab boom")
+        dlg._on_accept()
+        dlg._config.save.assert_called_once_with(password="")
+        dlg.accept.assert_called_once()
+
+
 if __name__ == "__main__":
     unittest.main()

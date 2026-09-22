@@ -360,6 +360,7 @@ class AgentLoop:
         skill_registry: SkillRegistry | None = None,
         host_name: str = "IDA Pro",
         parent_loop: AgentLoop | None = None,
+        approval_state: dict[str, bool] | None = None,
     ):
         self.provider = provider
         self.tools = tool_registry
@@ -379,7 +380,13 @@ class AgentLoop:
         self._tool_approval_queue: queue.Queue[str] = (
             parent_loop._tool_approval_queue if parent_loop else queue.Queue(maxsize=1)
         )
-        self._always_allow_scripts: bool = parent_loop._always_allow_scripts if parent_loop else False
+        # "Always Allow" must survive the whole conversation, but a new
+        # AgentLoop is created for every message. The flag therefore lives
+        # in a shared holder owned by the session controller (and shared
+        # with subagents via parent_loop).
+        self._approval_state: dict[str, bool] = (
+            parent_loop._approval_state if parent_loop else (approval_state or {"always_allow": False})
+        )
         self.plan_mode = False
         # Hard turn cap for the normal loop. Subagents lower this to
         # config.subagent_turn_limit (see SubagentRunner.run_task) so the
@@ -1271,13 +1278,23 @@ class AgentLoop:
         """Yield an approval request and wait for the user decision.
 
         Returns True if approved, False if denied.
-        Handles 'allow_all' to skip future approval prompts for this session.
+        Handles 'allow_all' to skip future approval prompts for the whole
+        conversation (and honors config.allow_unsafe_commands as a blanket
+        always-allow).
         """
         log_debug(f"_wait_for_approval: {tc.name}")
 
-        # Skip prompt if user previously chose "Always Allow"
-        if self._always_allow_scripts:
-            log_debug("Approval skipped — always-allow is active for this session")
+        # "Allow unsafe commands" (Settings → Behavior) = blanket
+        # always-allow: no approval prompts at all.
+        if getattr(self.config, "allow_unsafe_commands", False):
+            log_debug("Approval skipped — allow_unsafe_commands is enabled")
+            return True
+
+        # Skip prompt if the user previously chose "Always Allow" in this
+        # conversation (shared holder — survives across messages and
+        # subagents).
+        if self._approval_state.get("always_allow"):
+            log_debug("Approval skipped — always-allow is active for this conversation")
             return True
 
         args_str = json.dumps(tc.arguments, indent=2)
@@ -1290,7 +1307,7 @@ class AgentLoop:
         log_debug(f"Approval decision for {tc.name}: {decision}")
 
         if decision == "allow_all":
-            self._always_allow_scripts = True
+            self._approval_state["always_allow"] = True
             return True
         # Accept both "allow" and "y" as approval
         if decision in ("allow", "y"):

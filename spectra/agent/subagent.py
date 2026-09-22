@@ -130,10 +130,6 @@ class SubagentRunner:
             if event.type.value == "text_done" and event.text:
                 final_text = event.text
 
-        # Sync "always allow" flag back to parent
-        if self._parent_loop and loop._always_allow_scripts:
-            self._parent_loop._always_allow_scripts = True
-
         log_info(f"Subagent finished: {len(final_text)} chars output")
         return final_text
 
@@ -181,10 +177,6 @@ class SubagentRunner:
         if kb is None:
             kb = KnowledgeBase(user_goal=user_goal)
             log_debug("Subagent exploration: no knowledge base returned, using empty")
-
-        # Sync "always allow" flag back to parent
-        if self._parent_loop and loop._always_allow_scripts:
-            self._parent_loop._always_allow_scripts = True
 
         log_info(
             f"Subagent exploration finished: "

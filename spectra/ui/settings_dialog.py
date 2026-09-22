@@ -1111,7 +1111,9 @@ class SettingsDialog(QDialog):
                 return
 
         self._config.provider.name = self._provider_combo.currentText()
-        self._config.provider.model = self._get_selected_model_id()
+        # Never wipe the model on an empty combo (e.g. fetch failed and the
+        # user didn't type) — keep the previously saved one.
+        self._config.provider.model = self._get_selected_model_id() or self._config.provider.model
         # ONLY save what the user explicitly typed — never save auto-resolved OAuth tokens
         self._config.provider.api_key = self._api_key_edit.text().strip()
         self._config.provider.api_base = self._api_base_edit.text().strip()
@@ -1195,10 +1197,29 @@ class SettingsDialog(QDialog):
 
                 traceback.print_exc()
 
-        # Apply new tab settings
-        self._skills_tab.apply_to_config(self._config)
-        self._mcp_tab.apply_to_config(self._config)
-        self._profiles_tab.apply_to_config(self._config)
+        # Apply new tab settings. A failure in one tab must not silently
+        # discard the whole dialog — log it and keep going.
+        for tab_attr in ("_skills_tab", "_mcp_tab", "_profiles_tab"):
+            try:
+                getattr(self, tab_attr).apply_to_config(self._config)
+            except Exception as e:
+                log_error(f"{tab_attr}.apply_to_config failed: {e}")
+
+        # Save here, inside the dialog, so a failure is VISIBLE instead of
+        # silently swallowed by the caller. Keep the dialog open so the user
+        # can fix the cause and click OK again.
+        try:
+            self._config.save(password=self.encryption_password)
+        except Exception as e:
+            log_error(f"Failed to save settings: {e}")
+            from .qt_compat import QMessageBox
+
+            QMessageBox.warning(
+                self,
+                "Save failed",
+                f"Could not save settings:\n{e}\n\nChanges are applied for this session only.",
+            )
+            return
 
         self.accept()
 

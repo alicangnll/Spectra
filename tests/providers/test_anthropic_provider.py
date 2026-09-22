@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import types
 import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -353,6 +354,101 @@ class TestFetchModelsLiveDefensive(unittest.TestCase):
     def test_garbage_body_custom_base_returns_empty(self):
         p = self._provider_with_body("<html>login page</html>", api_base="https://api.z.ai/api/anthropic")
         self.assertEqual(p._fetch_models_live(), [])
+
+
+class TestStreamStallHandling(unittest.TestCase):
+    """z.ai-style stalls: read timeouts and empty 200 streams must surface
+    as RETRYABLE errors so the agent loop shows "Retrying..." instead of
+    hanging on "Thinking..." forever (or vanishing with no output)."""
+
+    def setUp(self):
+        # The SDK isn't installed in the test venv — stub the error classes
+        # _handle_api_error dispatches on.
+        mod = types.ModuleType("anthropic")
+
+        class _Base(Exception):
+            pass
+
+        mod.AuthenticationError = type("AuthenticationError", (_Base,), {})
+        mod.RateLimitError = type("RateLimitError", (_Base,), {})
+        mod.BadRequestError = type("BadRequestError", (_Base,), {})
+        mod.APIConnectionError = type("APIConnectionError", (_Base,), {})
+        # Real SDK: APITimeoutError subclasses APIConnectionError
+        mod.APITimeoutError = type("APITimeoutError", (mod.APIConnectionError,), {})
+
+        self._prev = sys.modules.get("anthropic")
+        sys.modules["anthropic"] = mod
+        self._anthropic = mod
+
+    def tearDown(self):
+        if self._prev is None:
+            sys.modules.pop("anthropic", None)
+        else:
+            sys.modules["anthropic"] = self._prev
+
+    def test_timeout_maps_to_retryable_provider_error(self):
+        from spectra.core.errors import ProviderError
+
+        p = _make_provider()
+        with self.assertRaises(ProviderError) as ctx:
+            p._handle_api_error(self._anthropic.APITimeoutError("request timed out"))
+        self.assertTrue(ctx.exception.retryable)
+
+    def test_connection_error_maps_to_retryable(self):
+        from spectra.core.errors import ProviderError
+
+        p = _make_provider()
+        with self.assertRaises(ProviderError) as ctx:
+            p._handle_api_error(self._anthropic.APIConnectionError("connection reset"))
+        self.assertTrue(ctx.exception.retryable)
+
+    def test_spectra_error_passes_through_unchanged(self):
+        from spectra.core.errors import ProviderError
+
+        p = _make_provider()
+        original = ProviderError("empty response from API", provider="anthropic", retryable=True)
+        with self.assertRaises(ProviderError) as ctx:
+            p._handle_api_error(original)
+        self.assertIs(ctx.exception, original)
+
+    def test_empty_stream_raises_retryable(self):
+        from spectra.core.errors import ProviderError
+
+        p = _make_provider()
+
+        class _EmptyStream:
+            def __enter__(self):
+                return iter([])
+
+            def __exit__(self, *args):
+                return False
+
+        client = SimpleNamespace(messages=SimpleNamespace(stream=lambda **kw: _EmptyStream()))
+        with self.assertRaises(ProviderError) as ctx:
+            list(p._stream_chunks(client, {"model": "m"}))
+        self.assertTrue(ctx.exception.retryable)
+
+    def test_stream_with_events_does_not_raise(self):
+        p = _make_provider()
+
+        class _OkStream:
+            def __enter__(self):
+                return iter(
+                    [
+                        SimpleNamespace(
+                            type="message_start",
+                            message=SimpleNamespace(usage=SimpleNamespace(input_tokens=3)),
+                        )
+                    ]
+                )
+
+            def __exit__(self, *args):
+                return False
+
+        client = SimpleNamespace(messages=SimpleNamespace(stream=lambda **kw: _OkStream()))
+        chunks = list(p._stream_chunks(client, {"model": "m"}))
+        self.assertEqual(len(chunks), 1)
+        self.assertEqual(chunks[0].usage.prompt_tokens, 3)
 
 
 if __name__ == "__main__":

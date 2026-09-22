@@ -1203,7 +1203,9 @@ class SpectraPanelCore(QWidget):
             )
             result = qt_run(dlg)
             if result:
-                self._config.save(password=dlg.encryption_password)
+                # The dialog itself saves on accept (with a visible error
+                # box on failure) — saving again here would duplicate the
+                # write and re-introduce the silent-failure path.
                 self._ctrl.update_settings()
                 self._ctrl.reload_mcp()
                 if self._context_bar is not None:

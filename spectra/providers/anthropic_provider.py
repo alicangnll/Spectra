@@ -15,6 +15,7 @@ from ..core.errors import (
     ContextLengthError,
     ProviderError,
     RateLimitError,
+    SpectraError,
 )
 from ..core.logging import log_debug, log_error
 from ..core.types import (
@@ -166,12 +167,22 @@ class AnthropicProvider(LLMProvider):
             kwargs: dict[str, Any] = {}
             if self.api_base:
                 kwargs["base_url"] = self.api_base
-            # Increased timeout for large responses when analyzing many files
-            # Use environment variable SPECTRA_API_TIMEOUT to override (in seconds)
+            # Timeout budget: connect fast, allow long thinking, but detect
+            # a stalled stream. httpx's read timeout is the max gap BETWEEN
+            # received bytes — thinking models stream deltas continuously, so
+            # 120s of total silence means the connection is dead (proxy
+            # accepted the request then hung). Without this the old flat
+            # 600s timeout left the UI on "Thinking..." for 10 minutes.
             import os
 
-            timeout = float(os.environ.get("SPECTRA_API_TIMEOUT", "600"))
-            kwargs["timeout"] = timeout  # Default 10min (was 2min)
+            import httpx
+
+            connect_t = float(os.environ.get("SPECTRA_CONNECT_TIMEOUT", "15"))
+            read_t = min(
+                float(os.environ.get("SPECTRA_API_TIMEOUT", "600")),
+                float(os.environ.get("SPECTRA_READ_TIMEOUT", "120")),
+            )
+            kwargs["timeout"] = httpx.Timeout(connect=connect_t, read=read_t, write=30.0, pool=connect_t)
             if self._auth_type == "oauth":
                 kwargs["auth_token"] = self.api_key
                 kwargs["default_headers"] = {
@@ -425,11 +436,30 @@ class AnthropicProvider(LLMProvider):
 
     def _handle_api_error(self, e: Exception) -> NoReturn:
         """Raise the appropriate Spectra error from an Anthropic API error."""
+        # Already-mapped Spectra errors (e.g. the empty-stream retry below)
+        # pass through unchanged — don't flatten them into a generic error.
+        if isinstance(e, SpectraError):
+            raise e
         try:
             anthropic = importlib.import_module("anthropic")
         except ImportError:
             raise ProviderError(str(e), provider="anthropic") from e
 
+        # Timeouts / dropped connections are transient — mark retryable so
+        # the agent loop retries with a visible "Retrying..." event instead
+        # of surfacing a hard error after a long silent hang.
+        if isinstance(e, getattr(anthropic, "APITimeoutError", ())):
+            raise ProviderError(
+                "request timed out — the API stopped sending data",
+                provider="anthropic",
+                retryable=True,
+            ) from e
+        if isinstance(e, getattr(anthropic, "APIConnectionError", ())):
+            raise ProviderError(
+                f"connection error: {e}",
+                provider="anthropic",
+                retryable=True,
+            ) from e
         if isinstance(e, anthropic.AuthenticationError):
             raise AuthenticationError(provider="anthropic") from e
         if isinstance(e, anthropic.RateLimitError):
@@ -534,8 +564,10 @@ class AnthropicProvider(LLMProvider):
                 tool_args_buf = ""
 
                 in_thinking = False
+                received_any_event = False
 
                 for event in stream:
+                    received_any_event = True
                     etype = event.type
 
                     if etype == "content_block_start":
@@ -612,6 +644,18 @@ class AnthropicProvider(LLMProvider):
                                     cache_creation_tokens=getattr(msg.usage, "cache_creation_input_tokens", 0) or 0,
                                 )
                             )
+
+                if not received_any_event:
+                    # 200 + non-SSE body (z.ai-style error wrapper) or an
+                    # instant clean close: without this, the turn vanishes
+                    # with no output and no retry — the UI just sits on
+                    # "Thinking...". Treat it as a transient failure so the
+                    # agent loop's retry logic kicks in visibly.
+                    raise ProviderError(
+                        "empty response from API (stream closed without any events)",
+                        provider="anthropic",
+                        retryable=True,
+                    )
 
         except Exception as e:
             log_error(f"AnthropicProvider.chat_stream error: {e}")

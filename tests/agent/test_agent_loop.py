@@ -297,6 +297,64 @@ class TestAgentLoop(unittest.TestCase):
             next(gate)
         self.assertTrue(done.exception.value)
 
+    def test_allow_all_persists_across_loops_via_shared_state(self):
+        # "Always Allow" must survive the whole conversation: each message
+        # creates a fresh AgentLoop, so the flag lives in a shared holder
+        # owned by the session controller.
+        provider1 = MockProvider()
+        loop1 = self._make_loop(provider1)
+        state = loop1._approval_state
+
+        tc = ToolCall(id="c1", name="execute_python", arguments={"code": "x=1"})
+        gate = loop1._wait_for_approval(tc)
+        next(gate)  # approval request emitted
+        loop1.submit_tool_approval("allow_all")
+        with self.assertRaises(StopIteration) as done:
+            next(gate)
+        self.assertTrue(done.exception.value)
+        self.assertTrue(state["always_allow"])
+
+        # Fresh loop for the NEXT message, same conversation (same holder):
+        # the gate must auto-approve without emitting a request event.
+        config2 = SpectraConfig()
+        config2.auto_context = False
+        loop2 = AgentLoop(
+            MockProvider(),
+            ToolRegistry(),
+            config2,
+            SessionState(provider_name="mock", model_name="mock-model"),
+            approval_state=state,
+        )
+        gate2 = loop2._wait_for_approval(tc)
+        with self.assertRaises(StopIteration) as done2:
+            next(gate2)
+        self.assertTrue(done2.exception.value)
+
+    def test_subagent_inherits_parent_approval_state(self):
+        provider = MockProvider()
+        parent = self._make_loop(provider)
+        parent._approval_state["always_allow"] = True
+        child = AgentLoop(
+            provider,
+            ToolRegistry(),
+            parent.config,
+            SessionState(provider_name="mock", model_name="mock-model"),
+            parent_loop=parent,
+        )
+        self.assertIs(child._approval_state, parent._approval_state)
+
+    def test_allow_unsafe_commands_skips_approval_entirely(self):
+        # "Allow unsafe commands" = blanket always-allow: no prompt at all.
+        provider = MockProvider()
+        loop = self._make_loop(provider)
+        loop.config.allow_unsafe_commands = True
+
+        tc = ToolCall(id="c2", name="execute_python", arguments={"code": "x=1"})
+        gate = loop._wait_for_approval(tc)
+        with self.assertRaises(StopIteration) as done:
+            next(gate)  # returns True immediately, no TOOL_APPROVAL_REQUEST
+        self.assertTrue(done.exception.value)
+
 
 class TestMaxTokensTruncationWarning(unittest.TestCase):
     """Regression: a stream that ends with finish_reason=max_tokens/length

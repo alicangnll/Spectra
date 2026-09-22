@@ -71,6 +71,10 @@ class SessionControllerBase:
         # Per-tab agent runners - each tab can run its own agent independently
         self._runners: dict[str, BackgroundAgentRunner] = {}
         self._pending_messages: dict[str, list[str]] = {}
+        # Per-tab "Always Allow" holders — a new AgentLoop is created per
+        # message, so the flag must live outside the loop to survive the
+        # whole conversation.
+        self._approval_states: dict[str, dict[str, bool]] = {}
 
         # Create initial session
         tab_id = self._create_session()
@@ -215,8 +219,9 @@ class SessionControllerBase:
         # NOTE: We do NOT save the session on close to prevent tab persistence
         # User explicitly closed the tab, so we don't want it to persist
         del self._sessions[tab_id]
-        # Clean up queue for this tab
+        # Clean up queue and approval state for this tab
         self._pending_messages.pop(tab_id, None)
+        self._approval_states.pop(tab_id, None)
         # Clean up runner for this tab
         runner = self._runners.pop(tab_id, None)
         if runner:
@@ -362,6 +367,7 @@ class SessionControllerBase:
             self._sessions[self._active_tab_id],
             skill_registry=self._skill_registry,
             host_name=self.host_name,
+            approval_state=self._approval_states.setdefault(self._active_tab_id, {"always_allow": False}),
         )
         runner = BackgroundAgentRunner(loop)
         runner.start(user_message)
@@ -485,6 +491,7 @@ class SessionControllerBase:
                     log_error(f"Failed to save session {tab_id} on file change: {e}")
         self._sessions.clear()
         self._pending_messages.clear()
+        self._approval_states.clear()
         self._idb_path = _normalize_db_path(new_idb_path)
         self._db_instance_id = self._ensure_db_instance_id()
         tab_id = self._create_session()
